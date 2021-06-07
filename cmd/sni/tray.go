@@ -25,7 +25,7 @@ func trayStart() {
 	//systray.SetTemplateIcon(icon.Data, icon.Data)
 	//systray.SetTitle("SNI")
 	systray.SetTooltip("SNI")
-	mOpenWeb := systray.AddMenuItem("Web UI", "Opens the web UI in the default browser")
+	//mOpenWeb := systray.AddMenuItem("Web UI", "Opens the web UI in the default browser")
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit", "Quit")
 
@@ -33,9 +33,6 @@ func trayStart() {
 	go func() {
 		for {
 			select {
-			case <-mOpenWeb.ClickedCh:
-				openWebUI()
-				break
 			case <-mQuit.ClickedCh:
 				fmt.Println("Requesting quit")
 				systray.Quit()
@@ -43,7 +40,4 @@ func trayStart() {
 			}
 		}
 	}()
-
-	// Open web UI by default:
-	openWebUI()
 }

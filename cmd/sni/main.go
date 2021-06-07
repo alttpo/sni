@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/skratchdot/open-golang/open"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 	"io"
 	"log"
 	"net"
 	"os"
 	"path/filepath"
+	"sni/protos/sni"
 	"sni/util/env"
 	"strconv"
 	"strings"
@@ -31,19 +33,10 @@ var (
 )
 
 var (
-	listenHost  string // hostname/ip to listen on for webserver
-	listenPort  int    // port number to listen on for webserver
-	browserHost string // hostname to send as part of URL to browser to connect to webserver
-	browserUrl  string // full URL that is sent to browser (composed of browserHost:listenPort)
-	logPath     string
+	listenHost string // hostname/ip to listen on for webserver
+	listenPort int    // port number to listen on for webserver
+	logPath    string
 )
-
-func orElse(a, b string) string {
-	if a == "" {
-		return b
-	}
-	return a
-}
 
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.LUTC)
@@ -67,35 +60,34 @@ func main() {
 	var err error
 
 	// Parse env vars:
-	listenHost = env.GetOrDefault("SNI_WEB_LISTEN_HOST", "0.0.0.0")
+	listenHost = env.GetOrDefault("SNI_GRPC_LISTEN_HOST", "0.0.0.0")
 
-	listenPort, err = strconv.Atoi(env.GetOrDefault("SNI_WEB_LISTEN_PORT", "27637"))
+	listenPort, err = strconv.Atoi(env.GetOrDefault("SNI_GRPC_LISTEN_PORT", "8191"))
 	if err != nil {
-		listenPort = 27637
+		listenPort = 8191
 	}
 	if listenPort <= 0 {
-		listenPort = 27637
+		listenPort = 8191
 	}
 	listenAddr := net.JoinHostPort(listenHost, strconv.Itoa(listenPort))
 
-	browserHost = env.GetOrDefault("SNI_WEB_BROWSER_HOST", "127.0.0.1")
-	browserUrl = fmt.Sprintf("http://%s:%d/", browserHost, listenPort)
+	lis, err := net.Listen("tcp", listenAddr)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
 
-	// construct our web server:
-	webServer := NewWebServer(listenAddr)
+	// start gRPC server:
+	_ = listenAddr
+	s := grpc.NewServer()
+	sni.RegisterDevicesServiceServer(s, &devicesService{})
+	reflection.Register(s)
 
-	// start the web server:
 	go func() {
-		log.Fatal(webServer.Serve())
+		if err := s.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
 	}()
 
-	// start up a systray app (or just open web UI):
+	// start up a systray handler if possible:
 	createSystray()
-}
-
-func openWebUI() {
-	err := open.Start(browserUrl)
-	if err != nil {
-		log.Println(err)
-	}
 }

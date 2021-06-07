@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+option go_package = "github.com/alttpo/sni/protos/sni";
+
+service DevicesService {
+  rpc ListDevices(DevicesRequest) returns (DevicesResponse) {}
+  rpc ReadMemory(ReadMemoryRequest) returns (ReadMemoryResponse) {}
+  rpc WriteMemory(WriteMemoryRequest) returns (WriteMemoryResponse) {}
+}
+
+// capabilities of a SNES device [32-bit bit field]
+enum DeviceCapability {
+  NONE = 0x00;
+  READ = 0x01; // can read
+  WRITE = 0x02; // can write
+  EXEC_ASM = 0x04; // can execute custom ASM
+  RESET = 0x08; // can reset system
+  PAUSE = 0x10; // can pause emulation
+  // TODO: capabilities for dealing with ROMs on filesystems: upload, download, mkdir, ls, boot, etc.
+}
+message DevicesRequest {
+  // optional list of device kind filters
+  repeated string kinds = 1;
+}
+message DevicesResponse {
+  message Device {
+    // a URI that describes exactly how to connect to the device, e.g. udp://localhost:55355 for RetroArch, file://dev/usb.ttyS0, file://COM4
+    // this can also be used as a unique identifier for the device for clients to refer to
+    string uri = 1;
+    // friendly display name of the device
+    string displayName = 2;
+    // device kind, e.g. "fxpakpro", "retroarch", "lua"
+    string kind = 3;
+    // version of the device's firmware or software depending on device kind, e.g. "1.9.2" for "retroarch", "1.10.3" for "fxpakpro"
+    string version = 4;
+    // use DeviceCapability enum as bit field, ORing values together
+    int32 capabilities = 5;
+  }
+
+  repeated Device devices = 1;
+}
+
+message ReadMemoryRequest {
+  string uri = 1;
+  uint32 address = 2;
+  uint32 size = 3;
+}
+message ReadMemoryResponse {
+  string uri = 1;
+  optional bool success = 2;
+  optional string error = 3;
+  bytes data = 4;
+}
+
+message WriteMemoryRequest {
+  string uri = 1;
+  uint32 address = 2;
+  bytes data = 3;
+}
+message WriteMemoryResponse {
+  string uri = 1;
+  optional bool success = 2;
+  optional string error = 3;
+}

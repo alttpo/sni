@@ -5,8 +5,7 @@ import (
 )
 
 func createSystray() {
-	// just open the browser UI on startup:
-	openWebUI()
+	// Nothing to do here
 }
 
 func quitSystray() {
