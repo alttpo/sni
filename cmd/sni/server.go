@@ -18,8 +18,26 @@ type devicesService struct {
 }
 
 func (s *devicesService) ListDevices(ctx context.Context, request *sni.DevicesRequest) (*sni.DevicesResponse, error) {
+	var kindPredicate func(kind string) bool
+	if request.GetKinds() == nil {
+		kindPredicate = func(kind string) bool { return true }
+	} else {
+		kindPredicate = func(kind string) bool {
+			for _, k := range request.GetKinds() {
+				if kind == k {
+					return true
+				}
+			}
+			return false
+		}
+	}
+
 	devices := make([]*sni.DevicesResponse_Device, 0, 10)
 	for _, driver := range snes.Drivers() {
+		if !kindPredicate(driver.Name) {
+			continue
+		}
+
 		descriptors, err := driver.Driver.Detect()
 		if err != nil {
 			return nil, err
