@@ -58,8 +58,72 @@ func (s *devicesService) ListDevices(ctx context.Context, request *sni.DevicesRe
 	return &sni.DevicesResponse{Devices: devices}, nil
 }
 
-func (s *devicesService) ReadMemory(ctx context.Context, request *sni.ReadMemoryRequest) (*sni.ReadMemoryResponse, error) {
-	panic("implement me")
+func makeBool(v bool) *bool {
+	return &v
+}
+
+func (s *devicesService) ReadMemory(ctx context.Context, request *sni.ReadMemoryRequest) (rsp *sni.ReadMemoryResponse, err error) {
+	var dev snes.Queue
+	dev, err = s.AcquireDevice(request.Uri)
+	if err != nil {
+		return
+	}
+
+	complete := make(chan struct{})
+
+	addr := request.GetAddress()
+	size := request.GetSize()
+	reads := make([]snes.Read, 0, 8)
+	data := make([]byte, 0, size)
+	for size > 0 {
+		chunkSize := uint32(255)
+		if size < chunkSize {
+			chunkSize = size
+		}
+
+		reads = append(reads, snes.Read{
+			Address:    addr,
+			Size:       uint8(chunkSize),
+			Extra:      nil,
+			Completion: func(response snes.Response) {
+				data = append(data, response.Data...)
+			},
+		})
+
+		size -= 255
+		addr += 255
+	}
+
+	seq := dev.MakeReadCommands(reads, func(command snes.Command, cmderr error) {
+		err = cmderr
+		close(complete)
+	})
+	// enqueue the read:
+	err = seq.EnqueueTo(dev)
+	if err != nil {
+		return
+	}
+
+	// wait until canceled or read completed:
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-complete:
+		break
+	}
+
+	// err could be assigned from batchComplete callback:
+	if err != nil {
+		return
+	}
+
+	rsp = &sni.ReadMemoryResponse{
+		Uri:     request.Uri,
+		Success: makeBool(true),
+		Error:   nil,
+		Data:    data,
+	}
+	return
 }
 
 func (s *devicesService) WriteMemory(ctx context.Context, request *sni.WriteMemoryRequest) (*sni.WriteMemoryResponse, error) {
