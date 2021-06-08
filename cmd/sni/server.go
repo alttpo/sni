@@ -69,7 +69,7 @@ func (s *devicesService) ReadMemory(ctx context.Context, request *sni.ReadMemory
 		return
 	}
 
-	complete := make(chan struct{})
+	complete := make(chan error)
 
 	addr := request.GetAddress()
 	size := int32(request.GetSize())
@@ -95,7 +95,7 @@ func (s *devicesService) ReadMemory(ctx context.Context, request *sni.ReadMemory
 	}
 
 	seq := dev.MakeReadCommands(reads, func(command snes.Command, cmderr error) {
-		err = cmderr
+		complete <- cmderr
 		close(complete)
 	})
 	// enqueue the read:
@@ -108,13 +108,11 @@ func (s *devicesService) ReadMemory(ctx context.Context, request *sni.ReadMemory
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
-	case <-complete:
+	case err = <-complete:
+		if err != nil {
+			return
+		}
 		break
-	}
-
-	// err could be assigned from batchComplete callback:
-	if err != nil {
-		return
 	}
 
 	rsp = &sni.ReadMemoryResponse{
