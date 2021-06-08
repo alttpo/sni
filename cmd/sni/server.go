@@ -131,7 +131,6 @@ func (s *devicesService) WriteMemory(ctx context.Context, request *sni.WriteMemo
 }
 
 func (s *devicesService) AcquireDevice(uri string) (dev snes.Queue, err error) {
-
 	var ok bool
 	s.devicesRw.RLock()
 	dev, ok = s.devices[uri]
@@ -161,6 +160,9 @@ func (s *devicesService) AcquireDevice(uri string) (dev snes.Queue, err error) {
 	}
 
 	s.devicesRw.Lock()
+	if s.devices == nil {
+		s.devices = make(map[string]snes.Queue)
+	}
 	s.devices[uri] = dev
 	s.devicesRw.Unlock()
 	return
