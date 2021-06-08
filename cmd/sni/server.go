@@ -44,7 +44,7 @@ func (s *devicesService) ListDevices(ctx context.Context, request *sni.DevicesRe
 		}
 		for _, descriptor := range descriptors {
 			devices = append(devices, &sni.DevicesResponse_Device{
-				Uri:         fmt.Sprintf("%s://%s", driver.Name, descriptor.GetId()),
+				Uri:         fmt.Sprintf("%s:%s", driver.Name, descriptor.GetId()),
 				DisplayName: descriptor.GetDisplayName(),
 				Kind:        driver.Name,
 				// TODO: get device version from descriptor:
