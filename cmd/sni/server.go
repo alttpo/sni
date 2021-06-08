@@ -13,7 +13,7 @@ type devicesService struct {
 	sni.UnimplementedDevicesServiceServer
 
 	// track opened devices by URI
-	devicesRw sync.Mutex
+	devicesRw sync.RWMutex
 	devices   map[string]snes.Queue
 }
 
@@ -54,6 +54,7 @@ func (s *devicesService) ListDevices(ctx context.Context, request *sni.DevicesRe
 			})
 		}
 	}
+
 	return &sni.DevicesResponse{Devices: devices}, nil
 }
 
@@ -62,15 +63,15 @@ func (s *devicesService) ReadMemory(ctx context.Context, request *sni.ReadMemory
 }
 
 func (s *devicesService) WriteMemory(ctx context.Context, request *sni.WriteMemoryRequest) (*sni.WriteMemoryResponse, error) {
-	panic("implement me")
+	return nil, fmt.Errorf("unimplemented")
 }
 
 func (s *devicesService) AcquireDevice(uri string) (dev snes.Queue, err error) {
-	defer s.devicesRw.Unlock()
-	s.devicesRw.Lock()
 
 	var ok bool
+	s.devicesRw.RLock()
 	dev, ok = s.devices[uri]
+	s.devicesRw.RUnlock()
 	if ok {
 		return
 	}
@@ -95,6 +96,8 @@ func (s *devicesService) AcquireDevice(uri string) (dev snes.Queue, err error) {
 		return
 	}
 
+	s.devicesRw.Lock()
 	s.devices[uri] = dev
+	s.devicesRw.Unlock()
 	return
 }
