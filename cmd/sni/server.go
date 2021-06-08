@@ -72,11 +72,11 @@ func (s *devicesService) ReadMemory(ctx context.Context, request *sni.ReadMemory
 	complete := make(chan struct{})
 
 	addr := request.GetAddress()
-	size := request.GetSize()
+	size := int32(request.GetSize())
 	reads := make([]snes.Read, 0, 8)
 	data := make([]byte, 0, size)
 	for size > 0 {
-		chunkSize := uint32(255)
+		chunkSize := int32(255)
 		if size < chunkSize {
 			chunkSize = size
 		}
