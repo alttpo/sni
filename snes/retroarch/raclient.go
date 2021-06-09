@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+const readWriteTimeout = time.Second * 5
+
 type RAClient struct {
 	udpclient.UDPClient
 
@@ -21,13 +23,21 @@ type RAClient struct {
 	useRCR  bool
 }
 
+func NewRAClient(addr *net.UDPAddr, name string) *RAClient {
+	c := &RAClient{
+		addr: addr,
+	}
+	udpclient.MakeUDPClient(name, &c.UDPClient)
+	return c
+}
+
 func (c *RAClient) GetId() string {
 	return c.addr.String()
 }
 
 func (c *RAClient) Version() (err error) {
 	var rsp []byte
-	rsp, err = c.WriteThenReadTimeout([]byte("VERSION\n"), time.Second*5)
+	rsp, err = c.WriteThenReadTimeout([]byte("VERSION\n"), readWriteTimeout)
 	if err != nil {
 		return
 	}
@@ -91,17 +101,7 @@ func (c *RAClient) ReadMemory(busAddr uint32, size uint8) (data []byte, err erro
 	reqStr := sb.String()
 	var rsp []byte
 
-	defer func() {
-		c.Unlock()
-	}()
-	c.Lock()
-
-	err = c.WriteTimeout([]byte(reqStr), time.Second*5)
-	if err != nil {
-		return
-	}
-
-	rsp, err = c.ReadTimeout(time.Second * 5)
+	rsp, err = c.WriteThenReadTimeout([]byte(reqStr), readWriteTimeout)
 	if err != nil {
 		return
 	}
@@ -143,7 +143,7 @@ func (c *RAClient) ReadMemoryBatch(batch []snes.Read, keepAlive snes.KeepAlive) 
 	c.Lock()
 
 	// send all commands up front in one packet:
-	err = c.WriteTimeout([]byte(reqStr), time.Second*5)
+	err = c.WriteTimeout([]byte(reqStr), readWriteTimeout)
 	if err != nil {
 		return
 	}
@@ -159,7 +159,7 @@ func (c *RAClient) ReadMemoryBatch(batch []snes.Read, keepAlive snes.KeepAlive) 
 			continue
 		}
 
-		rsp, err = c.ReadTimeout(time.Second * 5)
+		rsp, err = c.ReadTimeout(readWriteTimeout)
 		if err != nil {
 			return
 		}
@@ -248,7 +248,7 @@ func (c *RAClient) WriteMemoryBatch(batch []snes.Write, keepAlive snes.KeepAlive
 		reqStr := sb.String()
 
 		log.Printf("retroarch: > %s", reqStr)
-		err = c.WriteTimeout([]byte(reqStr), time.Second*5)
+		err = c.WriteTimeout([]byte(reqStr), readWriteTimeout)
 		if err != nil {
 			return
 		}
@@ -263,7 +263,7 @@ func (c *RAClient) WriteMemoryBatch(batch []snes.Write, keepAlive snes.KeepAlive
 
 			// expect a response from WRITE_CORE_MEMORY
 			var rsp []byte
-			rsp, err = c.ReadTimeout(time.Second * 5)
+			rsp, err = c.ReadTimeout(readWriteTimeout)
 			if err != nil {
 				return
 			}

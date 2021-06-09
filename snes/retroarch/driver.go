@@ -5,7 +5,6 @@ import (
 	"log"
 	"net"
 	"sni/snes"
-	"sni/udpclient"
 	"sni/util"
 	"sni/util/env"
 	"strings"
@@ -17,6 +16,7 @@ var logDetector = false
 
 type Driver struct {
 	detectors []*RAClient
+	addresses []*net.UDPAddr
 
 	devices []snes.DeviceDescriptor
 	opened  *Queue
@@ -24,14 +24,13 @@ type Driver struct {
 
 func NewDriver(addresses []*net.UDPAddr) *Driver {
 	d := &Driver{
+		addresses: addresses,
 		detectors: make([]*RAClient, len(addresses)),
 	}
 
 	for i, addr := range addresses {
-		c := &RAClient{}
+		c := NewRAClient(addr, fmt.Sprintf("retroarch[%d]", i))
 		d.detectors[i] = c
-		udpclient.MakeUDPClient(fmt.Sprintf("retroarch[%d]", i), &c.UDPClient)
-		c.addr = addr
 	}
 
 	return d
@@ -55,17 +54,27 @@ func (d *Driver) Open(desc snes.DeviceDescriptor) (q snes.Queue, err error) {
 		return nil, fmt.Errorf("retroarch: open: descriptor is not of expected type")
 	}
 
-	// find detector with same id:
-	var c *RAClient
-	for _, detector := range d.detectors {
-		if descriptor.GetId() == detector.GetId() {
-			c = detector
-			break
-		}
+	// create a new device with its own connection:
+	var addr *net.UDPAddr
+	addr, err = net.ResolveUDPAddr("udp", descriptor.GetId())
+	if err != nil {
+		return
 	}
 
-	if c == nil {
-		return nil, fmt.Errorf("retroarch: open: could not find socket by device='%s'\n", descriptor.GetId())
+	var c *RAClient
+	c = NewRAClient(addr, addr.String())
+	err = c.Connect(addr)
+	if err != nil {
+		return
+	}
+
+	// if we already detected the version, copy it in:
+	for _, detector := range d.detectors {
+		if descriptor.GetId() == detector.GetId() {
+			c.version = detector.version
+			c.useRCR = detector.useRCR
+			break
+		}
 	}
 
 	// fill back in the addr for the descriptor:
@@ -78,23 +87,10 @@ func (d *Driver) Open(desc snes.DeviceDescriptor) (q snes.Queue, err error) {
 
 	q = qu
 
-	// record that this device is opened:
-	d.opened = qu
-	go func() {
-		<-q.Closed()
-		d.opened = nil
-	}()
-
 	return
 }
 
 func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
-	// stop auto-detection if connected already:
-	if d.opened != nil {
-		devices = d.devices
-		return
-	}
-
 	devices = make([]snes.DeviceDescriptor, 0, len(d.detectors))
 	for i, detector := range d.detectors {
 		detector.MuteLog(true)

@@ -1,10 +1,8 @@
 package retroarch
 
 import (
-	"errors"
 	"fmt"
 	"sni/snes"
-	"sni/udpclient"
 	"sync"
 )
 
@@ -22,12 +20,12 @@ var (
 )
 
 func (q *Queue) IsTerminalError(err error) bool {
-	if errors.Is(err, udpclient.ErrTimeout) {
-		return true
-	}
-	if errors.Is(err, ErrClosed) {
-		return true
-	}
+	//if errors.Is(err, udpclient.ErrTimeout) {
+	//	return true
+	//}
+	//if errors.Is(err, ErrClosed) {
+	//	return true
+	//}
 	return false
 }
 
@@ -39,12 +37,11 @@ func (q *Queue) Close() error {
 	defer q.lock.Unlock()
 	q.lock.Lock()
 
-	// don't close the underlying connection since it is reused for detection.
-
 	if q.c == nil {
 		return nil
 	}
 
+	q.c.Close()
 	q.c = nil
 	close(q.closed)
 

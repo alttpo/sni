@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 	"net/url"
 	"sni/protos/sni"
 	"sni/snes"
@@ -75,6 +78,8 @@ func (s *memoryUnaryService) ReadMemory(ctx context.Context, request *sni.ReadMe
 
 	complete := make(chan error)
 
+	peer.FromContext(ctx)
+
 	addr := request.GetAddress()
 	size := int32(request.GetSize())
 	reads := make([]snes.Read, 0, 8)
@@ -114,7 +119,7 @@ func (s *memoryUnaryService) ReadMemory(ctx context.Context, request *sni.ReadMe
 		return nil, ctx.Err()
 	case err = <-complete:
 		if err != nil {
-			// TODO: handle terminal error
+			err = status.Error(codes.Unavailable, err.Error())
 			return
 		}
 		break
@@ -138,6 +143,7 @@ func (s *memoryUnaryService) AcquireDevice(uri string) (dev snes.Queue, err erro
 	dev, ok = s.devices[uri]
 	s.devicesRw.RUnlock()
 	if ok {
+		// TODO: detect if device is closed and destroy/recreate it if so
 		return
 	}
 

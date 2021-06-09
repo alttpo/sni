@@ -1,7 +1,6 @@
 package udpclient
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -18,24 +17,18 @@ type UDPClient struct {
 	muteLog bool
 
 	isConnected bool
-	read        chan []byte
-	write       chan []byte
 
 	seqLock sync.Mutex
 }
 
 func NewUDPClient(name string) *UDPClient {
 	return &UDPClient{
-		name:  name,
-		read:  make(chan []byte, 64),
-		write: make(chan []byte, 64),
+		name:     name,
 	}
 }
 
 func MakeUDPClient(name string, c *UDPClient) *UDPClient {
 	c.name = name
-	c.read = make(chan []byte, 64)
-	c.write = make(chan []byte, 64)
 	return c
 }
 
@@ -45,35 +38,27 @@ func (c *UDPClient) MuteLog(muted bool) {
 
 func (c *UDPClient) Address() *net.UDPAddr { return c.addr }
 
-func (c *UDPClient) Write() chan<- []byte { return c.write }
-func (c *UDPClient) Read() <-chan []byte  { return c.read }
-
 var ErrTimeout = fmt.Errorf("timeout")
 
-func (c *UDPClient) WriteTimeout(m []byte, d time.Duration) error {
-	timer := time.NewTimer(d)
-
-	select {
-	case c.write <- m:
-		timer.Stop()
-		return nil
-	case <-timer.C:
-		timer.Stop()
-		return fmt.Errorf("%s: writeTimeout: %w\n", c.name, ErrTimeout)
-	}
+func (c *UDPClient) WriteTimeout(m []byte, d time.Duration) (err error) {
+	c.c.SetWriteDeadline(time.Now().Add(d))
+	_, err = c.c.Write(m)
+	return
 }
 
-func (c *UDPClient) ReadTimeout(d time.Duration) ([]byte, error) {
-	timer := time.NewTimer(d)
+func (c *UDPClient) ReadTimeout(d time.Duration) (b []byte, err error) {
+	// wait for a packet from UDP socket:
+	c.c.SetReadDeadline(time.Now().Add(d))
 
-	select {
-	case m := <-c.read:
-		timer.Stop()
-		return m, nil
-	case <-timer.C:
-		timer.Stop()
-		return nil, fmt.Errorf("%s: readTimeout: %w", c.name, ErrTimeout)
+	var n int
+	b = make([]byte, 1500)
+	n, _, err = c.c.ReadFromUDP(b)
+	if err != nil {
+		return
 	}
+
+	b = b[:n]
+	return
 }
 
 func (c *UDPClient) WriteThenReadTimeout(m []byte, d time.Duration) (rsp []byte, err error) {
@@ -126,9 +111,6 @@ func (c *UDPClient) Connect(addr *net.UDPAddr) (err error) {
 	c.isConnected = true
 	c.log("%s: connected to server '%s'\n", c.name, addr)
 
-	go c.readLoop()
-	go c.writeLoop()
-
 	return
 }
 
@@ -140,31 +122,9 @@ func (c *UDPClient) Disconnect() {
 	}
 
 	c.isConnected = false
-	err := c.c.SetReadDeadline(time.Now())
-	if err != nil {
-		c.log("%s: setreaddeadline: %v\n", c.name, err)
-	}
-
-	err = c.c.SetWriteDeadline(time.Now())
-	if err != nil {
-		c.log("%s: setwritedeadline: %v\n", c.name, err)
-	}
-
-	// signal a disconnect took place:
-	c.read <- nil
-	c.write <- nil
-
-	// empty the write channel:
-	for more := true; more; {
-		select {
-		case <-c.write:
-		default:
-			more = false
-		}
-	}
 
 	// close the underlying connection:
-	err = c.c.Close()
+	err := c.Close()
 	if err != nil {
 		c.log("%s: close: %v\n", c.name, err)
 	}
@@ -174,68 +134,15 @@ func (c *UDPClient) Disconnect() {
 	c.c = nil
 }
 
-func (c *UDPClient) Close() {
-	if c.read != nil {
-		close(c.read)
+func (c *UDPClient) Close() error {
+	if c.c == nil {
+		return nil
 	}
-	if c.write != nil {
-		close(c.write)
-	}
-	c.read = nil
-	c.write = nil
+
+	return c.Close()
 }
 
-// must run in a goroutine
-func (c *UDPClient) readLoop() {
-	c.log("%s: readLoop started\n", c.name)
-
-	defer func() {
-		c.Disconnect()
-		c.log("%s: disconnected; readLoop exited\n", c.name)
-	}()
-
-	// we only need a single receive buffer:
-	b := make([]byte, 1500)
-
-	for c.isConnected {
-		// wait for a packet from UDP socket:
-		var n, _, err = c.c.ReadFromUDP(b)
-		if err != nil {
-			if !errors.Is(err, net.ErrClosed) {
-				c.log("%s: read: %s\n", c.name, err)
-			}
-			return
-		}
-
-		// copy the envelope:
-		envelope := make([]byte, n)
-		copy(envelope, b[:n])
-
-		c.read <- envelope
-	}
-}
-
-// must run in a goroutine
-func (c *UDPClient) writeLoop() {
-	c.log("%s: writeLoop started\n", c.name)
-
-	defer func() {
-		c.Disconnect()
-		c.log("%s: disconnected; writeLoop exited\n", c.name)
-	}()
-
-	for w := range c.write {
-		if w == nil {
-			return
-		}
-
-		// wait for a packet from UDP socket:
-		var _, err = c.c.Write(w)
-		if err != nil {
-			if !errors.Is(err, net.ErrClosed) {
-				c.log("%s: write: %s\n", c.name, err)
-			}
-			return
-		}
-	}
+func isTimeoutError(err error) bool {
+	e, ok := err.(net.Error)
+	return ok && e.Timeout()
 }
