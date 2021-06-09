@@ -124,9 +124,9 @@ func (cmd *readCommand) Execute(queue snes.Queue, keepAlive snes.KeepAlive) (err
 	keepAlive <- struct{}{}
 
 	err = c.ReadMemoryBatch(cmd.Batch, keepAlive)
-	if err != nil {
-		_ = q.Close()
-	}
+	//if err != nil {
+	//	_ = q.Close()
+	//}
 
 	return
 }
@@ -152,9 +152,9 @@ func (cmd *writeCommand) Execute(queue snes.Queue, keepAlive snes.KeepAlive) (er
 	keepAlive <- struct{}{}
 
 	err = c.WriteMemoryBatch(cmd.Batch, keepAlive)
-	if err != nil {
-		_ = q.Close()
-	}
+	//if err != nil {
+	//	_ = q.Close()
+	//}
 
 	return
 }
