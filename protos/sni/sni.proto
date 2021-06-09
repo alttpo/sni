@@ -2,10 +2,8 @@ syntax = "proto3";
 
 option go_package = "github.com/alttpo/sni/protos/sni";
 
-service DevicesService {
+service Devices {
   rpc ListDevices(DevicesRequest) returns (DevicesResponse) {}
-  rpc ReadMemory(ReadMemoryRequest) returns (ReadMemoryResponse) {}
-  rpc WriteMemory(WriteMemoryRequest) returns (WriteMemoryResponse) {}
 }
 
 // capabilities of a SNES device [32-bit bit field]
@@ -40,6 +38,11 @@ message DevicesResponse {
   repeated Device devices = 1;
 }
 
+service MemoryUnary {
+  rpc ReadMemory(ReadMemoryRequest) returns (ReadMemoryResponse) {}
+  rpc WriteMemory(WriteMemoryRequest) returns (WriteMemoryResponse) {}
+}
+
 message ReadMemoryRequest {
   string uri = 1;
   uint32 address = 2;
@@ -47,9 +50,8 @@ message ReadMemoryRequest {
 }
 message ReadMemoryResponse {
   string uri = 1;
-  optional bool success = 2;
-  optional string error = 3;
-  bytes data = 4;
+  uint32 address = 2;
+  bytes data = 3;
 }
 
 message WriteMemoryRequest {
@@ -59,6 +61,5 @@ message WriteMemoryRequest {
 }
 message WriteMemoryResponse {
   string uri = 1;
-  optional bool success = 2;
-  optional string error = 3;
+  uint32 address = 2;
 }

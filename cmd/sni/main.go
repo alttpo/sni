@@ -79,7 +79,8 @@ func main() {
 	// start gRPC server:
 	_ = listenAddr
 	s := grpc.NewServer()
-	sni.RegisterDevicesServiceServer(s, &devicesService{})
+	sni.RegisterDevicesServer(s, &devicesService{})
+	sni.RegisterMemoryUnaryServer(s, &memoryUnaryService{})
 	reflection.Register(s)
 
 	go func() {

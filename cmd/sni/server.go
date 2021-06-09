@@ -10,11 +10,7 @@ import (
 )
 
 type devicesService struct {
-	sni.UnimplementedDevicesServiceServer
-
-	// track opened devices by URI
-	devicesRw sync.RWMutex
-	devices   map[string]snes.Queue
+	sni.UnimplementedDevicesServer
 }
 
 func (s *devicesService) ListDevices(ctx context.Context, request *sni.DevicesRequest) (*sni.DevicesResponse, error) {
@@ -58,11 +54,19 @@ func (s *devicesService) ListDevices(ctx context.Context, request *sni.DevicesRe
 	return &sni.DevicesResponse{Devices: devices}, nil
 }
 
+type memoryUnaryService struct {
+	sni.UnimplementedMemoryUnaryServer
+
+	// track opened devices by URI
+	devicesRw sync.RWMutex
+	devices   map[string]snes.Queue
+}
+
 func makeBool(v bool) *bool {
 	return &v
 }
 
-func (s *devicesService) ReadMemory(ctx context.Context, request *sni.ReadMemoryRequest) (rsp *sni.ReadMemoryResponse, err error) {
+func (s *memoryUnaryService) ReadMemory(ctx context.Context, request *sni.ReadMemoryRequest) (rsp *sni.ReadMemoryResponse, err error) {
 	var dev snes.Queue
 	dev, err = s.AcquireDevice(request.Uri)
 	if err != nil {
@@ -110,6 +114,7 @@ func (s *devicesService) ReadMemory(ctx context.Context, request *sni.ReadMemory
 		return nil, ctx.Err()
 	case err = <-complete:
 		if err != nil {
+			// TODO: handle terminal error
 			return
 		}
 		break
@@ -117,18 +122,17 @@ func (s *devicesService) ReadMemory(ctx context.Context, request *sni.ReadMemory
 
 	rsp = &sni.ReadMemoryResponse{
 		Uri:     request.Uri,
-		Success: makeBool(true),
-		Error:   nil,
+		Address: request.Address,
 		Data:    data,
 	}
 	return
 }
 
-func (s *devicesService) WriteMemory(ctx context.Context, request *sni.WriteMemoryRequest) (*sni.WriteMemoryResponse, error) {
+func (s *memoryUnaryService) WriteMemory(ctx context.Context, request *sni.WriteMemoryRequest) (*sni.WriteMemoryResponse, error) {
 	return nil, fmt.Errorf("unimplemented")
 }
 
-func (s *devicesService) AcquireDevice(uri string) (dev snes.Queue, err error) {
+func (s *memoryUnaryService) AcquireDevice(uri string) (dev snes.Queue, err error) {
 	var ok bool
 	s.devicesRw.RLock()
 	dev, ok = s.devices[uri]
