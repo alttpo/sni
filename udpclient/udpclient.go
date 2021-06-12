@@ -65,7 +65,7 @@ func (c *UDPClient) ReadTimeout(d time.Duration) (b []byte, err error) {
 	c.c.SetReadDeadline(time.Now().Add(d))
 
 	var n int
-	b = make([]byte, 1500)
+	b = make([]byte, 65536)
 	n, _, err = c.c.ReadFromUDP(b)
 	if err != nil {
 		b = nil
