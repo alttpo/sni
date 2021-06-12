@@ -44,8 +44,11 @@ func (c *UDPClient) Address() *net.UDPAddr { return c.addr }
 
 var ErrTimeout = fmt.Errorf("timeout")
 
-func (c *UDPClient) WriteTimeout(m []byte, d time.Duration) (err error) {
-	c.c.SetWriteDeadline(time.Now().Add(d))
+func (c *UDPClient) WriteWithDeadline(m []byte, deadline time.Time) (err error) {
+	err = c.c.SetWriteDeadline(deadline)
+	if err != nil {
+		return
+	}
 
 	_, err = c.c.Write(m)
 	if err != nil {
@@ -60,9 +63,12 @@ func (c *UDPClient) WriteTimeout(m []byte, d time.Duration) (err error) {
 	return
 }
 
-func (c *UDPClient) ReadTimeout(d time.Duration) (b []byte, err error) {
+func (c *UDPClient) ReadWithDeadline(deadline time.Time) (b []byte, err error) {
 	// wait for a packet from UDP socket:
-	c.c.SetReadDeadline(time.Now().Add(d))
+	err = c.c.SetReadDeadline(deadline)
+	if err != nil {
+		return
+	}
 
 	var n int
 	b = make([]byte, 65536)
@@ -82,16 +88,16 @@ func (c *UDPClient) ReadTimeout(d time.Duration) (b []byte, err error) {
 	return
 }
 
-func (c *UDPClient) WriteThenReadTimeout(m []byte, d time.Duration) (rsp []byte, err error) {
+func (c *UDPClient) WriteThenRead(m []byte, deadline time.Time) (rsp []byte, err error) {
 	// hold a lock so we're guaranteed write->read consistency:
 	defer c.seqLock.Unlock()
 	c.seqLock.Lock()
 
-	err = c.WriteTimeout(m, d)
+	err = c.WriteWithDeadline(m, deadline)
 	if err != nil {
 		return
 	}
-	rsp, err = c.ReadTimeout(d)
+	rsp, err = c.ReadWithDeadline(deadline)
 	if err != nil {
 		return
 	}

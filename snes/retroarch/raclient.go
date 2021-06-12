@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const readWriteTimeout = time.Second * 1
+const readWriteTimeout = time.Millisecond * 256
 
 type RAClient struct {
 	udpclient.UDPClient
@@ -41,7 +41,7 @@ func (c *RAClient) HasVersion() bool { return c.version != "" }
 
 func (c *RAClient) DetermineVersion() (err error) {
 	var rsp []byte
-	rsp, err = c.WriteThenReadTimeout([]byte("VERSION\n"), readWriteTimeout)
+	rsp, err = c.WriteThenRead([]byte("VERSION\n"), time.Now().Add(readWriteTimeout))
 	if err != nil {
 		return
 	}
@@ -134,9 +134,13 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 	reqStr := sb.String()
 	var rsp []byte
 
-	context.Deadline()
+	deadline, ok := context.Deadline()
+	if !ok {
+		deadline = time.Now().Add(readWriteTimeout)
+	}
+
 	// send all commands up front in one packet:
-	err = c.WriteTimeout([]byte(reqStr), readWriteTimeout)
+	err = c.WriteWithDeadline([]byte(reqStr), deadline)
 	if err != nil {
 		return
 	}
@@ -158,7 +162,7 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 		addr := lorom.PakAddressToBus(read.Address)
 		for size > 0 {
 			// parse ASCII response:
-			rsp, err = c.ReadTimeout(readWriteTimeout)
+			rsp, err = c.ReadWithDeadline(deadline)
 			if err != nil {
 				return
 			}
@@ -200,7 +204,7 @@ func (c *RAClient) ReadMemoryBatch(batch []snes.Read, keepAlive snes.KeepAlive) 
 			continue
 		}
 
-		c.readCommand(&sb)
+		_, _ = c.readCommand(&sb)
 		expectedAddr := lorom.PakAddressToBus(req.Address)
 		sb.WriteString(fmt.Sprintf("%06x %d\n", expectedAddr, req.Size))
 	}
@@ -214,7 +218,7 @@ func (c *RAClient) ReadMemoryBatch(batch []snes.Read, keepAlive snes.KeepAlive) 
 	c.Lock()
 
 	// send all commands up front in one packet:
-	err = c.WriteTimeout([]byte(reqStr), readWriteTimeout)
+	err = c.WriteWithDeadline([]byte(reqStr), time.Now().Add(readWriteTimeout))
 	if err != nil {
 		return
 	}
@@ -230,7 +234,7 @@ func (c *RAClient) ReadMemoryBatch(batch []snes.Read, keepAlive snes.KeepAlive) 
 			continue
 		}
 
-		rsp, err = c.ReadTimeout(readWriteTimeout)
+		rsp, err = c.ReadWithDeadline(time.Now().Add(readWriteTimeout))
 		if err != nil {
 			return
 		}
@@ -323,7 +327,7 @@ func (c *RAClient) WriteMemoryBatch(batch []snes.Write, keepAlive snes.KeepAlive
 		reqStr := sb.String()
 
 		log.Printf("retroarch: > %s", reqStr)
-		err = c.WriteTimeout([]byte(reqStr), readWriteTimeout)
+		err = c.WriteWithDeadline([]byte(reqStr), time.Now().Add(readWriteTimeout))
 		if err != nil {
 			return
 		}
@@ -338,7 +342,7 @@ func (c *RAClient) WriteMemoryBatch(batch []snes.Write, keepAlive snes.KeepAlive
 
 			// expect a response from WRITE_CORE_MEMORY
 			var rsp []byte
-			rsp, err = c.ReadTimeout(readWriteTimeout)
+			rsp, err = c.ReadWithDeadline(time.Now().Add(readWriteTimeout))
 			if err != nil {
 				return
 			}
