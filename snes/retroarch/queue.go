@@ -128,8 +128,6 @@ type writeCommand struct {
 	Batch []snes.Write
 }
 
-const hextable = "0123456789abcdef"
-
 func (cmd *writeCommand) Execute(queue snes.Queue, keepAlive snes.KeepAlive) (err error) {
 	q, ok := queue.(*Queue)
 	if !ok {

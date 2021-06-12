@@ -9,6 +9,7 @@ import (
 	"sni/util"
 	"sni/util/env"
 	"strings"
+	"time"
 )
 
 const driverName = "retroarch"
@@ -167,8 +168,10 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 
 		// issue a sample read:
 		var data []byte
-		var mrsp snes.MemoryReadResponse
-		mrsp, err = detector.ReadMemory(context.Background(), snes.MemoryReadRequest{Address: 0x007FC0, Size: 32})
+		var mrsp []snes.MemoryReadResponse
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond * 256)
+		mrsp, err = detector.MultiReadMemory(ctx, snes.MemoryReadRequest{Address: 0x007FC0, Size: 32})
+		cancel()
 		if err != nil {
 			err = nil
 			detector.version = ""
@@ -180,8 +183,8 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 			addr:                 detector.addr,
 		}
 
-		data = mrsp.Data
-		if len(data) != mrsp.Size {
+		data = mrsp[0].Data
+		if len(data) != mrsp[0].Size {
 			descriptor.IsGameLoaded = false
 		} else {
 			descriptor.IsGameLoaded = true

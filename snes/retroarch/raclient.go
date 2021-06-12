@@ -15,6 +15,8 @@ import (
 
 const readWriteTimeout = time.Millisecond * 256
 
+const hextable = "0123456789abcdef"
+
 type RAClient struct {
 	udpclient.UDPClient
 
@@ -94,19 +96,6 @@ func (c *RAClient) DetermineVersion() (err error) {
 
 // RA 1.9.0 allows a maximum read size of 2723 bytes so we cut that off at 2048 to make division easier
 const maxReadSize = 2048
-
-func (c *RAClient) ReadMemory(context context.Context, read snes.MemoryReadRequest) (mrsp snes.MemoryReadResponse, err error) {
-	var mrsps []snes.MemoryReadResponse
-	mrsps, err = c.MultiReadMemory(context, read)
-	if err != nil {
-		return
-	}
-	if len(mrsps) != 1 {
-		panic(fmt.Errorf("retroarch: ReadMemory: calling MultiReadMemory should return exactly 1 response but returned %d", len(mrsps)))
-	}
-	mrsp = mrsps[0]
-	return
-}
 
 func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.MemoryReadRequest) (mrsp []snes.MemoryReadResponse, err error) {
 	// build multiple requests:
@@ -293,10 +282,6 @@ func (c *RAClient) parseReadMemoryResponse(r *bytes.Reader, expectedAddr uint32,
 
 	err = nil
 	return
-}
-
-func (c *RAClient) WriteMemory(context context.Context, write snes.MemoryWriteRequest) error {
-	panic("implement me")
 }
 
 func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.MemoryWriteRequest) error {

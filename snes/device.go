@@ -28,9 +28,6 @@ type Device interface {
 }
 
 type DeviceMemory interface {
-	ReadMemory(context context.Context, read MemoryReadRequest) (MemoryReadResponse, error)
-	WriteMemory(context context.Context, write MemoryWriteRequest) error
-
 	MultiReadMemory(context context.Context, reads ...MemoryReadRequest) ([]MemoryReadResponse, error)
 	MultiWriteMemory(context context.Context, writes ...MemoryWriteRequest) error
 }

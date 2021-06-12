@@ -68,10 +68,11 @@ func makeBool(v bool) *bool {
 
 func (s *memoryUnaryService) ReadMemory(rctx context.Context, request *sni.ReadMemoryRequest) (rsp *sni.ReadMemoryResponse, gerr error) {
 	gerr = s.UseDevice(rctx, request.Uri, func(ctx context.Context, dev snes.Device) (err error) {
+		// TODO: could offer stateful binding of device to peer
 		//peer.FromContext(ctx)
 		err = dev.UseMemory(ctx, func(mctx context.Context, memory snes.DeviceMemory) (merr error) {
-			var mrsp snes.MemoryReadResponse
-			mrsp, merr = memory.ReadMemory(mctx, snes.MemoryReadRequest{
+			var mrsp []snes.MemoryReadResponse
+			mrsp, merr = memory.MultiReadMemory(mctx, snes.MemoryReadRequest{
 				Address: request.Address,
 				Size:    int(request.Size),
 			})
@@ -82,7 +83,7 @@ func (s *memoryUnaryService) ReadMemory(rctx context.Context, request *sni.ReadM
 			rsp = &sni.ReadMemoryResponse{
 				Uri:     request.Uri,
 				Address: request.Address,
-				Data:    mrsp.Data,
+				Data:    mrsp[0].Data,
 			}
 			return
 		})
