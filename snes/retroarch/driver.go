@@ -168,7 +168,7 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 		// issue a sample read:
 		var data []byte
 		var mrsp snes.MemoryReadResponse
-		mrsp, err = detector.ReadMemory(context.Background(), snes.MemoryReadRequest{Address: 0x40FFC0, Size: 32})
+		mrsp, err = detector.ReadMemory(context.Background(), snes.MemoryReadRequest{Address: 0x007FC0, Size: 32})
 		if err != nil {
 			err = nil
 			detector.version = ""

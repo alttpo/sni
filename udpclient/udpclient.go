@@ -46,6 +46,7 @@ var ErrTimeout = fmt.Errorf("timeout")
 
 func (c *UDPClient) WriteTimeout(m []byte, d time.Duration) (err error) {
 	c.c.SetWriteDeadline(time.Now().Add(d))
+
 	_, err = c.c.Write(m)
 	if err != nil {
 		if isTimeoutError(err) {
