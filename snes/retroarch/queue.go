@@ -29,6 +29,11 @@ func (q *Queue) IsTerminalError(err error) bool {
 	return false
 }
 
+func (q *Queue) IsClosed() bool {
+	return q.c == nil
+}
+
+
 func (q *Queue) Closed() <-chan struct{} {
 	return q.closed
 }

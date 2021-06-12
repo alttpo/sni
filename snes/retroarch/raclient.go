@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const readWriteTimeout = time.Second * 5
+const readWriteTimeout = time.Second * 1
 
 type RAClient struct {
 	udpclient.UDPClient

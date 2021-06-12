@@ -16,6 +16,9 @@ import (
 type Queue interface {
 	io.Closer
 
+	// IsClosed returns true if the device is closed
+	IsClosed() bool
+
 	// This channel is closed when the underlying connection is closed
 	Closed() <-chan struct{}
 

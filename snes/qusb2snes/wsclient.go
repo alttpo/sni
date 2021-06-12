@@ -20,8 +20,9 @@ type WebSocketClient struct {
 	urlstr  string
 	appName string
 
-	lock    sync.Mutex
-	closed  chan struct{}
+	lock     sync.Mutex
+	closed   chan struct{}
+
 	ws      net.Conn
 	r       *wsutil.Reader
 	w       *wsutil.Writer
@@ -52,6 +53,10 @@ func NewWebSocketClient(w *WebSocketClient, urlstr string, appName string) (err 
 	w.urlstr = urlstr
 	w.appName = appName
 	return w.Dial()
+}
+
+func (w *WebSocketClient) IsClosed() bool {
+	return w.ws == nil
 }
 
 func (w *WebSocketClient) Dial() (err error) {

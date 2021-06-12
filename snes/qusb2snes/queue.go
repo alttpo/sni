@@ -18,10 +18,16 @@ type Queue struct {
 
 	d *Driver
 
+	isClosed bool
+
 	deviceName string
 	ws         WebSocketClient
 
-	info Info
+	info     Info
+}
+
+func (q *Queue) IsClosed() bool {
+	return q.ws.IsClosed()
 }
 
 func (q *Queue) IsTerminalError(err error) bool {

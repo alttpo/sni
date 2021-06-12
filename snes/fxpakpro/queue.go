@@ -10,10 +10,15 @@ import (
 type Queue struct {
 	snes.BaseQueue
 
-	closed chan struct{}
+	closed   chan struct{}
+	isClosed bool
 
 	// must be only accessed via Command.Execute
 	f serial.Port
+}
+
+func (q *Queue) IsClosed() bool {
+	return q.isClosed
 }
 
 // IsTerminalError is implemented in errors_unix.go and errors_windows.go
@@ -24,19 +29,29 @@ func (q *Queue) Closed() <-chan struct{} {
 
 func (q *Queue) Close() (err error) {
 	// make sure closed channel is closed:
-	defer close(q.closed)
+	defer func() {
+		if q.isClosed {
+			return
+		}
 
-	// Clear DTR (ignore any errors since we're closing):
-	log.Println("fxpakpro: clear DTR")
-	q.f.SetDTR(false)
+		close(q.closed)
+		q.isClosed = true
+	}()
 
-	// Close the port:
-	log.Println("fxpakpro: close port")
-	err = q.f.Close()
-	if err != nil {
-		return fmt.Errorf("fxpakpro: could not close serial port: %w", err)
+	if q.f != nil {
+		// Clear DTR (ignore any errors since we're closing):
+		log.Println("fxpakpro: clear DTR")
+		q.f.SetDTR(false)
+
+		// Close the port:
+		log.Println("fxpakpro: close port")
+		err = q.f.Close()
+		if err != nil {
+			return fmt.Errorf("fxpakpro: could not close serial port: %w", err)
+		}
 	}
 
+	q.f = nil
 	return
 }
 

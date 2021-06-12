@@ -9,7 +9,8 @@ import (
 type Queue struct {
 	snes.BaseQueue
 
-	closed chan struct{}
+	closed   chan struct{}
+	isClosed bool
 
 	WRAM    [0x20000]byte
 	nothing [0x100]byte
@@ -21,6 +22,10 @@ func (q *Queue) IsTerminalError(err error) bool {
 	return false
 }
 
+func (q *Queue) IsClosed() bool {
+	return q.isClosed
+}
+
 func (q *Queue) Closed() <-chan struct{} {
 	return q.closed
 }
@@ -29,6 +34,7 @@ func (q *Queue) Close() error {
 	q.frameTicker.Stop()
 	q.frameTicker = nil
 	close(q.closed)
+	q.isClosed = true
 	return nil
 }
 
