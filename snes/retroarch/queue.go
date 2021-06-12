@@ -1,9 +1,10 @@
 package retroarch
 
 import (
+	"errors"
 	"fmt"
 	"sni/snes"
-	"sync"
+	"sni/udpclient"
 )
 
 type Queue struct {
@@ -11,8 +12,7 @@ type Queue struct {
 
 	closed chan struct{}
 
-	c    *RAClient
-	lock sync.Mutex
+	c *RAClient
 }
 
 var (
@@ -20,34 +20,27 @@ var (
 )
 
 func (q *Queue) IsTerminalError(err error) bool {
-	//if errors.Is(err, udpclient.ErrTimeout) {
-	//	return true
-	//}
-	//if errors.Is(err, ErrClosed) {
-	//	return true
-	//}
+	if errors.Is(err, udpclient.ErrTimeout) {
+		return true
+	}
+	if errors.Is(err, ErrClosed) {
+		return true
+	}
 	return false
 }
 
 func (q *Queue) IsClosed() bool {
-	return q.c == nil
+	return q.c.IsClosed()
 }
-
 
 func (q *Queue) Closed() <-chan struct{} {
 	return q.closed
 }
 
-func (q *Queue) Close() error {
-	defer q.lock.Unlock()
-	q.lock.Lock()
-
-	if q.c == nil {
-		return nil
+func (q *Queue) Close() (err error) {
+	if !q.c.IsClosed() {
+		err = q.c.Close()
 	}
-
-	q.c.Close()
-	q.c = nil
 	close(q.closed)
 
 	return nil
@@ -117,18 +110,16 @@ func (cmd *readCommand) Execute(queue snes.Queue, keepAlive snes.KeepAlive) (err
 		return fmt.Errorf("queue is not of expected internal type")
 	}
 
-	q.lock.Lock()
 	c := q.c
-	q.lock.Unlock()
 	if c == nil {
 		return fmt.Errorf("retroarch: read: %w", ErrClosed)
 	}
 	keepAlive <- struct{}{}
 
 	err = c.ReadMemoryBatch(cmd.Batch, keepAlive)
-	//if err != nil {
-	//	_ = q.Close()
-	//}
+	if c.IsClosed() {
+		_ = q.Close()
+	}
 
 	return
 }
@@ -145,18 +136,16 @@ func (cmd *writeCommand) Execute(queue snes.Queue, keepAlive snes.KeepAlive) (er
 		return fmt.Errorf("queue is not of expected internal type")
 	}
 
-	q.lock.Lock()
 	c := q.c
-	q.lock.Unlock()
-	if c == nil {
+	if c.IsClosed() {
 		return fmt.Errorf("retroarch: write: %w", ErrClosed)
 	}
 	keepAlive <- struct{}{}
 
 	err = c.WriteMemoryBatch(cmd.Batch, keepAlive)
-	//if err != nil {
-	//	_ = q.Close()
-	//}
+	if c.IsClosed() {
+		_ = q.Close()
+	}
 
 	return
 }

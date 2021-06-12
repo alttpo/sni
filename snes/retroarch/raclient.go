@@ -174,7 +174,7 @@ func (c *RAClient) ReadMemoryBatch(batch []snes.Read, keepAlive snes.KeepAlive) 
 		var data []byte
 		data, err = c.parseReadMemoryResponse(r, expectedAddr, req.Size)
 		if err != nil {
-			return
+			continue
 		}
 
 		completed(snes.Response{
