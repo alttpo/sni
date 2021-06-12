@@ -18,13 +18,14 @@ type UDPClient struct {
 	muteLog bool
 
 	isConnected bool
+	isClosed    bool
 
 	seqLock sync.Mutex
 }
 
 func NewUDPClient(name string) *UDPClient {
 	return &UDPClient{
-		name:     name,
+		name: name,
 	}
 }
 
@@ -32,6 +33,8 @@ func MakeUDPClient(name string, c *UDPClient) *UDPClient {
 	c.name = name
 	return c
 }
+
+func (c *UDPClient) IsClosed() bool { return c.isClosed }
 
 func (c *UDPClient) MuteLog(muted bool) {
 	c.muteLog = muted
@@ -44,6 +47,15 @@ var ErrTimeout = fmt.Errorf("timeout")
 func (c *UDPClient) WriteTimeout(m []byte, d time.Duration) (err error) {
 	c.c.SetWriteDeadline(time.Now().Add(d))
 	_, err = c.c.Write(m)
+	if err != nil {
+		if isTimeoutError(err) {
+			_ = c.Close()
+		}
+		if errors.Is(err, net.ErrClosed) {
+			_ = c.Close()
+		}
+		return
+	}
 	return
 }
 
@@ -57,10 +69,10 @@ func (c *UDPClient) ReadTimeout(d time.Duration) (b []byte, err error) {
 	if err != nil {
 		b = nil
 		if isTimeoutError(err) {
-			err = c.Close()
+			_ = c.Close()
 		}
 		if errors.Is(err, net.ErrClosed) {
-			err = c.Close()
+			_ = c.Close()
 		}
 		return
 	}
@@ -139,12 +151,15 @@ func (c *UDPClient) Disconnect() {
 }
 
 func (c *UDPClient) Close() (err error) {
-	if c.c == nil {
-		c.isConnected = false
+	if !c.isConnected {
 		return
 	}
 
-	err = c.c.Close()
+	if c.c != nil {
+		err = c.c.Close()
+	}
+
+	c.isClosed = true
 	c.isConnected = false
 	c.c = nil
 	return
