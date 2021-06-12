@@ -36,6 +36,7 @@ func (d *Driver) Detect() ([]snes.DeviceDescriptor, error) {
 		{
 			Uri:         url.URL{Scheme: driverName, Opaque: "mock"},
 			DisplayName: "Mock",
+			Kind:        "mock",
 		},
 	}, nil
 }

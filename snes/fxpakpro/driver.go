@@ -6,6 +6,7 @@ import (
 	"go.bug.st/serial/enumerator"
 	"log"
 	"net/url"
+	"sni/protos/sni"
 	"sni/snes"
 	"sni/util"
 	"sni/util/env"
@@ -69,8 +70,10 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 
 		if port.SerialNumber == "DEMO00000000" {
 			devices = append(devices, snes.DeviceDescriptor{
-				Uri:         url.URL{Scheme: driverName, Path: port.Name},
-				DisplayName: fmt.Sprintf("%s (%s:%s)", port.Name, port.VID, port.PID),
+				Uri:          url.URL{Scheme: driverName, Path: port.Name},
+				DisplayName:  fmt.Sprintf("%s (%s:%s)", port.Name, port.VID, port.PID),
+				Kind:         "fxpakpro",
+				Capabilities: sni.DeviceCapability_READ | sni.DeviceCapability_WRITE | sni.DeviceCapability_EXEC_ASM | sni.DeviceCapability_RESET,
 			})
 		}
 	}

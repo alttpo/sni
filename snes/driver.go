@@ -4,13 +4,16 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"sni/protos/sni"
 	"sort"
 	"sync"
 )
 
 type DeviceDescriptor struct {
-	Uri         url.URL
-	DisplayName string
+	Uri          url.URL
+	DisplayName  string
+	Kind         string
+	Capabilities sni.DeviceCapability
 }
 
 type Driver interface {

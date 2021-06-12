@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/url"
+	"sni/protos/sni"
 	"sni/snes"
 	"sni/util"
 	"sni/util/env"
@@ -159,6 +160,9 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 		descriptor := snes.DeviceDescriptor{
 			Uri:         url.URL{Scheme: driverName, Host: detector.addr.String()},
 			DisplayName: fmt.Sprintf("RetroArch at %s", detector.addr),
+			Kind:        "retroarch",
+			// TODO: sni.DeviceCapability_EXEC_ASM
+			Capabilities: sni.DeviceCapability_READ | sni.DeviceCapability_WRITE  | sni.DeviceCapability_RESET | sni.DeviceCapability_PAUSE,
 		}
 
 		devices = append(devices, descriptor)

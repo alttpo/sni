@@ -41,13 +41,12 @@ func (s *devicesService) ListDevices(ctx context.Context, request *sni.DevicesRe
 		}
 		for _, descriptor := range descriptors {
 			devices = append(devices, &sni.DevicesResponse_Device{
-				Uri:         descriptor.Uri.String(),
-				DisplayName: descriptor.DisplayName,
-				Kind:        driver.Name,
-				// TODO: get device version from descriptor:
-				Version: "TODO", //descriptor.GetVersion(),
-				// TODO: get capabilities from descriptor:
-				Capabilities: int32(sni.DeviceCapability_READ | sni.DeviceCapability_WRITE), //descriptor.GetCapabilities(),
+				Uri:          descriptor.Uri.String(),
+				DisplayName:  descriptor.DisplayName,
+				Kind:         descriptor.Kind,
+				Capabilities: int32(descriptor.Capabilities),
+				// TODO: deprecated
+				Version: "TODO",
 			})
 		}
 	}
