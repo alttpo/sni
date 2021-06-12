@@ -1,7 +1,6 @@
 package snes
 
 import (
-	"fmt"
 	"sort"
 	"sync"
 )
@@ -31,14 +30,21 @@ func MarshalDeviceDescriptor(device DeviceDescriptor) DeviceDescriptor {
 }
 
 type Driver interface {
-	// Open a connection to a specific device
-	Open(desc DeviceDescriptor) (Queue, error)
-
 	// Detect any present devices
 	Detect() ([]DeviceDescriptor, error)
 
 	// Empty Returns a descriptor with all fields empty or defaulted
 	Empty() DeviceDescriptor
+}
+
+type QueueDriver interface {
+	// OpenQueue creates a command queue for a specific device
+	OpenQueue(desc DeviceDescriptor) (Queue, error)
+}
+
+type DeviceDriver interface {
+	// OpenDevice creates a Device interface for a specific device
+	OpenDevice(desc DeviceDescriptor) (Device, error)
 }
 
 type NamedDriver struct {
@@ -122,15 +128,4 @@ func DriverNames() []string {
 func DriverByName(name string) (Driver, bool) {
 	d, ok := drivers[name]
 	return d, ok
-}
-
-func Open(driverName string, desc DeviceDescriptor) (Queue, error) {
-	driversMu.RLock()
-	driveri, ok := drivers[driverName]
-	driversMu.RUnlock()
-	if !ok {
-		return nil, fmt.Errorf("snes: unknown driver %q (forgotten import?)", driverName)
-	}
-
-	return driveri.Open(desc)
 }

@@ -1,6 +1,7 @@
 package retroarch
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -48,7 +49,7 @@ func (d *Driver) DisplayDescription() string {
 	return "Connect to a RetroArch emulator"
 }
 
-func (d *Driver) Open(desc snes.DeviceDescriptor) (q snes.Queue, err error) {
+func (d *Driver) OpenQueue(desc snes.DeviceDescriptor) (q snes.Queue, err error) {
 	descriptor, ok := desc.(*DeviceDescriptor)
 	if !ok {
 		return nil, fmt.Errorf("retroarch: open: descriptor is not of expected type")
@@ -90,6 +91,50 @@ func (d *Driver) Open(desc snes.DeviceDescriptor) (q snes.Queue, err error) {
 	return
 }
 
+func (d *Driver) OpenDevice(desc snes.DeviceDescriptor) (q snes.Device, err error) {
+	descriptor, ok := desc.(*DeviceDescriptor)
+	if !ok {
+		return nil, fmt.Errorf("retroarch: open: descriptor is not of expected type")
+	}
+
+	// create a new device with its own connection:
+	var addr *net.UDPAddr
+	addr, err = net.ResolveUDPAddr("udp", descriptor.GetId())
+	if err != nil {
+		return
+	}
+
+	var c *RAClient
+	c = NewRAClient(addr, addr.String())
+	err = c.Connect(addr)
+	if err != nil {
+		return
+	}
+
+	// if we already detected the version, copy it in:
+	for _, detector := range d.detectors {
+		if descriptor.GetId() == detector.GetId() {
+			c.version = detector.version
+			c.useRCR = detector.useRCR
+			break
+		}
+	}
+
+	// fill back in the addr for the descriptor:
+	descriptor.addr = c.addr
+
+	c.MuteLog(false)
+	qu := &Device{c: c}
+	err = qu.Init()
+	if err != nil {
+		_ = c.Close()
+		return
+	}
+
+	q = qu
+	return
+}
+
 func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 	devices = make([]snes.DeviceDescriptor, 0, len(d.detectors))
 	for i, detector := range d.detectors {
@@ -122,7 +167,8 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 
 		// issue a sample read:
 		var data []byte
-		data, err = detector.ReadMemory(0x40FFC0, 32)
+		var mrsp snes.MemoryReadResponse
+		mrsp, err = detector.ReadMemory(context.Background(), snes.MemoryReadRequest{Address: 0x40FFC0, Size: 32})
 		if err != nil {
 			err = nil
 			detector.version = ""
@@ -134,7 +180,8 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 			addr:                 detector.addr,
 		}
 
-		if len(data) != 32 {
+		data = mrsp.Data
+		if len(data) != mrsp.Size {
 			descriptor.IsGameLoaded = false
 		} else {
 			descriptor.IsGameLoaded = true

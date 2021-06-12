@@ -23,7 +23,7 @@ func (d *Driver) DisplayDescription() string {
 	return "Connect to a mock SNES device for testing"
 }
 
-func (d *Driver) Open(desc snes.DeviceDescriptor) (snes.Queue, error) {
+func (d *Driver) OpenQueue(desc snes.DeviceDescriptor) (snes.Queue, error) {
 	c := &Queue{}
 	c.BaseInit(driverName, c)
 	c.Init()

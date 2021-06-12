@@ -93,7 +93,7 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 	return
 }
 
-func (d *Driver) Open(ddg snes.DeviceDescriptor) (snes.Queue, error) {
+func (d *Driver) OpenQueue(ddg snes.DeviceDescriptor) (snes.Queue, error) {
 	var err error
 
 	dd := ddg.(*DeviceDescriptor)

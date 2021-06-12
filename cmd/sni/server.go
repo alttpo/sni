@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"net/url"
 	"sni/protos/sni"
 	"sni/snes"
@@ -61,85 +59,33 @@ type memoryUnaryService struct {
 
 	// track opened devices by URI
 	devicesRw sync.RWMutex
-	devices   map[string]snes.Queue
+	devices   map[string]snes.Device
 }
 
 func makeBool(v bool) *bool {
 	return &v
 }
 
-func (s *memoryUnaryService) ReadMemory(ctx context.Context, request *sni.ReadMemoryRequest) (rsp *sni.ReadMemoryResponse, gerr error) {
-	gerr = s.UseDevice(request.Uri, func(dev snes.Queue) (err error) {
+func (s *memoryUnaryService) ReadMemory(rctx context.Context, request *sni.ReadMemoryRequest) (rsp *sni.ReadMemoryResponse, gerr error) {
+	gerr = s.UseDevice(rctx, request.Uri, func(ctx context.Context, dev snes.Device) (err error) {
 		//peer.FromContext(ctx)
-
-		addr := request.GetAddress()
-		size := int32(request.GetSize())
-		reads := make([]snes.Read, 0, 8)
-		data := make([]byte, 0, size)
-		for size > 0 {
-			chunkSize := int32(255)
-			if size < chunkSize {
-				chunkSize = size
-			}
-
-			reads = append(reads, snes.Read{
-				Address: addr,
-				Size:    uint8(chunkSize),
-				Extra:   nil,
-				Completion: func(response snes.Response) {
-					data = append(data, response.Data...)
-				},
+		err = dev.UseMemory(ctx, func(mctx context.Context, memory snes.DeviceMemory) (merr error) {
+			var mrsp snes.MemoryReadResponse
+			mrsp, merr = memory.ReadMemory(mctx, snes.MemoryReadRequest{
+				Address: request.Address,
+				Size:    int(request.Size),
 			})
-
-			size -= 255
-			addr += 255
-		}
-
-		wg := sync.WaitGroup{}
-		var batchErrors chan error
-		seq := dev.MakeReadCommands(reads, func(command snes.Command, cmderr error) {
-			batchErrors <- cmderr
-			wg.Done()
-		})
-		wg.Add(len(seq))
-		batchErrors = make(chan error, len(seq))
-
-		// enqueue the read:
-		err = seq.EnqueueTo(dev)
-		if err != nil {
-			return
-		}
-
-		done := make(chan struct{})
-		go func() {
-			wg.Wait()
-			close(done)
-		}()
-
-		// wait until completed or canceled:
-	waitLoop:
-		for {
-			select {
-			case <-done:
-				// read complete:
-				break waitLoop
-			case <-ctx.Done():
-				// canceled:
-				return ctx.Err()
-			case berr := <-batchErrors:
-				// take only the first error of the batches:
-				if berr != nil && err == nil {
-					err = status.Error(codes.Unavailable, berr.Error())
-				}
-				break
+			if merr != nil {
+				return
 			}
-		}
 
-		rsp = &sni.ReadMemoryResponse{
-			Uri:     request.Uri,
-			Address: request.Address,
-			Data:    data,
-		}
+			rsp = &sni.ReadMemoryResponse{
+				Uri:     request.Uri,
+				Address: request.Address,
+				Data:    mrsp.Data,
+			}
+			return
+		})
 
 		return
 	})
@@ -155,8 +101,8 @@ func (s *memoryUnaryService) WriteMemory(ctx context.Context, request *sni.Write
 	return nil, fmt.Errorf("unimplemented")
 }
 
-func (s *memoryUnaryService) UseDevice(uri string, use func(snes.Queue) error) (err error) {
-	var dev snes.Queue
+func (s *memoryUnaryService) UseDevice(ctx context.Context, uri string, use func(context.Context, snes.Device) error) (err error) {
+	var dev snes.Device
 	var ok bool
 
 	s.devicesRw.RLock()
@@ -170,34 +116,39 @@ func (s *memoryUnaryService) UseDevice(uri string, use func(snes.Queue) error) (
 			return
 		}
 
-		var drv snes.Driver
-		drv, ok = snes.DriverByName(u.Scheme)
+		var gendrv snes.Driver
+		gendrv, ok = snes.DriverByName(u.Scheme)
 		if !ok {
 			err = fmt.Errorf("driver not found by name '%s'", u.Scheme)
 			return
 		}
+		drv, ok := gendrv.(snes.DeviceDriver)
+		if !ok {
+			err = fmt.Errorf("driver named '%s' is not a DeviceDriver", u.Scheme)
+			return
+		}
 
-		desc := drv.Empty()
+		desc := gendrv.Empty()
 		desc.Base().Id = u.Opaque
-		dev, err = drv.Open(desc)
+		dev, err = drv.OpenDevice(desc)
 		if err != nil {
 			return
 		}
 
 		s.devicesRw.Lock()
 		if s.devices == nil {
-			s.devices = make(map[string]snes.Queue)
+			s.devices = make(map[string]snes.Device)
 		}
 		s.devices[uri] = dev
 		s.devicesRw.Unlock()
 	}
 
-	err = use(dev)
+	err = use(ctx, dev)
 
 	if dev.IsClosed() {
 		s.devicesRw.Lock()
 		if s.devices == nil {
-			s.devices = make(map[string]snes.Queue)
+			s.devices = make(map[string]snes.Device)
 		}
 		delete(s.devices, uri)
 		s.devicesRw.Unlock()

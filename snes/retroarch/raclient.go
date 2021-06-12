@@ -2,6 +2,7 @@ package retroarch
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -88,7 +89,11 @@ func (c *RAClient) Version() (err error) {
 	return
 }
 
-func (c *RAClient) ReadMemory(busAddr uint32, size uint8) (data []byte, err error) {
+func (c *RAClient) ReadMemory(context context.Context, read snes.MemoryReadRequest) (mrsp snes.MemoryReadResponse, err error) {
+	busAddr := read.Address
+	size := read.Size
+
+	// TODO: detect -1 response
 	var sb strings.Builder
 	if c.useRCR {
 		sb.WriteString("READ_CORE_RAM ")
@@ -107,12 +112,18 @@ func (c *RAClient) ReadMemory(busAddr uint32, size uint8) (data []byte, err erro
 	}
 
 	r := bytes.NewReader(rsp)
+	var data []byte
 	data, err = c.parseReadMemoryResponse(r, expectedAddr, size)
 	if err != nil {
 		return
 	}
 
+	mrsp = snes.MemoryReadResponse{MemoryReadRequest: read, Data: data}
 	return
+}
+
+func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.MemoryReadRequest) ([]snes.MemoryReadResponse, error) {
+	panic("implement me")
 }
 
 func (c *RAClient) ReadMemoryBatch(batch []snes.Read, keepAlive snes.KeepAlive) (err error) {
@@ -172,7 +183,7 @@ func (c *RAClient) ReadMemoryBatch(batch []snes.Read, keepAlive snes.KeepAlive) 
 		// parse ASCII response:
 		r := bytes.NewReader(rsp)
 		var data []byte
-		data, err = c.parseReadMemoryResponse(r, expectedAddr, req.Size)
+		data, err = c.parseReadMemoryResponse(r, expectedAddr, int(req.Size))
 		if err != nil {
 			continue
 		}
@@ -190,7 +201,7 @@ func (c *RAClient) ReadMemoryBatch(batch []snes.Read, keepAlive snes.KeepAlive) 
 	return
 }
 
-func (c *RAClient) parseReadMemoryResponse(r *bytes.Reader, expectedAddr uint32, size uint8) (data []byte, err error) {
+func (c *RAClient) parseReadMemoryResponse(r *bytes.Reader, expectedAddr uint32, size int) (data []byte, err error) {
 	var n int
 	var addr uint32
 	if c.useRCR {
@@ -223,6 +234,15 @@ func (c *RAClient) parseReadMemoryResponse(r *bytes.Reader, expectedAddr uint32,
 func (c *RAClient) HasVersion() bool {
 	return c.version != ""
 }
+
+func (c *RAClient) WriteMemory(context context.Context, write snes.MemoryWriteRequest) error {
+	panic("implement me")
+}
+
+func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.MemoryWriteRequest) error {
+	panic("implement me")
+}
+
 
 func (c *RAClient) WriteMemoryBatch(batch []snes.Write, keepAlive snes.KeepAlive) (err error) {
 	for _, req := range batch {

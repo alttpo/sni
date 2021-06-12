@@ -31,7 +31,7 @@ func (d *Driver) DisplayDescription() string {
 	return "Connect to the QUsb2Snes service"
 }
 
-func (d *Driver) Open(desc snes.DeviceDescriptor) (q snes.Queue, err error) {
+func (d *Driver) OpenQueue(desc snes.DeviceDescriptor) (q snes.Queue, err error) {
 	dev, ok := desc.(*DeviceDescriptor)
 	if !ok {
 		err = fmt.Errorf("desc is not of expected type")
