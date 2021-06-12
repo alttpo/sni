@@ -49,7 +49,7 @@ func PakAddressToBus(pakAddr uint32) uint32 {
 		busAddr := pakAddr
 		offs := busAddr & 0x7FFF
 		bank := busAddr >> 15
-		busAddr = (bank << 16) + offs
+		busAddr = (bank << 16) + (offs | 0x8000)
 		return busAddr
 	}
 	// /shrug
