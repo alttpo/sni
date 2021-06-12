@@ -1,6 +1,7 @@
 package udpclient
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -54,6 +55,13 @@ func (c *UDPClient) ReadTimeout(d time.Duration) (b []byte, err error) {
 	b = make([]byte, 1500)
 	n, _, err = c.c.ReadFromUDP(b)
 	if err != nil {
+		b = nil
+		if isTimeoutError(err) {
+			err = c.Close()
+		}
+		if errors.Is(err, net.ErrClosed) {
+			err = c.Close()
+		}
 		return
 	}
 
@@ -121,8 +129,6 @@ func (c *UDPClient) Disconnect() {
 		return
 	}
 
-	c.isConnected = false
-
 	// close the underlying connection:
 	err := c.Close()
 	if err != nil {
@@ -130,16 +136,18 @@ func (c *UDPClient) Disconnect() {
 	}
 
 	c.log("%s: disconnected from server '%s'\n", c.name, c.addr)
-
-	c.c = nil
 }
 
-func (c *UDPClient) Close() error {
+func (c *UDPClient) Close() (err error) {
 	if c.c == nil {
-		return nil
+		c.isConnected = false
+		return
 	}
 
-	return c.Close()
+	err = c.c.Close()
+	c.isConnected = false
+	c.c = nil
+	return
 }
 
 func isTimeoutError(err error) bool {
