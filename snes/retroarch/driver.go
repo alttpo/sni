@@ -20,10 +20,6 @@ var logDetector = false
 
 type Driver struct {
 	detectors []*RAClient
-	addresses []*net.UDPAddr
-
-	devices []snes.DeviceDescriptor
-	opened  *Queue
 
 	// track opened devices by URI
 	devicesRw  sync.RWMutex
@@ -32,7 +28,6 @@ type Driver struct {
 
 func NewDriver(addresses []*net.UDPAddr) *Driver {
 	d := &Driver{
-		addresses: addresses,
 		detectors: make([]*RAClient, len(addresses)),
 	}
 
@@ -56,40 +51,6 @@ func (d *Driver) DisplayDescription() string {
 	return "Connect to a RetroArch emulator"
 }
 
-func (d *Driver) OpenQueue(descriptor snes.DeviceDescriptor) (q snes.Queue, err error) {
-	// create a new device with its own connection:
-	var addr *net.UDPAddr
-	addr, err = net.ResolveUDPAddr("udp", descriptor.Uri.Host)
-	if err != nil {
-		return
-	}
-
-	var c *RAClient
-	c = NewRAClient(addr, addr.String())
-	err = c.Connect(addr)
-	if err != nil {
-		return
-	}
-
-	// if we already detected the version, copy it in:
-	for _, detector := range d.detectors {
-		if descriptor.Uri.Host == detector.addr.String() {
-			c.version = detector.version
-			c.useRCR = detector.useRCR
-			break
-		}
-	}
-
-	c.MuteLog(false)
-	qu := &Queue{c: c}
-	qu.BaseInit(driverName, qu)
-	qu.Init()
-
-	q = qu
-
-	return
-}
-
 func (d *Driver) OpenDevice(uri *url.URL) (q snes.Device, err error) {
 	// create a new device with its own connection:
 	var addr *net.UDPAddr
@@ -103,15 +64,6 @@ func (d *Driver) OpenDevice(uri *url.URL) (q snes.Device, err error) {
 	err = c.Connect(addr)
 	if err != nil {
 		return
-	}
-
-	// if we already detected the version, copy it in:
-	for _, detector := range d.detectors {
-		if addr.String() == detector.addr.String() {
-			c.version = detector.version
-			c.useRCR = detector.useRCR
-			break
-		}
 	}
 
 	c.MuteLog(false)
@@ -162,13 +114,12 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 			DisplayName: fmt.Sprintf("RetroArch at %s", detector.addr),
 			Kind:        "retroarch",
 			// TODO: sni.DeviceCapability_EXEC_ASM
-			Capabilities: sni.DeviceCapability_READ | sni.DeviceCapability_WRITE  | sni.DeviceCapability_RESET | sni.DeviceCapability_PAUSE,
+			Capabilities: sni.DeviceCapability_READ | sni.DeviceCapability_WRITE | sni.DeviceCapability_RESET | sni.DeviceCapability_PAUSE,
 		}
 
 		devices = append(devices, descriptor)
 	}
 
-	d.devices = devices
 	err = nil
 	return
 }
