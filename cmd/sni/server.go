@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 	"net/url"
 	"sni/protos/sni"
@@ -69,66 +68,69 @@ func makeBool(v bool) *bool {
 	return &v
 }
 
-func (s *memoryUnaryService) ReadMemory(ctx context.Context, request *sni.ReadMemoryRequest) (rsp *sni.ReadMemoryResponse, err error) {
-	var dev snes.Queue
-	dev, err = s.AcquireDevice(request.Uri)
-	if err != nil {
-		return
-	}
+func (s *memoryUnaryService) ReadMemory(ctx context.Context, request *sni.ReadMemoryRequest) (rsp *sni.ReadMemoryResponse, gerr error) {
+	gerr = s.UseDevice(request.Uri, func(dev snes.Queue) (err error) {
+		complete := make(chan error)
 
-	complete := make(chan error)
+		//peer.FromContext(ctx)
 
-	peer.FromContext(ctx)
+		addr := request.GetAddress()
+		size := int32(request.GetSize())
+		reads := make([]snes.Read, 0, 8)
+		data := make([]byte, 0, size)
+		for size > 0 {
+			chunkSize := int32(255)
+			if size < chunkSize {
+				chunkSize = size
+			}
 
-	addr := request.GetAddress()
-	size := int32(request.GetSize())
-	reads := make([]snes.Read, 0, 8)
-	data := make([]byte, 0, size)
-	for size > 0 {
-		chunkSize := int32(255)
-		if size < chunkSize {
-			chunkSize = size
+			reads = append(reads, snes.Read{
+				Address: addr,
+				Size:    uint8(chunkSize),
+				Extra:   nil,
+				Completion: func(response snes.Response) {
+					data = append(data, response.Data...)
+				},
+			})
+
+			size -= 255
+			addr += 255
 		}
 
-		reads = append(reads, snes.Read{
-			Address:    addr,
-			Size:       uint8(chunkSize),
-			Extra:      nil,
-			Completion: func(response snes.Response) {
-				data = append(data, response.Data...)
-			},
+		seq := dev.MakeReadCommands(reads, func(command snes.Command, cmderr error) {
+			complete <- cmderr
+			close(complete)
 		})
-
-		size -= 255
-		addr += 255
-	}
-
-	seq := dev.MakeReadCommands(reads, func(command snes.Command, cmderr error) {
-		complete <- cmderr
-		close(complete)
-	})
-	// enqueue the read:
-	err = seq.EnqueueTo(dev)
-	if err != nil {
-		return
-	}
-
-	// wait until canceled or read completed:
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case err = <-complete:
+		// enqueue the read:
+		err = seq.EnqueueTo(dev)
 		if err != nil {
-			err = status.Error(codes.Unavailable, err.Error())
 			return
 		}
-		break
-	}
 
-	rsp = &sni.ReadMemoryResponse{
-		Uri:     request.Uri,
-		Address: request.Address,
-		Data:    data,
+		// wait until canceled or read completed:
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case err = <-complete:
+			if err != nil {
+				err = status.Error(codes.Unavailable, err.Error())
+				return
+			}
+			break
+		}
+
+		rsp = &sni.ReadMemoryResponse{
+			Uri:     request.Uri,
+			Address: request.Address,
+			Data:    data,
+		}
+
+		return
+	})
+
+	if gerr != nil {
+		rsp = nil
+		return
 	}
 	return
 }
@@ -137,41 +139,53 @@ func (s *memoryUnaryService) WriteMemory(ctx context.Context, request *sni.Write
 	return nil, fmt.Errorf("unimplemented")
 }
 
-func (s *memoryUnaryService) AcquireDevice(uri string) (dev snes.Queue, err error) {
+func (s *memoryUnaryService) UseDevice(uri string, use func(snes.Queue) error) (err error) {
+	var dev snes.Queue
 	var ok bool
+
 	s.devicesRw.RLock()
 	dev, ok = s.devices[uri]
 	s.devicesRw.RUnlock()
-	if ok {
-		// TODO: detect if device is closed and destroy/recreate it if so
-		return
-	}
 
-	var u *url.URL
-	u, err = url.Parse(uri)
-	if err != nil {
-		return
-	}
-
-	var drv snes.Driver
-	drv, ok = snes.DriverByName(u.Scheme)
 	if !ok {
-		err = fmt.Errorf("driver not found by name '%s'", u.Scheme)
-		return
+		var u *url.URL
+		u, err = url.Parse(uri)
+		if err != nil {
+			return
+		}
+
+		var drv snes.Driver
+		drv, ok = snes.DriverByName(u.Scheme)
+		if !ok {
+			err = fmt.Errorf("driver not found by name '%s'", u.Scheme)
+			return
+		}
+
+		desc := drv.Empty()
+		desc.Base().Id = u.Opaque
+		dev, err = drv.Open(desc)
+		if err != nil {
+			return
+		}
+
+		s.devicesRw.Lock()
+		if s.devices == nil {
+			s.devices = make(map[string]snes.Queue)
+		}
+		s.devices[uri] = dev
+		s.devicesRw.Unlock()
 	}
 
-	desc := drv.Empty()
-	desc.Base().Id = u.Opaque
-	dev, err = drv.Open(desc)
-	if err != nil {
-		return
+	err = use(dev)
+
+	if dev.IsClosed() {
+		s.devicesRw.Lock()
+		if s.devices == nil {
+			s.devices = make(map[string]snes.Queue)
+		}
+		delete(s.devices, uri)
+		s.devicesRw.Unlock()
 	}
 
-	s.devicesRw.Lock()
-	if s.devices == nil {
-		s.devices = make(map[string]snes.Queue)
-	}
-	s.devices[uri] = dev
-	s.devicesRw.Unlock()
 	return
 }
