@@ -90,7 +90,11 @@ func (c *UDPClient) WriteThenReadTimeout(m []byte, d time.Duration) (rsp []byte,
 	if err != nil {
 		return
 	}
-	return c.ReadTimeout(d)
+	rsp, err = c.ReadTimeout(d)
+	if err != nil {
+		return
+	}
+	return
 }
 
 func (c *UDPClient) Lock() {
