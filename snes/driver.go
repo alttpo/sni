@@ -1,6 +1,9 @@
 package snes
 
 import (
+	"context"
+	"fmt"
+	"net/url"
 	"sort"
 	"sync"
 )
@@ -42,9 +45,14 @@ type QueueDriver interface {
 	OpenQueue(desc DeviceDescriptor) (Queue, error)
 }
 
+type DeviceUser func(context.Context, Device) error
+
 type DeviceDriver interface {
 	// OpenDevice creates a Device interface for a specific device
-	OpenDevice(desc DeviceDescriptor) (Device, error)
+	OpenDevice(uri *url.URL) (Device, error)
+
+	// UseDevice grants exclusive access for DeviceUser to a Device uniquely identified by its uri
+	UseDevice(ctx context.Context, uri *url.URL, user DeviceUser) error
 }
 
 type NamedDriver struct {
@@ -128,4 +136,23 @@ func DriverNames() []string {
 func DriverByName(name string) (Driver, bool) {
 	d, ok := drivers[name]
 	return d, ok
+}
+
+func UseDevice(ctx context.Context, uri *url.URL, user DeviceUser) (err error) {
+	var ok bool
+	var gendrv Driver
+	gendrv, ok = DriverByName(uri.Scheme)
+	if !ok {
+		err = fmt.Errorf("driver not found by name '%s'", uri.Scheme)
+		return
+	}
+
+	var drv DeviceDriver
+	drv, ok = gendrv.(DeviceDriver)
+	if !ok {
+		err = fmt.Errorf("driver named '%s' is not a DeviceDriver", uri.Scheme)
+		return
+	}
+
+	return drv.UseDevice(ctx, uri, user)
 }

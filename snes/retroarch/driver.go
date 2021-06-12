@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"sni/snes"
 	"sni/util"
 	"sni/util/env"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,6 +24,10 @@ type Driver struct {
 
 	devices []snes.DeviceDescriptor
 	opened  *Queue
+
+	// track opened devices by URI
+	devicesRw  sync.RWMutex
+	devicesMap map[string]snes.Device
 }
 
 func NewDriver(addresses []*net.UDPAddr) *Driver {
@@ -92,15 +98,10 @@ func (d *Driver) OpenQueue(desc snes.DeviceDescriptor) (q snes.Queue, err error)
 	return
 }
 
-func (d *Driver) OpenDevice(desc snes.DeviceDescriptor) (q snes.Device, err error) {
-	descriptor, ok := desc.(*DeviceDescriptor)
-	if !ok {
-		return nil, fmt.Errorf("retroarch: open: descriptor is not of expected type")
-	}
-
+func (d *Driver) OpenDevice(uri *url.URL) (q snes.Device, err error) {
 	// create a new device with its own connection:
 	var addr *net.UDPAddr
-	addr, err = net.ResolveUDPAddr("udp", descriptor.GetId())
+	addr, err = net.ResolveUDPAddr("udp", uri.Opaque)
 	if err != nil {
 		return
 	}
@@ -114,17 +115,15 @@ func (d *Driver) OpenDevice(desc snes.DeviceDescriptor) (q snes.Device, err erro
 
 	// if we already detected the version, copy it in:
 	for _, detector := range d.detectors {
-		if descriptor.GetId() == detector.GetId() {
+		if addr.String() == detector.addr.String() {
 			c.version = detector.version
 			c.useRCR = detector.useRCR
 			break
 		}
 	}
 
-	// fill back in the addr for the descriptor:
-	descriptor.addr = c.addr
-
 	c.MuteLog(false)
+
 	qu := &Device{c: c}
 	err = qu.Init()
 	if err != nil {
@@ -169,7 +168,7 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 		// issue a sample read:
 		var data []byte
 		var mrsp []snes.MemoryReadResponse
-		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond * 256)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*256)
 		mrsp, err = detector.MultiReadMemory(ctx, snes.MemoryReadRequest{Address: 0x007FC0, Size: 32})
 		cancel()
 		if err != nil {
@@ -201,6 +200,44 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 
 func (d *Driver) Empty() snes.DeviceDescriptor {
 	return &DeviceDescriptor{}
+}
+
+func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, use snes.DeviceUser) (err error) {
+	var dev snes.Device
+	var ok bool
+
+	devKey := uri.Opaque
+
+	d.devicesRw.RLock()
+	dev, ok = d.devicesMap[devKey]
+	d.devicesRw.RUnlock()
+
+	if !ok {
+		dev, err = d.OpenDevice(uri)
+		if err != nil {
+			return
+		}
+
+		d.devicesRw.Lock()
+		if d.devicesMap == nil {
+			d.devicesMap = make(map[string]snes.Device)
+		}
+		d.devicesMap[devKey] = dev
+		d.devicesRw.Unlock()
+	}
+
+	err = use(ctx, dev)
+
+	if dev.IsClosed() {
+		d.devicesRw.Lock()
+		if d.devicesMap == nil {
+			d.devicesMap = make(map[string]snes.Device)
+		}
+		delete(d.devicesMap, devKey)
+		d.devicesRw.Unlock()
+	}
+
+	return
 }
 
 func init() {
