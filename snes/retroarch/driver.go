@@ -93,7 +93,7 @@ func (d *Driver) OpenQueue(descriptor snes.DeviceDescriptor) (q snes.Queue, err 
 func (d *Driver) OpenDevice(uri *url.URL) (q snes.Device, err error) {
 	// create a new device with its own connection:
 	var addr *net.UDPAddr
-	addr, err = net.ResolveUDPAddr("udp", uri.Opaque)
+	addr, err = net.ResolveUDPAddr("udp", uri.Host)
 	if err != nil {
 		return
 	}
@@ -177,7 +177,7 @@ func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, use snes.DeviceUse
 	var dev snes.Device
 	var ok bool
 
-	devKey := uri.Opaque
+	devKey := uri.Host
 
 	d.devicesRw.RLock()
 	dev, ok = d.devicesMap[devKey]
