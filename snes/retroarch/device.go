@@ -39,7 +39,7 @@ type Device struct {
 
 func (d *Device) Init() error {
 	// determine version:
-	return d.c.Version()
+	return d.c.DetermineVersion()
 }
 
 func (d *Device) IsClosed() bool {

@@ -36,7 +36,10 @@ func (c *RAClient) GetId() string {
 	return c.addr.String()
 }
 
-func (c *RAClient) Version() (err error) {
+func (c *RAClient) Version() string  { return c.version }
+func (c *RAClient) HasVersion() bool { return c.version != "" }
+
+func (c *RAClient) DetermineVersion() (err error) {
 	var rsp []byte
 	rsp, err = c.WriteThenReadTimeout([]byte("VERSION\n"), readWriteTimeout)
 	if err != nil {
@@ -89,9 +92,18 @@ func (c *RAClient) Version() (err error) {
 	return
 }
 
+// RA 1.9.0 allows a maximum read size of 2723 bytes so we cut that off at 2048 to make division easier
+const maxReadSize = 2048
+
 func (c *RAClient) ReadMemory(context context.Context, read snes.MemoryReadRequest) (mrsp snes.MemoryReadResponse, err error) {
 	busAddr := read.Address
 	size := read.Size
+
+	if size > maxReadSize {
+		// TODO: make a batch request and concat the response pieces together:
+		err = fmt.Errorf("read request size %d > max read size %d", size, maxReadSize)
+		return
+	}
 
 	// TODO: detect -1 response
 	var sb strings.Builder
@@ -231,10 +243,6 @@ func (c *RAClient) parseReadMemoryResponse(r *bytes.Reader, expectedAddr uint32,
 	return
 }
 
-func (c *RAClient) HasVersion() bool {
-	return c.version != ""
-}
-
 func (c *RAClient) WriteMemory(context context.Context, write snes.MemoryWriteRequest) error {
 	panic("implement me")
 }
@@ -242,7 +250,6 @@ func (c *RAClient) WriteMemory(context context.Context, write snes.MemoryWriteRe
 func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.MemoryWriteRequest) error {
 	panic("implement me")
 }
-
 
 func (c *RAClient) WriteMemoryBatch(batch []snes.Write, keepAlive snes.KeepAlive) (err error) {
 	for _, req := range batch {
