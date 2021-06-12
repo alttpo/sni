@@ -70,8 +70,6 @@ func makeBool(v bool) *bool {
 
 func (s *memoryUnaryService) ReadMemory(ctx context.Context, request *sni.ReadMemoryRequest) (rsp *sni.ReadMemoryResponse, gerr error) {
 	gerr = s.UseDevice(request.Uri, func(dev snes.Queue) (err error) {
-		complete := make(chan error)
-
 		//peer.FromContext(ctx)
 
 		addr := request.GetAddress()
@@ -97,26 +95,44 @@ func (s *memoryUnaryService) ReadMemory(ctx context.Context, request *sni.ReadMe
 			addr += 255
 		}
 
+		wg := sync.WaitGroup{}
+		var batchErrors chan error
 		seq := dev.MakeReadCommands(reads, func(command snes.Command, cmderr error) {
-			complete <- cmderr
-			close(complete)
+			batchErrors <- cmderr
+			wg.Done()
 		})
+		wg.Add(len(seq))
+		batchErrors = make(chan error, len(seq))
+
 		// enqueue the read:
 		err = seq.EnqueueTo(dev)
 		if err != nil {
 			return
 		}
 
-		// wait until canceled or read completed:
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case err = <-complete:
-			if err != nil {
-				err = status.Error(codes.Unavailable, err.Error())
-				return
+		done := make(chan struct{})
+		go func() {
+			wg.Wait()
+			close(done)
+		}()
+
+		// wait until completed or canceled:
+	waitLoop:
+		for {
+			select {
+			case <-done:
+				// read complete:
+				break waitLoop
+			case <-ctx.Done():
+				// canceled:
+				return ctx.Err()
+			case berr := <-batchErrors:
+				// take only the first error of the batches:
+				if berr != nil && err == nil {
+					err = status.Error(codes.Unavailable, berr.Error())
+				}
+				break
 			}
-			break
 		}
 
 		rsp = &sni.ReadMemoryResponse{

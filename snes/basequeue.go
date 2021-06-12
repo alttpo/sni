@@ -56,12 +56,7 @@ func (b *BaseQueue) handleQueue() {
 
 	b.cqClosed = false
 	var err error
-	doClose := func() {
-		if b.cqClosed {
-			log.Printf("%s: already closed\n", b.name)
-			return
-		}
-
+	defer func() {
 		if err != nil {
 			log.Printf("%s: %v\n", b.name, err)
 		}
@@ -74,12 +69,13 @@ func (b *BaseQueue) handleQueue() {
 			}
 		}
 
-		log.Printf("%s: closing chan\n", b.name)
-		b.cqClosed = true
-		close(b.cq)
-		log.Printf("%s: closed chan\n", b.name)
-	}
-	defer doClose()
+		if !b.cqClosed {
+			log.Printf("%s: closing chan\n", b.name)
+			b.cqClosed = true
+			close(b.cq)
+			log.Printf("%s: closed chan\n", b.name)
+		}
+	}()
 
 channelLoop:
 	for pair := range b.cq {
@@ -143,7 +139,12 @@ channelLoop:
 		}
 
 		if terminal {
-			break
+			// close the channel so we process the remaining items:
+			if !b.cqClosed {
+				b.cqClosed = true
+				close(b.cq)
+			}
+			//break
 		}
 	}
 }
