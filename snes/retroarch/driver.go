@@ -11,10 +11,9 @@ import (
 	"sni/util/env"
 	"strings"
 	"sync"
-	"time"
 )
 
-const driverName = "retroarch"
+const driverName = "ra"
 
 var logDetector = false
 
@@ -56,15 +55,10 @@ func (d *Driver) DisplayDescription() string {
 	return "Connect to a RetroArch emulator"
 }
 
-func (d *Driver) OpenQueue(desc snes.DeviceDescriptor) (q snes.Queue, err error) {
-	descriptor, ok := desc.(*DeviceDescriptor)
-	if !ok {
-		return nil, fmt.Errorf("retroarch: open: descriptor is not of expected type")
-	}
-
+func (d *Driver) OpenQueue(descriptor snes.DeviceDescriptor) (q snes.Queue, err error) {
 	// create a new device with its own connection:
 	var addr *net.UDPAddr
-	addr, err = net.ResolveUDPAddr("udp", descriptor.GetId())
+	addr, err = net.ResolveUDPAddr("udp", descriptor.Uri.Host)
 	if err != nil {
 		return
 	}
@@ -78,15 +72,12 @@ func (d *Driver) OpenQueue(desc snes.DeviceDescriptor) (q snes.Queue, err error)
 
 	// if we already detected the version, copy it in:
 	for _, detector := range d.detectors {
-		if descriptor.GetId() == detector.GetId() {
+		if descriptor.Uri.Host == detector.addr.String() {
 			c.version = detector.version
 			c.useRCR = detector.useRCR
 			break
 		}
 	}
-
-	// fill back in the addr for the descriptor:
-	descriptor.addr = c.addr
 
 	c.MuteLog(false)
 	qu := &Queue{c: c}
@@ -165,41 +156,17 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 			continue
 		}
 
-		// issue a sample read:
-		var data []byte
-		var mrsp []snes.MemoryReadResponse
-		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*256)
-		mrsp, err = detector.MultiReadMemory(ctx, snes.MemoryReadRequest{Address: 0x007FC0, Size: 32})
-		cancel()
-		if err != nil {
-			err = nil
-			detector.version = ""
-			continue
+		descriptor := snes.DeviceDescriptor{
+			Uri:         url.URL{Scheme: driverName, Host: detector.addr.String()},
+			DisplayName: fmt.Sprintf("RetroArch at %s", detector.addr),
 		}
 
-		descriptor := &DeviceDescriptor{
-			DeviceDescriptorBase: snes.DeviceDescriptorBase{},
-			addr:                 detector.addr,
-		}
-
-		data = mrsp[0].Data
-		if len(data) != mrsp[0].Size {
-			descriptor.IsGameLoaded = false
-		} else {
-			descriptor.IsGameLoaded = true
-		}
-
-		snes.MarshalDeviceDescriptor(descriptor)
 		devices = append(devices, descriptor)
 	}
 
 	d.devices = devices
 	err = nil
 	return
-}
-
-func (d *Driver) Empty() snes.DeviceDescriptor {
-	return &DeviceDescriptor{}
 }
 
 func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, use snes.DeviceUser) (err error) {

@@ -5,9 +5,11 @@ import (
 	"go.bug.st/serial"
 	"go.bug.st/serial/enumerator"
 	"log"
+	"net/url"
 	"sni/snes"
 	"sni/util"
 	"sni/util/env"
+	"strconv"
 )
 
 const (
@@ -49,13 +51,6 @@ func (d *Driver) DisplayDescription() string {
 	return "Connect to an FX Pak Pro or SD2SNES via USB"
 }
 
-func (d *Driver) Empty() snes.DeviceDescriptor {
-	return &DeviceDescriptor{
-		Port: "",
-		Baud: &(baudRates[0]),
-	}
-}
-
 func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 	var ports []*enumerator.PortDetails
 
@@ -72,19 +67,10 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 			continue
 		}
 
-		//log.Printf("   USB ID     %s:%s\n", port.VID, port.PID)
-		//log.Printf("   USB serial %s\n", port.SerialNumber)
-
 		if port.SerialNumber == "DEMO00000000" {
-			devices = append(devices, &DeviceDescriptor{
-				snes.DeviceDescriptorBase{
-					Id:          port.Name,
-					DisplayName: port.Name,
-				},
-				port.Name,
-				nil,
-				port.VID,
-				port.PID,
+			devices = append(devices, snes.DeviceDescriptor{
+				Uri:         url.URL{Scheme: driverName, Path: port.Name},
+				DisplayName: fmt.Sprintf("%s (%s:%s)", port.Name, port.VID, port.PID),
 			})
 		}
 	}
@@ -93,32 +79,14 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 	return
 }
 
-func (d *Driver) OpenQueue(ddg snes.DeviceDescriptor) (snes.Queue, error) {
+func (d *Driver) OpenQueue(dd snes.DeviceDescriptor) (snes.Queue, error) {
 	var err error
 
-	dd := ddg.(*DeviceDescriptor)
-	portName := dd.Port
-	if portName == "" {
-		ddgs, err := d.Detect()
-		if err != nil {
-			return nil, err
-		}
-
-		// pick first device found, if any:
-		if len(ddgs) > 0 {
-			portName = ddgs[0].(*DeviceDescriptor).Port
-		}
-	}
-	if portName == "" {
-		return nil, ErrNoFXPakProFound
-	}
+	portName := dd.Uri.Path
 
 	baudRequest := baudRates[0]
-	if dd.Baud != nil {
-		b := *dd.Baud
-		if b > 0 {
-			baudRequest = b
-		}
+	if baudStr := dd.Uri.Query().Get("baud"); baudStr != "" {
+		baudRequest, _ = strconv.Atoi(baudStr)
 	}
 
 	// Try all the common baud rates in descending order:
@@ -144,11 +112,6 @@ func (d *Driver) OpenQueue(ddg snes.DeviceDescriptor) (snes.Queue, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to open serial port at any baud rate: %w", driverName, err)
 	}
-
-	// set baud rate on descriptor:
-	pBaud := new(int)
-	*pBaud = baud
-	dd.Baud = pBaud
 
 	// set DTR:
 	//log.Printf("serial: Set DTR on\n")

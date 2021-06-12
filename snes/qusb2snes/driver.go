@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"log"
+	"net/url"
 	"sni/snes"
 	"sni/util"
 	"sni/util/env"
@@ -31,16 +32,10 @@ func (d *Driver) DisplayDescription() string {
 	return "Connect to the QUsb2Snes service"
 }
 
-func (d *Driver) OpenQueue(desc snes.DeviceDescriptor) (q snes.Queue, err error) {
-	dev, ok := desc.(*DeviceDescriptor)
-	if !ok {
-		err = fmt.Errorf("desc is not of expected type")
-		return
-	}
-
+func (d *Driver) OpenQueue(dev snes.DeviceDescriptor) (q snes.Queue, err error) {
 	qu := &Queue{
 		d:          d,
-		deviceName: dev.Name,
+		deviceName: dev.Uri.Opaque,
 	}
 
 	err = NewWebSocketClient(&qu.ws, "ws://localhost:8080/", RandomName("sni"))
@@ -70,9 +65,6 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 	// Prevent auto-detection when opened because DeviceList opcode breaks other websockets:
 	if d.opened != nil {
 		devices = d.detected
-		if devices == nil {
-			devices = []snes.DeviceDescriptor{&DeviceDescriptor{Name: "Auto-detection disabled when connected"}}
-		}
 		return
 	}
 
@@ -123,22 +115,15 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 	// make the device list:
 	devices = make([]snes.DeviceDescriptor, 0, len(list.Results))
 	for _, name := range list.Results {
-		devices = append(devices, &DeviceDescriptor{
-			snes.DeviceDescriptorBase{
-				Id:          name,
-				DisplayName: name,
-			},
-			name,
+		devices = append(devices, snes.DeviceDescriptor{
+			Uri:         url.URL{Scheme: driverName, Opaque: name},
+			DisplayName: name,
 		})
 	}
 
 	d.detected = devices
 
 	return
-}
-
-func (d *Driver) Empty() snes.DeviceDescriptor {
-	return &DeviceDescriptor{}
 }
 
 func init() {

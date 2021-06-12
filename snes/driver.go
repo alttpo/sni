@@ -8,38 +8,17 @@ import (
 	"sync"
 )
 
-// DeviceDescriptorBase MUST be embedded in all structs implementing DeviceDescriptor
-type DeviceDescriptorBase struct {
-	Id          string `json:"id"`
-	DisplayName string `json:"displayName"`
-}
-
-// DeviceDescriptor MUST embed DeviceDescriptorBase and MAY contain extra fields used to uniquely identify a device
-type DeviceDescriptor interface {
-	// Base is used to fetch the DeviceDescriptorBase embedded in implementing structs
-	Base() *DeviceDescriptorBase
-
-	// GetId value is copied to the Id field of DeviceDescriptorBase
-	GetId() string
-	// GetDisplayName value is copied to the DisplayName field of DeviceDescriptorBase
-	GetDisplayName() string
-}
-
-// MarshalDeviceDescriptor MUST be called to keep DeviceDescriptor in consistent state for marshaling
-func MarshalDeviceDescriptor(device DeviceDescriptor) DeviceDescriptor {
-	device.Base().Id = device.GetId()
-	device.Base().DisplayName = device.GetDisplayName()
-	return device
+type DeviceDescriptor struct {
+	Uri         url.URL
+	DisplayName string
 }
 
 type Driver interface {
 	// Detect any present devices
 	Detect() ([]DeviceDescriptor, error)
-
-	// Empty Returns a descriptor with all fields empty or defaulted
-	Empty() DeviceDescriptor
 }
 
+// QueueDriver extends Driver
 type QueueDriver interface {
 	// OpenQueue creates a command queue for a specific device
 	OpenQueue(desc DeviceDescriptor) (Queue, error)
@@ -47,6 +26,7 @@ type QueueDriver interface {
 
 type DeviceUser func(context.Context, Device) error
 
+// DeviceDriver extends Driver
 type DeviceDriver interface {
 	// OpenDevice creates a Device interface for a specific device
 	OpenDevice(uri *url.URL) (Device, error)
@@ -60,6 +40,7 @@ type NamedDriver struct {
 	Name   string
 }
 
+// DriverDescriptor extends Driver
 type DriverDescriptor interface {
 	DisplayName() string
 

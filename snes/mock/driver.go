@@ -2,6 +2,7 @@ package mock
 
 import (
 	"log"
+	"net/url"
 	"sni/snes"
 	"sni/util"
 	"sni/util/env"
@@ -32,12 +33,11 @@ func (d *Driver) OpenQueue(desc snes.DeviceDescriptor) (snes.Queue, error) {
 
 func (d *Driver) Detect() ([]snes.DeviceDescriptor, error) {
 	return []snes.DeviceDescriptor{
-		&DeviceDescriptor{},
+		{
+			Uri:         url.URL{Scheme: driverName, Opaque: "mock"},
+			DisplayName: "Mock",
+		},
 	}, nil
-}
-
-func (d *Driver) Empty() snes.DeviceDescriptor {
-	return &DeviceDescriptor{}
 }
 
 func init() {
