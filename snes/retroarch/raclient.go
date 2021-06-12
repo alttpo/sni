@@ -96,39 +96,15 @@ func (c *RAClient) DetermineVersion() (err error) {
 const maxReadSize = 2048
 
 func (c *RAClient) ReadMemory(context context.Context, read snes.MemoryReadRequest) (mrsp snes.MemoryReadResponse, err error) {
-	size := read.Size
-	if size > maxReadSize {
-		// TODO: make a batch request and concat the response pieces together:
-		err = fmt.Errorf("read request size %d > max read size %d", size, maxReadSize)
-		return
-	}
-
-	// TODO: detect -1 response
-	var sb strings.Builder
-	if c.useRCR {
-		sb.WriteString("READ_CORE_RAM ")
-	} else {
-		sb.WriteString("READ_CORE_MEMORY ")
-	}
-	expectedAddr := lorom.PakAddressToBus(read.Address)
-	sb.WriteString(fmt.Sprintf("%06x %d\n", expectedAddr, size))
-
-	reqStr := sb.String()
-	var rsp []byte
-
-	rsp, err = c.WriteThenReadTimeout([]byte(reqStr), readWriteTimeout)
+	var mrsps []snes.MemoryReadResponse
+	mrsps, err = c.MultiReadMemory(context, read)
 	if err != nil {
 		return
 	}
-
-	r := bytes.NewReader(rsp)
-	var data []byte
-	data, err = c.parseReadMemoryResponse(r, expectedAddr, size)
-	if err != nil {
-		return
+	if len(mrsps) != 1 {
+		panic(fmt.Errorf("retroarch: ReadMemory: calling MultiReadMemory should return exactly 1 response but returned %d", len(mrsps)))
 	}
-
-	mrsp = snes.MemoryReadResponse{MemoryReadRequest: read, Data: data}
+	mrsp = mrsps[0]
 	return
 }
 
@@ -144,13 +120,13 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 		// TODO: support multiple ROM mappings
 		addr := lorom.PakAddressToBus(read.Address)
 		for size > maxReadSize {
-			_, _ = c.readCommand(sb)
+			_, _ = c.readCommand(&sb)
 			sb.WriteString(fmt.Sprintf("%06x %d\n", addr, maxReadSize))
 			addr += maxReadSize
 			size -= maxReadSize
 		}
 		if size > 0 {
-			_, _ = c.readCommand(sb)
+			_, _ = c.readCommand(&sb)
 			sb.WriteString(fmt.Sprintf("%06x %d\n", addr, size))
 		}
 	}
@@ -206,7 +182,7 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 	return
 }
 
-func (c *RAClient) readCommand(sb strings.Builder) (int, error) {
+func (c *RAClient) readCommand(sb *strings.Builder) (int, error) {
 	if c.useRCR {
 		return sb.WriteString("READ_CORE_RAM ")
 	} else {
@@ -224,7 +200,7 @@ func (c *RAClient) ReadMemoryBatch(batch []snes.Read, keepAlive snes.KeepAlive) 
 			continue
 		}
 
-		c.readCommand(sb)
+		c.readCommand(&sb)
 		expectedAddr := lorom.PakAddressToBus(req.Address)
 		sb.WriteString(fmt.Sprintf("%06x %d\n", expectedAddr, req.Size))
 	}
