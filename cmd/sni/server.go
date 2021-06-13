@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"net/url"
@@ -100,6 +99,40 @@ func (s *memoryUnaryService) ReadMemory(rctx context.Context, request *sni.ReadM
 	return
 }
 
-func (s *memoryUnaryService) WriteMemory(ctx context.Context, request *sni.WriteMemoryRequest) (*sni.WriteMemoryResponse, error) {
-	return nil, fmt.Errorf("unimplemented")
+func (s *memoryUnaryService) WriteMemory(rctx context.Context, request *sni.WriteMemoryRequest) (rsp *sni.WriteMemoryResponse, gerr error) {
+	uri, err := url.Parse(request.Uri)
+	if err != nil {
+		gerr = status.Error(codes.InvalidArgument, err.Error())
+		return
+	}
+
+	gerr = snes.UseDevice(rctx, uri, func(ctx context.Context, dev snes.Device) (err error) {
+		// TODO: could offer stateful binding of device to peer
+		//peer.FromContext(ctx)
+		err = dev.UseMemory(ctx, func(mctx context.Context, memory snes.DeviceMemory) (merr error) {
+			var mrsp []snes.MemoryWriteResponse
+			mrsp, merr = memory.MultiWriteMemory(mctx, snes.MemoryWriteRequest{
+				Address: request.Address,
+				Data:    request.Data,
+			})
+			if merr != nil {
+				return
+			}
+
+			rsp = &sni.WriteMemoryResponse{
+				Uri:     request.Uri,
+				Address: mrsp[0].Address,
+				//Size:    mrsp[0].Size,
+			}
+			return
+		})
+
+		return
+	})
+
+	if gerr != nil {
+		rsp = nil
+		return
+	}
+	return
 }
