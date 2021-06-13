@@ -144,3 +144,54 @@ func (s *deviceMemoryService) Write(
 	}
 	return
 }
+
+func (s *deviceMemoryService) MultiRead(
+	gctx context.Context,
+	request *sni.MultiReadMemoryRequest,
+) (grsp *sni.MultiReadMemoryResponse, gerr error) {
+	uri, err := url.Parse(request.Uri)
+	if err != nil {
+		gerr = status.Error(codes.InvalidArgument, err.Error())
+		return
+	}
+
+	var grsps []*sni.ReadMemoryResponse
+	gerr = snes.UseDevice(gctx, uri, func(ctx context.Context, dev snes.Device) error {
+		return dev.UseMemory(ctx, func(mctx context.Context, memory snes.DeviceMemory) (err error) {
+			reads := make([]snes.MemoryReadRequest, 0, len(request.Requests))
+			for _, req := range request.Requests {
+				reads = append(reads, snes.MemoryReadRequest{
+					Address: req.Address,
+					Size:    int(req.Size),
+				})
+			}
+
+			var mrsps []snes.MemoryReadResponse
+			mrsps, err = memory.MultiReadMemory(mctx, reads...)
+			grsps = make([]*sni.ReadMemoryResponse, 0, len(mrsps))
+			for _, mrsp := range mrsps {
+				grsps = append(grsps, &sni.ReadMemoryResponse{
+					Address: mrsp.Address,
+					Data:    mrsp.Data,
+				})
+			}
+			return
+		})
+	})
+	if gerr != nil {
+		return
+	}
+
+	grsp = &sni.MultiReadMemoryResponse{
+		Uri:       request.Uri,
+		Responses: grsps,
+	}
+	return
+}
+
+func (s *deviceMemoryService) MultiWrite(
+	context context.Context,
+	request *sni.MultiWriteMemoryRequest,
+) (grsp *sni.MultiWriteMemoryResponse, gerr error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MultiWrite not implemented")
+}
