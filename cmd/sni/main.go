@@ -80,7 +80,7 @@ func main() {
 	_ = listenAddr
 	s := grpc.NewServer()
 	sni.RegisterDevicesServer(s, &devicesService{})
-	sni.RegisterMemoryUnaryServer(s, &memoryUnaryService{})
+	sni.RegisterDeviceMemoryServer(s, &deviceMemoryService{})
 	reflection.Register(s)
 
 	go func() {

@@ -29,37 +29,71 @@ message DevicesResponse {
     string displayName = 2;
     // device kind, e.g. "fxpakpro", "retroarch", "lua"
     string kind = 3;
-    // version of the device's firmware or software depending on device kind, e.g. "1.9.2" for "retroarch", "1.10.3" for "fxpakpro"
-    string version = 4;
     // use DeviceCapability enum as bit field, ORing values together
-    int32 capabilities = 5;
+    int32 capabilities = 4;
   }
 
   repeated Device devices = 1;
 }
 
-service MemoryUnary {
-  rpc ReadMemory(ReadMemoryRequest) returns (ReadMemoryResponse) {}
-  rpc WriteMemory(WriteMemoryRequest) returns (WriteMemoryResponse) {}
+service DeviceMemory {
+  rpc Read(SingleReadMemoryRequest) returns (SingleReadMemoryResponse) {}
+  rpc Write(SingleWriteMemoryRequest) returns (SingleWriteMemoryResponse) {}
+  rpc MultiRead(MultiReadMemoryRequest) returns (MultiReadMemoryResponse) {}
+  rpc MultiWrite(MultiWriteMemoryRequest) returns (MultiWriteMemoryResponse) {}
+  // TODO: streaming
 }
 
 message ReadMemoryRequest {
-  string uri = 1;
-  uint32 address = 2;
-  uint32 size = 3;
+  uint32 address = 1;
+  uint32 size = 2;
 }
 message ReadMemoryResponse {
-  string uri = 1;
-  uint32 address = 2;
-  bytes data = 3;
+  uint32 address = 1;
+  bytes data = 2;
 }
-
 message WriteMemoryRequest {
-  string uri = 1;
-  uint32 address = 2;
-  bytes data = 3;
+  uint32 address = 1;
+  bytes data = 2;
 }
 message WriteMemoryResponse {
+  uint32 address = 1;
+  uint32 size = 2;
+}
+
+
+message SingleReadMemoryRequest {
   string uri = 1;
-  uint32 address = 2;
+  ReadMemoryRequest request = 2;
+}
+message SingleReadMemoryResponse {
+  string uri = 1;
+  ReadMemoryResponse response = 2;
+}
+
+message SingleWriteMemoryRequest {
+  string uri = 1;
+  WriteMemoryRequest request = 2;
+}
+message SingleWriteMemoryResponse {
+  string uri = 1;
+  WriteMemoryResponse response = 2;
+}
+
+message MultiReadMemoryRequest {
+  string uri = 1;
+  repeated ReadMemoryRequest requests = 2;
+}
+message MultiReadMemoryResponse {
+  string uri = 1;
+  repeated ReadMemoryResponse responses = 2;
+}
+
+message MultiWriteMemoryRequest {
+  string uri = 1;
+  repeated WriteMemoryRequest requests = 2;
+}
+message MultiWriteMemoryResponse {
+  string uri = 1;
+  repeated WriteMemoryResponse responses = 2;
 }

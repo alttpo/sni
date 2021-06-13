@@ -100,122 +100,194 @@ var Devices_ServiceDesc = grpc.ServiceDesc{
 	Metadata: "sni.proto",
 }
 
-// MemoryUnaryClient is the client API for MemoryUnary service.
+// DeviceMemoryClient is the client API for DeviceMemory service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type MemoryUnaryClient interface {
-	ReadMemory(ctx context.Context, in *ReadMemoryRequest, opts ...grpc.CallOption) (*ReadMemoryResponse, error)
-	WriteMemory(ctx context.Context, in *WriteMemoryRequest, opts ...grpc.CallOption) (*WriteMemoryResponse, error)
+type DeviceMemoryClient interface {
+	Read(ctx context.Context, in *SingleReadMemoryRequest, opts ...grpc.CallOption) (*SingleReadMemoryResponse, error)
+	Write(ctx context.Context, in *SingleWriteMemoryRequest, opts ...grpc.CallOption) (*SingleWriteMemoryResponse, error)
+	MultiRead(ctx context.Context, in *MultiReadMemoryRequest, opts ...grpc.CallOption) (*MultiReadMemoryResponse, error)
+	MultiWrite(ctx context.Context, in *MultiWriteMemoryRequest, opts ...grpc.CallOption) (*MultiWriteMemoryResponse, error)
 }
 
-type memoryUnaryClient struct {
+type deviceMemoryClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewMemoryUnaryClient(cc grpc.ClientConnInterface) MemoryUnaryClient {
-	return &memoryUnaryClient{cc}
+func NewDeviceMemoryClient(cc grpc.ClientConnInterface) DeviceMemoryClient {
+	return &deviceMemoryClient{cc}
 }
 
-func (c *memoryUnaryClient) ReadMemory(ctx context.Context, in *ReadMemoryRequest, opts ...grpc.CallOption) (*ReadMemoryResponse, error) {
-	out := new(ReadMemoryResponse)
-	err := c.cc.Invoke(ctx, "/MemoryUnary/ReadMemory", in, out, opts...)
+func (c *deviceMemoryClient) Read(ctx context.Context, in *SingleReadMemoryRequest, opts ...grpc.CallOption) (*SingleReadMemoryResponse, error) {
+	out := new(SingleReadMemoryResponse)
+	err := c.cc.Invoke(ctx, "/DeviceMemory/Read", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *memoryUnaryClient) WriteMemory(ctx context.Context, in *WriteMemoryRequest, opts ...grpc.CallOption) (*WriteMemoryResponse, error) {
-	out := new(WriteMemoryResponse)
-	err := c.cc.Invoke(ctx, "/MemoryUnary/WriteMemory", in, out, opts...)
+func (c *deviceMemoryClient) Write(ctx context.Context, in *SingleWriteMemoryRequest, opts ...grpc.CallOption) (*SingleWriteMemoryResponse, error) {
+	out := new(SingleWriteMemoryResponse)
+	err := c.cc.Invoke(ctx, "/DeviceMemory/Write", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// MemoryUnaryServer is the server API for MemoryUnary service.
-// All implementations must embed UnimplementedMemoryUnaryServer
+func (c *deviceMemoryClient) MultiRead(ctx context.Context, in *MultiReadMemoryRequest, opts ...grpc.CallOption) (*MultiReadMemoryResponse, error) {
+	out := new(MultiReadMemoryResponse)
+	err := c.cc.Invoke(ctx, "/DeviceMemory/MultiRead", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deviceMemoryClient) MultiWrite(ctx context.Context, in *MultiWriteMemoryRequest, opts ...grpc.CallOption) (*MultiWriteMemoryResponse, error) {
+	out := new(MultiWriteMemoryResponse)
+	err := c.cc.Invoke(ctx, "/DeviceMemory/MultiWrite", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// DeviceMemoryServer is the server API for DeviceMemory service.
+// All implementations must embed UnimplementedDeviceMemoryServer
 // for forward compatibility
-type MemoryUnaryServer interface {
-	ReadMemory(context.Context, *ReadMemoryRequest) (*ReadMemoryResponse, error)
-	WriteMemory(context.Context, *WriteMemoryRequest) (*WriteMemoryResponse, error)
-	mustEmbedUnimplementedMemoryUnaryServer()
+type DeviceMemoryServer interface {
+	Read(context.Context, *SingleReadMemoryRequest) (*SingleReadMemoryResponse, error)
+	Write(context.Context, *SingleWriteMemoryRequest) (*SingleWriteMemoryResponse, error)
+	MultiRead(context.Context, *MultiReadMemoryRequest) (*MultiReadMemoryResponse, error)
+	MultiWrite(context.Context, *MultiWriteMemoryRequest) (*MultiWriteMemoryResponse, error)
+	mustEmbedUnimplementedDeviceMemoryServer()
 }
 
-// UnimplementedMemoryUnaryServer must be embedded to have forward compatible implementations.
-type UnimplementedMemoryUnaryServer struct {
+// UnimplementedDeviceMemoryServer must be embedded to have forward compatible implementations.
+type UnimplementedDeviceMemoryServer struct {
 }
 
-func (UnimplementedMemoryUnaryServer) ReadMemory(context.Context, *ReadMemoryRequest) (*ReadMemoryResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ReadMemory not implemented")
+func (UnimplementedDeviceMemoryServer) Read(context.Context, *SingleReadMemoryRequest) (*SingleReadMemoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Read not implemented")
 }
-func (UnimplementedMemoryUnaryServer) WriteMemory(context.Context, *WriteMemoryRequest) (*WriteMemoryResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method WriteMemory not implemented")
+func (UnimplementedDeviceMemoryServer) Write(context.Context, *SingleWriteMemoryRequest) (*SingleWriteMemoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Write not implemented")
 }
-func (UnimplementedMemoryUnaryServer) mustEmbedUnimplementedMemoryUnaryServer() {}
+func (UnimplementedDeviceMemoryServer) MultiRead(context.Context, *MultiReadMemoryRequest) (*MultiReadMemoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MultiRead not implemented")
+}
+func (UnimplementedDeviceMemoryServer) MultiWrite(context.Context, *MultiWriteMemoryRequest) (*MultiWriteMemoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MultiWrite not implemented")
+}
+func (UnimplementedDeviceMemoryServer) mustEmbedUnimplementedDeviceMemoryServer() {}
 
-// UnsafeMemoryUnaryServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to MemoryUnaryServer will
+// UnsafeDeviceMemoryServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to DeviceMemoryServer will
 // result in compilation errors.
-type UnsafeMemoryUnaryServer interface {
-	mustEmbedUnimplementedMemoryUnaryServer()
+type UnsafeDeviceMemoryServer interface {
+	mustEmbedUnimplementedDeviceMemoryServer()
 }
 
-func RegisterMemoryUnaryServer(s grpc.ServiceRegistrar, srv MemoryUnaryServer) {
-	s.RegisterService(&MemoryUnary_ServiceDesc, srv)
+func RegisterDeviceMemoryServer(s grpc.ServiceRegistrar, srv DeviceMemoryServer) {
+	s.RegisterService(&DeviceMemory_ServiceDesc, srv)
 }
 
-func _MemoryUnary_ReadMemory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReadMemoryRequest)
+func _DeviceMemory_Read_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SingleReadMemoryRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MemoryUnaryServer).ReadMemory(ctx, in)
+		return srv.(DeviceMemoryServer).Read(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/MemoryUnary/ReadMemory",
+		FullMethod: "/DeviceMemory/Read",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MemoryUnaryServer).ReadMemory(ctx, req.(*ReadMemoryRequest))
+		return srv.(DeviceMemoryServer).Read(ctx, req.(*SingleReadMemoryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MemoryUnary_WriteMemory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(WriteMemoryRequest)
+func _DeviceMemory_Write_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SingleWriteMemoryRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MemoryUnaryServer).WriteMemory(ctx, in)
+		return srv.(DeviceMemoryServer).Write(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/MemoryUnary/WriteMemory",
+		FullMethod: "/DeviceMemory/Write",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MemoryUnaryServer).WriteMemory(ctx, req.(*WriteMemoryRequest))
+		return srv.(DeviceMemoryServer).Write(ctx, req.(*SingleWriteMemoryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// MemoryUnary_ServiceDesc is the grpc.ServiceDesc for MemoryUnary service.
+func _DeviceMemory_MultiRead_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MultiReadMemoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceMemoryServer).MultiRead(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceMemory/MultiRead",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceMemoryServer).MultiRead(ctx, req.(*MultiReadMemoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeviceMemory_MultiWrite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MultiWriteMemoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceMemoryServer).MultiWrite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceMemory/MultiWrite",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceMemoryServer).MultiWrite(ctx, req.(*MultiWriteMemoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// DeviceMemory_ServiceDesc is the grpc.ServiceDesc for DeviceMemory service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var MemoryUnary_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "MemoryUnary",
-	HandlerType: (*MemoryUnaryServer)(nil),
+var DeviceMemory_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "DeviceMemory",
+	HandlerType: (*DeviceMemoryServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ReadMemory",
-			Handler:    _MemoryUnary_ReadMemory_Handler,
+			MethodName: "Read",
+			Handler:    _DeviceMemory_Read_Handler,
 		},
 		{
-			MethodName: "WriteMemory",
-			Handler:    _MemoryUnary_WriteMemory_Handler,
+			MethodName: "Write",
+			Handler:    _DeviceMemory_Write_Handler,
+		},
+		{
+			MethodName: "MultiRead",
+			Handler:    _DeviceMemory_MultiRead_Handler,
+		},
+		{
+			MethodName: "MultiWrite",
+			Handler:    _DeviceMemory_MultiWrite_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

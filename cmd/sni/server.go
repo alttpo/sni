@@ -44,8 +44,6 @@ func (s *devicesService) ListDevices(ctx context.Context, request *sni.DevicesRe
 				DisplayName:  descriptor.DisplayName,
 				Kind:         descriptor.Kind,
 				Capabilities: int32(descriptor.Capabilities),
-				// TODO: deprecated
-				Version: "TODO",
 			})
 		}
 	}
@@ -53,15 +51,18 @@ func (s *devicesService) ListDevices(ctx context.Context, request *sni.DevicesRe
 	return &sni.DevicesResponse{Devices: devices}, nil
 }
 
-type memoryUnaryService struct {
-	sni.UnimplementedMemoryUnaryServer
+type deviceMemoryService struct {
+	sni.UnimplementedDeviceMemoryServer
 }
 
 func makeBool(v bool) *bool {
 	return &v
 }
 
-func (s *memoryUnaryService) ReadMemory(rctx context.Context, request *sni.ReadMemoryRequest) (rsp *sni.ReadMemoryResponse, gerr error) {
+func (s *deviceMemoryService) Read(
+	rctx context.Context,
+	request *sni.SingleReadMemoryRequest,
+) (rsp *sni.SingleReadMemoryResponse, gerr error) {
 	uri, err := url.Parse(request.Uri)
 	if err != nil {
 		gerr = status.Error(codes.InvalidArgument, err.Error())
@@ -74,17 +75,19 @@ func (s *memoryUnaryService) ReadMemory(rctx context.Context, request *sni.ReadM
 		err = dev.UseMemory(ctx, func(mctx context.Context, memory snes.DeviceMemory) (merr error) {
 			var mrsp []snes.MemoryReadResponse
 			mrsp, merr = memory.MultiReadMemory(mctx, snes.MemoryReadRequest{
-				Address: request.Address,
-				Size:    int(request.Size),
+				Address: request.Request.Address,
+				Size:    int(request.Request.Size),
 			})
 			if merr != nil {
 				return
 			}
 
-			rsp = &sni.ReadMemoryResponse{
-				Uri:     request.Uri,
-				Address: request.Address,
-				Data:    mrsp[0].Data,
+			rsp = &sni.SingleReadMemoryResponse{
+				Uri: request.Uri,
+				Response: &sni.ReadMemoryResponse{
+					Address: request.Request.Address,
+					Data:    mrsp[0].Data,
+				},
 			}
 			return
 		})
@@ -99,7 +102,10 @@ func (s *memoryUnaryService) ReadMemory(rctx context.Context, request *sni.ReadM
 	return
 }
 
-func (s *memoryUnaryService) WriteMemory(rctx context.Context, request *sni.WriteMemoryRequest) (rsp *sni.WriteMemoryResponse, gerr error) {
+func (s *deviceMemoryService) Write(
+	rctx context.Context,
+	request *sni.SingleWriteMemoryRequest,
+) (rsp *sni.SingleWriteMemoryResponse, gerr error) {
 	uri, err := url.Parse(request.Uri)
 	if err != nil {
 		gerr = status.Error(codes.InvalidArgument, err.Error())
@@ -112,17 +118,19 @@ func (s *memoryUnaryService) WriteMemory(rctx context.Context, request *sni.Writ
 		err = dev.UseMemory(ctx, func(mctx context.Context, memory snes.DeviceMemory) (merr error) {
 			var mrsp []snes.MemoryWriteResponse
 			mrsp, merr = memory.MultiWriteMemory(mctx, snes.MemoryWriteRequest{
-				Address: request.Address,
-				Data:    request.Data,
+				Address: request.Request.Address,
+				Data:    request.Request.Data,
 			})
 			if merr != nil {
 				return
 			}
 
-			rsp = &sni.WriteMemoryResponse{
-				Uri:     request.Uri,
-				Address: mrsp[0].Address,
-				//Size:    mrsp[0].Size,
+			rsp = &sni.SingleWriteMemoryResponse{
+				Uri: request.Uri,
+				Response: &sni.WriteMemoryResponse{
+					Address: mrsp[0].Address,
+					Size:    uint32(mrsp[0].Size),
+				},
 			}
 			return
 		})
