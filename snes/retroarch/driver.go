@@ -51,6 +51,8 @@ func (d *Driver) DisplayDescription() string {
 	return "Connect to a RetroArch emulator"
 }
 
+func (d *Driver) Kind() string { return "retroarch" }
+
 func (d *Driver) OpenDevice(uri *url.URL) (q snes.Device, err error) {
 	// create a new device with its own connection:
 	var addr *net.UDPAddr
@@ -112,7 +114,7 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 		descriptor := snes.DeviceDescriptor{
 			Uri:         url.URL{Scheme: driverName, Host: detector.addr.String()},
 			DisplayName: fmt.Sprintf("RetroArch at %s", detector.addr),
-			Kind:        "retroarch",
+			Kind:        d.Kind(),
 			// TODO: sni.DeviceCapability_EXEC_ASM
 			Capabilities: sni.DeviceCapability_READ | sni.DeviceCapability_WRITE | sni.DeviceCapability_RESET | sni.DeviceCapability_PAUSE,
 		}

@@ -52,6 +52,8 @@ func (d *Driver) DisplayDescription() string {
 	return "Connect to an FX Pak Pro or SD2SNES via USB"
 }
 
+func (d *Driver) Kind() string { return "fxpakpro" }
+
 func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 	var ports []*enumerator.PortDetails
 
@@ -72,7 +74,7 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 			devices = append(devices, snes.DeviceDescriptor{
 				Uri:          url.URL{Scheme: driverName, Path: port.Name},
 				DisplayName:  fmt.Sprintf("%s (%s:%s)", port.Name, port.VID, port.PID),
-				Kind:         "fxpakpro",
+				Kind:         d.Kind(),
 				Capabilities: sni.DeviceCapability_READ | sni.DeviceCapability_WRITE | sni.DeviceCapability_EXEC_ASM | sni.DeviceCapability_RESET,
 			})
 		}

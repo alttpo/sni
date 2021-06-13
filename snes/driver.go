@@ -17,6 +17,8 @@ type DeviceDescriptor struct {
 }
 
 type Driver interface {
+	Kind() string
+
 	// Detect any present devices
 	Detect() ([]DeviceDescriptor, error)
 }

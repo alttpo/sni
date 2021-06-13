@@ -30,7 +30,7 @@ func (s *devicesService) ListDevices(ctx context.Context, request *sni.DevicesRe
 
 	devices := make([]*sni.DevicesResponse_Device, 0, 10)
 	for _, driver := range snes.Drivers() {
-		if !kindPredicate(driver.Name) {
+		if !kindPredicate(driver.Driver.Kind()) {
 			continue
 		}
 

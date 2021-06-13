@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"sni/protos/sni"
 	"sni/snes"
 	"sni/util"
 	"sni/util/env"
@@ -31,6 +32,8 @@ func (d *Driver) DisplayName() string {
 func (d *Driver) DisplayDescription() string {
 	return "Connect to the QUsb2Snes service"
 }
+
+func (d *Driver) Kind() string { return "qusb2snes" }
 
 func (d *Driver) OpenQueue(dev snes.DeviceDescriptor) (q snes.Queue, err error) {
 	qu := &Queue{
@@ -116,8 +119,10 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 	devices = make([]snes.DeviceDescriptor, 0, len(list.Results))
 	for _, name := range list.Results {
 		devices = append(devices, snes.DeviceDescriptor{
-			Uri:         url.URL{Scheme: driverName, Opaque: name},
-			DisplayName: name,
+			Uri:          url.URL{Scheme: driverName, Opaque: name},
+			DisplayName:  name,
+			Kind:         d.Kind(),
+			Capabilities: sni.DeviceCapability_READ | sni.DeviceCapability_WRITE,
 		})
 	}
 

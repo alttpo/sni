@@ -29,12 +29,14 @@ func (d *Driver) DisplayDescription() string {
 	return "Connect to a mock SNES device for testing"
 }
 
+func (d *Driver) Kind() string { return "mock" }
+
 func (d *Driver) Detect() ([]snes.DeviceDescriptor, error) {
 	return []snes.DeviceDescriptor{
 		{
 			Uri:         url.URL{Scheme: driverName, Opaque: "mock"},
 			DisplayName: "Mock",
-			Kind:        "mock",
+			Kind:        d.Kind(),
 		},
 	}, nil
 }
