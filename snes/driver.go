@@ -21,12 +21,6 @@ type Driver interface {
 	Detect() ([]DeviceDescriptor, error)
 }
 
-// QueueDriver extends Driver
-type QueueDriver interface {
-	// OpenQueue creates a command queue for a specific device
-	OpenQueue(desc DeviceDescriptor) (Queue, error)
-}
-
 type DeviceUser func(context.Context, Device) error
 
 // DeviceDriver extends Driver
