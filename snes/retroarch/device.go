@@ -20,7 +20,7 @@ func (d *Device) IsClosed() bool {
 	return d.c.IsClosed()
 }
 
-func (d *Device) UseMemory(context context.Context, user snes.MemoryUser) error {
+func (d *Device) ExclusiveUse(ctx context.Context, user snes.DeviceUser) error {
 	if user == nil {
 		return nil
 	}
@@ -28,5 +28,16 @@ func (d *Device) UseMemory(context context.Context, user snes.MemoryUser) error 
 	defer d.lock.Unlock()
 	d.lock.Lock()
 
-	return user(context, d.c)
+	return user(ctx, d)
+}
+
+func (d *Device) UseMemory(ctx context.Context, user snes.DeviceMemoryUser) error {
+	if user == nil {
+		return nil
+	}
+
+	defer d.lock.Unlock()
+	d.lock.Lock()
+
+	return user(ctx, d.c)
 }

@@ -1,6 +1,7 @@
 package fxpakpro
 
 import (
+	"context"
 	"fmt"
 	"go.bug.st/serial"
 	"go.bug.st/serial/enumerator"
@@ -133,6 +134,14 @@ func (d *Driver) OpenQueue(dd snes.DeviceDescriptor) (snes.Queue, error) {
 	c.BaseInit(driverName, c)
 
 	return c, err
+}
+
+func (d *Driver) OpenDevice(uri *url.URL) (snes.Device, error) {
+	panic("implement me")
+}
+
+func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, user snes.DeviceUser) error {
+	panic("implement me")
 }
 
 func init() {

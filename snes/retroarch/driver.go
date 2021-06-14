@@ -1,7 +1,6 @@
 package retroarch
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net"
@@ -19,6 +18,8 @@ const driverName = "ra"
 var logDetector = false
 
 type Driver struct {
+	snes.BaseDeviceDriver
+
 	detectors []*RAClient
 
 	// track opened devices by URI
@@ -126,42 +127,8 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 	return
 }
 
-func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, use snes.DeviceUser) (err error) {
-	var dev snes.Device
-	var ok bool
-
-	devKey := uri.Host
-
-	d.devicesRw.RLock()
-	dev, ok = d.devicesMap[devKey]
-	d.devicesRw.RUnlock()
-
-	if !ok {
-		dev, err = d.OpenDevice(uri)
-		if err != nil {
-			return
-		}
-
-		d.devicesRw.Lock()
-		if d.devicesMap == nil {
-			d.devicesMap = make(map[string]snes.Device)
-		}
-		d.devicesMap[devKey] = dev
-		d.devicesRw.Unlock()
-	}
-
-	err = use(ctx, dev)
-
-	if dev.IsClosed() {
-		d.devicesRw.Lock()
-		if d.devicesMap == nil {
-			d.devicesMap = make(map[string]snes.Device)
-		}
-		delete(d.devicesMap, devKey)
-		d.devicesRw.Unlock()
-	}
-
-	return
+func (d *Driver) DeviceKey(uri *url.URL) string {
+	return uri.Host
 }
 
 func init() {

@@ -7,14 +7,12 @@ import (
 	"sni/snes"
 	"sni/util"
 	"sni/util/env"
-	"sync"
 )
 
 const driverName = "mock"
 
 type Driver struct {
-	lock sync.Mutex
-	mock *Device
+	base snes.BaseDeviceDriver
 }
 
 func (d *Driver) DisplayOrder() int {
@@ -42,30 +40,25 @@ func (d *Driver) Detect() ([]snes.DeviceDescriptor, error) {
 }
 
 func (d *Driver) OpenDevice(uri *url.URL) (snes.Device, error) {
-	defer d.lock.Unlock()
-	d.lock.Lock()
-
-	return d.openDevice(uri)
-}
-
-func (d *Driver) openDevice(uri *url.URL) (snes.Device, error) {
-	if d.mock == nil {
-		d.mock = &Device{}
-		d.mock.WRAM = d.mock.Memory[0xF50000:0xF70000]
-		d.mock.Init()
+	dev, ok := d.base.Get(d.DeviceKey(uri))
+	if ok {
+		return dev, nil
 	}
 
-	return d.mock, nil
+	mock := &Device{}
+	mock.WRAM = mock.Memory[0xF50000:0xF70000]
+	mock.Init()
+
+	return mock, nil
 }
 
-func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, user snes.DeviceUser) (err error) {
-	defer d.lock.Unlock()
-	d.lock.Lock()
-
-	var dev snes.Device
-	dev, err = d.openDevice(uri)
-	return user(ctx, dev)
+func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, user snes.DeviceUser) error {
+	return d.base.UseDevice(ctx, d.DeviceKey(uri), func() (snes.Device, error) {
+		return d.OpenDevice(uri)
+	}, user)
 }
+
+func (d *Driver) DeviceKey(uri *url.URL) string { return uri.Opaque }
 
 func init() {
 	if util.IsTruthy(env.GetOrDefault("SNI_MOCK_ENABLE", "0")) {

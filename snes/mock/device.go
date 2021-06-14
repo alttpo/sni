@@ -3,10 +3,13 @@ package mock
 import (
 	"context"
 	"sni/snes"
+	"sync"
 	"time"
 )
 
 type Device struct {
+	lock sync.Mutex
+
 	frameTicker *time.Ticker
 
 	WRAM   []byte
@@ -29,7 +32,25 @@ func (d *Device) IsClosed() bool {
 	return false
 }
 
-func (d *Device) UseMemory(context context.Context, user snes.MemoryUser) error {
+func (d *Device) ExclusiveUse(context context.Context, user snes.DeviceUser) error {
+	if user == nil {
+		return nil
+	}
+
+	defer d.lock.Unlock()
+	d.lock.Lock()
+
+	return user(context, d)
+}
+
+func (d *Device) UseMemory(context context.Context, user snes.DeviceMemoryUser) error {
+	if user == nil {
+		return nil
+	}
+
+	defer d.lock.Unlock()
+	d.lock.Lock()
+
 	return user(context, d)
 }
 
