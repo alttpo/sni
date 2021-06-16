@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sni/protos/sni"
@@ -15,6 +18,8 @@ import (
 	"strings"
 	"time"
 )
+
+import _ "net/http/pprof"
 
 // include these SNES drivers:
 import (
@@ -38,6 +43,8 @@ var (
 	logPath    string
 )
 
+var cpuprofile = flag.String("cpuprofile", "", "start pprof profiler on addr:port")
+
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.LUTC)
 
@@ -57,6 +64,14 @@ func init() {
 }
 
 func main() {
+	flag.Parse()
+	if *cpuprofile != "" {
+		go func() {
+			// "localhost:6060"
+			log.Println(http.ListenAndServe(*cpuprofile, nil))
+		}()
+	}
+
 	var err error
 
 	// Parse env vars:
@@ -77,7 +92,7 @@ func main() {
 	}
 
 	// start gRPC server:
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.ChainUnaryInterceptor(unaryInterceptor))
 	sni.RegisterDevicesServer(s, &devicesService{})
 	sni.RegisterDeviceMemoryServer(s, &deviceMemoryService{})
 	reflection.Register(s)
@@ -90,4 +105,20 @@ func main() {
 
 	// start up a systray handler if possible:
 	createSystray()
+}
+
+func unaryInterceptor(
+	ctx context.Context,
+	req interface{},
+	info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler,
+) (resp interface{}, err error) {
+	// measure time taken for the call:
+	tStart := time.Now()
+	defer func() {
+		tEnd := time.Now()
+		log.Printf("%12s: %12d ns: %+v", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), req)
+	}()
+
+	return handler(ctx, req)
 }

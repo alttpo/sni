@@ -215,7 +215,7 @@ func (c *RAClient) parseReadMemoryResponse(rsp []byte, expectedAddr uint32, size
 	}
 
 	{
-		t := bytes.NewReader(rsp[r.Size() - int64(r.Len()):])
+		t := bytes.NewReader(rsp[r.Size()-int64(r.Len()):])
 		var test int
 		n, err = fmt.Fscanf(t, "%d", &test)
 		if n == 1 && test < 0 {

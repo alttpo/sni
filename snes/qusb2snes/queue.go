@@ -23,7 +23,7 @@ type Queue struct {
 	deviceName string
 	ws         WebSocketClient
 
-	info     Info
+	info Info
 }
 
 func (q *Queue) IsClosed() bool {

@@ -4,11 +4,9 @@ import (
 	"context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"log"
 	"net/url"
 	"sni/protos/sni"
 	"sni/snes"
-	"time"
 )
 
 type devicesService struct {
@@ -16,12 +14,6 @@ type devicesService struct {
 }
 
 func (s *devicesService) ListDevices(ctx context.Context, request *sni.DevicesRequest) (*sni.DevicesResponse, error) {
-	tStart := time.Now()
-	defer func() {
-		tEnd := time.Now()
-		log.Printf("ListDevices:%12d ns: %+v", tEnd.Sub(tStart).Nanoseconds(), request)
-	}()
-
 	var kindPredicate func(kind string) bool
 	if request.GetKinds() == nil {
 		kindPredicate = func(kind string) bool { return true }
@@ -71,12 +63,6 @@ func (s *deviceMemoryService) Read(
 	rctx context.Context,
 	request *sni.SingleReadMemoryRequest,
 ) (rsp *sni.SingleReadMemoryResponse, gerr error) {
-	tStart := time.Now()
-	defer func() {
-		tEnd := time.Now()
-		log.Printf("Read:       %12d ns: %+v", tEnd.Sub(tStart).Nanoseconds(), request)
-	}()
-
 	uri, err := url.Parse(request.Uri)
 	if err != nil {
 		gerr = status.Error(codes.InvalidArgument, err.Error())
@@ -114,12 +100,6 @@ func (s *deviceMemoryService) Write(
 	rctx context.Context,
 	request *sni.SingleWriteMemoryRequest,
 ) (rsp *sni.SingleWriteMemoryResponse, gerr error) {
-	tStart := time.Now()
-	defer func() {
-		tEnd := time.Now()
-		log.Printf("Write:      %12d ns: %+v", tEnd.Sub(tStart).Nanoseconds(), request)
-	}()
-
 	uri, err := url.Parse(request.Uri)
 	if err != nil {
 		gerr = status.Error(codes.InvalidArgument, err.Error())
@@ -157,12 +137,6 @@ func (s *deviceMemoryService) MultiRead(
 	gctx context.Context,
 	request *sni.MultiReadMemoryRequest,
 ) (grsp *sni.MultiReadMemoryResponse, gerr error) {
-	tStart := time.Now()
-	defer func() {
-		tEnd := time.Now()
-		log.Printf("MultiRead:  %12d ns: %+v", tEnd.Sub(tStart).Nanoseconds(), request)
-	}()
-
 	uri, err := url.Parse(request.Uri)
 	if err != nil {
 		gerr = status.Error(codes.InvalidArgument, err.Error())
@@ -210,12 +184,6 @@ func (s *deviceMemoryService) MultiWrite(
 	gctx context.Context,
 	request *sni.MultiWriteMemoryRequest,
 ) (grsp *sni.MultiWriteMemoryResponse, gerr error) {
-	tStart := time.Now()
-	defer func() {
-		tEnd := time.Now()
-		log.Printf("MultiWrite: %12d ns: %+v", tEnd.Sub(tStart).Nanoseconds(), request)
-	}()
-
 	uri, err := url.Parse(request.Uri)
 	if err != nil {
 		gerr = status.Error(codes.InvalidArgument, err.Error())

@@ -20,8 +20,8 @@ type WebSocketClient struct {
 	urlstr  string
 	appName string
 
-	lock     sync.Mutex
-	closed   chan struct{}
+	lock   sync.Mutex
+	closed chan struct{}
 
 	ws      net.Conn
 	r       *wsutil.Reader
