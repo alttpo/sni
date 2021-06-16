@@ -20,13 +20,10 @@ func (d *Device) IsClosed() bool {
 	return d.c.IsClosed()
 }
 
-func (d *Device) ExclusiveUse(ctx context.Context, user snes.DeviceUser) error {
+func (d *Device) Use(ctx context.Context, user snes.DeviceUser) error {
 	if user == nil {
 		return nil
 	}
-
-	defer d.lock.Unlock()
-	d.lock.Lock()
 
 	return user(ctx, d)
 }

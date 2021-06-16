@@ -29,7 +29,7 @@ type DeviceUser func(context.Context, Device) error
 type DeviceDriver interface {
 	DeviceKey(uri *url.URL) string
 
-	// UseDevice grants exclusive access for DeviceUser to a Device uniquely identified by its uri
+	// UseDevice grants non-exclusive access for DeviceUser to a Device uniquely identified by its uri
 	UseDevice(ctx context.Context, uri *url.URL, user DeviceUser) error
 }
 

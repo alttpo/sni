@@ -28,8 +28,8 @@ type DeviceMemoryUser func(context context.Context, memory DeviceMemory) error
 type Device interface {
 	IsClosed() bool
 
-	// ExclusiveUse provides exclusive access to the entire device to the user func
-	ExclusiveUse(ctx context.Context, user DeviceUser) error
+	// Use provides non-exclusive access to the device's subsystems to the user func
+	Use(ctx context.Context, user DeviceUser) error
 
 	// UseMemory provides exclusive access to only the memory subsystem of the device to the user func
 	UseMemory(ctx context.Context, user DeviceMemoryUser) error

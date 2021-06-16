@@ -39,7 +39,7 @@ func (b *BaseDeviceDriver) UseDevice(
 		b.devicesRw.Unlock()
 	}
 
-	err = device.ExclusiveUse(ctx, use)
+	err = device.Use(ctx, use)
 
 	if device.IsClosed() {
 		b.devicesRw.Lock()

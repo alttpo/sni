@@ -32,13 +32,10 @@ func (d *Device) IsClosed() bool {
 	return false
 }
 
-func (d *Device) ExclusiveUse(context context.Context, user snes.DeviceUser) error {
+func (d *Device) Use(context context.Context, user snes.DeviceUser) error {
 	if user == nil {
 		return nil
 	}
-
-	defer d.lock.Unlock()
-	d.lock.Lock()
 
 	return user(context, d)
 }
