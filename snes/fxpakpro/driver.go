@@ -39,7 +39,9 @@ var (
 	}
 )
 
-type Driver struct{}
+type Driver struct {
+	base snes.BaseDeviceDriver
+}
 
 func (d *Driver) DisplayOrder() int {
 	return 0
@@ -85,9 +87,7 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 	return
 }
 
-func (d *Driver) OpenQueue(dd snes.DeviceDescriptor) (snes.Queue, error) {
-	var err error
-
+func (d *Driver) OpenQueue(dd snes.DeviceDescriptor) (q snes.Queue, err error) {
 	portName := dd.Uri.Path
 
 	baudRequest := baudRates[0]
@@ -95,8 +95,27 @@ func (d *Driver) OpenQueue(dd snes.DeviceDescriptor) (snes.Queue, error) {
 		baudRequest, _ = strconv.Atoi(baudStr)
 	}
 
+	var f serial.Port
+	f, err = d.openPort(portName, baudRequest)
+	if err != nil {
+		return
+	}
+
+	c := &Queue{
+		f:      f,
+		closed: make(chan struct{}),
+	}
+	c.BaseInit(driverName, c)
+
+	q = c
+
+	return
+}
+
+func (d *Driver) openPort(portName string, baudRequest int) (f serial.Port, err error) {
+	f = serial.Port(nil)
+
 	// Try all the common baud rates in descending order:
-	f := serial.Port(nil)
 	var baud int
 	for _, baud = range baudRates {
 		if baud > baudRequest {
@@ -123,25 +142,41 @@ func (d *Driver) OpenQueue(dd snes.DeviceDescriptor) (snes.Queue, error) {
 	//log.Printf("serial: Set DTR on\n")
 	if err = f.SetDTR(true); err != nil {
 		//log.Printf("serial: %v\n", err)
-		f.Close()
+		_ = f.Close()
 		return nil, fmt.Errorf("%s: failed to set DTR: %w", driverName, err)
 	}
 
-	c := &Queue{
-		f:      f,
-		closed: make(chan struct{}),
-	}
-	c.BaseInit(driverName, c)
-
-	return c, err
+	return f, err
 }
 
-func (d *Driver) OpenDevice(uri *url.URL) (snes.Device, error) {
-	panic("implement me")
+func (d *Driver) DeviceKey(uri *url.URL) string {
+	return uri.Path
+}
+
+func (d *Driver) openAsDevice(uri *url.URL) (device snes.Device, err error) {
+	portName := uri.Path
+
+	baudRequest := baudRates[0]
+	if baudStr := uri.Query().Get("baud"); baudStr != "" {
+		baudRequest, _ = strconv.Atoi(baudStr)
+	}
+
+	var f serial.Port
+	f, err = d.openPort(portName, baudRequest)
+	device = &Device{f: f}
+
+	return
 }
 
 func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, user snes.DeviceUser) error {
-	panic("implement me")
+	return d.base.UseDevice(
+		ctx,
+		d.DeviceKey(uri),
+		func() (snes.Device, error) {
+			return d.openAsDevice(uri)
+		},
+		user,
+	)
 }
 
 func init() {

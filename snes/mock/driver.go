@@ -39,7 +39,7 @@ func (d *Driver) Detect() ([]snes.DeviceDescriptor, error) {
 	}, nil
 }
 
-func (d *Driver) OpenDevice(uri *url.URL) (snes.Device, error) {
+func (d *Driver) openDevice(uri *url.URL) (snes.Device, error) {
 	dev, ok := d.base.Get(d.DeviceKey(uri))
 	if ok {
 		return dev, nil
@@ -53,9 +53,12 @@ func (d *Driver) OpenDevice(uri *url.URL) (snes.Device, error) {
 }
 
 func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, user snes.DeviceUser) error {
-	return d.base.UseDevice(ctx, d.DeviceKey(uri), func() (snes.Device, error) {
-		return d.OpenDevice(uri)
-	}, user)
+	return d.base.UseDevice(
+		ctx,
+		d.DeviceKey(uri),
+		func() (snes.Device, error) { return d.openDevice(uri) },
+		user,
+	)
 }
 
 func (d *Driver) DeviceKey(uri *url.URL) string { return uri.Opaque }

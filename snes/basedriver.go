@@ -6,14 +6,17 @@ import (
 )
 
 type BaseDeviceDriver struct {
-	driver DeviceDriver
-
 	// track opened devices by URI
 	devicesRw  sync.RWMutex
 	devicesMap map[string]Device
 }
 
-func (b *BaseDeviceDriver) UseDevice(ctx context.Context, deviceKey string, openDevice func() (Device, error), use DeviceUser) (err error) {
+func (b *BaseDeviceDriver) UseDevice(
+	ctx context.Context,
+	deviceKey string,
+	openDevice func() (Device, error),
+	use DeviceUser,
+) (err error) {
 	var device Device
 	var ok bool
 
@@ -22,12 +25,13 @@ func (b *BaseDeviceDriver) UseDevice(ctx context.Context, deviceKey string, open
 	b.devicesRw.RUnlock()
 
 	if !ok {
+		b.devicesRw.Lock()
 		device, err = openDevice()
 		if err != nil {
+			b.devicesRw.Unlock()
 			return
 		}
 
-		b.devicesRw.Lock()
 		if b.devicesMap == nil {
 			b.devicesMap = make(map[string]Device)
 		}

@@ -1,6 +1,7 @@
 package retroarch
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -10,7 +11,6 @@ import (
 	"sni/util"
 	"sni/util/env"
 	"strings"
-	"sync"
 )
 
 const driverName = "ra"
@@ -18,13 +18,9 @@ const driverName = "ra"
 var logDetector = false
 
 type Driver struct {
-	snes.BaseDeviceDriver
+	base snes.BaseDeviceDriver
 
 	detectors []*RAClient
-
-	// track opened devices by URI
-	devicesRw  sync.RWMutex
-	devicesMap map[string]snes.Device
 }
 
 func NewDriver(addresses []*net.UDPAddr) *Driver {
@@ -54,7 +50,7 @@ func (d *Driver) DisplayDescription() string {
 
 func (d *Driver) Kind() string { return "retroarch" }
 
-func (d *Driver) OpenDevice(uri *url.URL) (q snes.Device, err error) {
+func (d *Driver) openDevice(uri *url.URL) (q snes.Device, err error) {
 	// create a new device with its own connection:
 	var addr *net.UDPAddr
 	addr, err = net.ResolveUDPAddr("udp", uri.Host)
@@ -129,6 +125,15 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 
 func (d *Driver) DeviceKey(uri *url.URL) string {
 	return uri.Host
+}
+
+func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, user snes.DeviceUser) error {
+	return d.base.UseDevice(
+		ctx,
+		d.DeviceKey(uri),
+		func() (snes.Device, error) { return d.openDevice(uri) },
+		user,
+	)
 }
 
 func init() {

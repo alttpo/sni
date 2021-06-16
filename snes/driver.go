@@ -29,9 +29,6 @@ type DeviceUser func(context.Context, Device) error
 type DeviceDriver interface {
 	DeviceKey(uri *url.URL) string
 
-	// OpenDevice creates a Device interface for a specific device
-	OpenDevice(uri *url.URL) (Device, error)
-
 	// UseDevice grants exclusive access for DeviceUser to a Device uniquely identified by its uri
 	UseDevice(ctx context.Context, uri *url.URL, user DeviceUser) error
 }
