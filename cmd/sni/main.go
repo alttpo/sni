@@ -77,7 +77,6 @@ func main() {
 	}
 
 	// start gRPC server:
-	_ = listenAddr
 	s := grpc.NewServer()
 	sni.RegisterDevicesServer(s, &devicesService{})
 	sni.RegisterDeviceMemoryServer(s, &deviceMemoryService{})
