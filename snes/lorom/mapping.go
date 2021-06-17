@@ -24,7 +24,7 @@ func BusAddressToPak(busAddr uint32) uint32 {
 			sram := SnesBankToLinear(busAddr-0x700000) + 0xE00000
 			return sram
 		} else if busAddr >= 0x7E0000 && busAddr < 0x800000 {
-			wram := (busAddr - 0x7E0000) + 0xE50000
+			wram := (busAddr - 0x7E0000) + 0xF50000
 			return wram
 		}
 	}
