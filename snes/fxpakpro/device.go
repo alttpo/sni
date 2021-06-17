@@ -112,10 +112,10 @@ func (d *Device) MultiReadMemory(
 	rspStart := 0
 	for reqIndex, request := range reads {
 		addr := request.Address
-		size := int32(request.Size)
+		size := request.Size
 
 		for size > 0 {
-			chunkSize := int32(255)
+			chunkSize := 255
 			if size < chunkSize {
 				chunkSize = size
 			}
@@ -133,9 +133,9 @@ func (d *Device) MultiReadMemory(
 				offset: int(addr - request.Address),
 				// source offset to read from in VGET response:
 				rspStart: rspStart,
-				rspEnd:   rspStart + int(chunkSize),
+				rspEnd:   rspStart + chunkSize,
 			})
-			rspStart += int(chunkSize)
+			rspStart += chunkSize
 
 			if len(chunks) == 8 {
 				sendChunks()
@@ -160,5 +160,108 @@ func (d *Device) MultiWriteMemory(
 	ctx context.Context,
 	writes ...snes.MemoryWriteRequest,
 ) (mrsp []snes.MemoryWriteResponse, err error) {
-	panic("implement me")
+	// make all the response structs:
+	mrsp = make([]snes.MemoryWriteResponse, len(writes))
+	for i, write := range writes {
+		mrsp[i].Address = write.Address
+		mrsp[i].Size = len(write.Data)
+	}
+
+	// Break up larger writes (> 255 bytes) into 255-byte chunks:
+	type chunk struct {
+		request int
+		vput    [4]byte
+		data    []byte
+	}
+	chunks := make([]chunk, 0, 8)
+
+	sendChunks := func() {
+		if len(chunks) > 8 {
+			panic(fmt.Errorf("VPUT cannot use more than 8 chunks"))
+		}
+
+		sb := make([]byte, 64)
+		sb[0] = byte('U')
+		sb[1] = byte('S')
+		sb[2] = byte('B')
+		sb[3] = byte('A')
+		sb[4] = byte(OpVPUT)
+		sb[5] = byte(SpaceSNES)
+		sb[6] = byte(FlagDATA64B | FlagNORESP)
+
+		total := 0
+		sp := sb[32:]
+		for _, chunk := range chunks {
+			copy(sp, chunk.vput[:])
+			sp = sp[4:]
+			total += int(chunk.vput[0])
+		}
+
+		err = sendSerial(d.f, sb)
+		if err != nil {
+			return
+		}
+
+		// calculate expected number of packets:
+		packets := total / 64
+		remainder := total & 63
+		if remainder > 0 {
+			packets++
+		}
+
+		// concatenate all accompanying data together in one large slice:
+		expected := packets * 64
+		whole := make([]byte, expected)
+		o := 0
+		for _, chunk := range chunks {
+			copy(whole[o:], chunk.data)
+			o += len(chunk.data)
+		}
+
+		// send the expected number of 64-byte packets:
+		err = sendSerial(d.f, whole)
+		if err != nil {
+			return
+		}
+	}
+
+	for reqIndex, request := range writes {
+		addr := request.Address
+		size := len(request.Data)
+
+		for size > 0 {
+			chunkSize := 255
+			if size < chunkSize {
+				chunkSize = size
+			}
+
+			// 4-byte struct: 1 byte size, 3 byte address
+			chunks = append(chunks, chunk{
+				request: reqIndex,
+				vput: [4]byte{
+					byte(chunkSize),
+					byte((addr >> 16) & 0xFF),
+					byte((addr >> 8) & 0xFF),
+					byte((addr >> 0) & 0xFF),
+				},
+				// target offset to write to in Data[] for MemoryWriteResponse:
+				data: request.Data[int(addr-request.Address) : int(addr-request.Address)+chunkSize],
+			})
+
+			if len(chunks) == 8 {
+				sendChunks()
+				// reset chunks:
+				chunks = chunks[0:0]
+			}
+
+			size -= 255
+			addr += 255
+		}
+	}
+
+	if len(chunks) > 0 {
+		sendChunks()
+	}
+
+	return
 }
