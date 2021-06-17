@@ -55,10 +55,6 @@ type deviceMemoryService struct {
 	sni.UnimplementedDeviceMemoryServer
 }
 
-func makeBool(v bool) *bool {
-	return &v
-}
-
 func (s *deviceMemoryService) Read(
 	rctx context.Context,
 	request *sni.SingleReadMemoryRequest,

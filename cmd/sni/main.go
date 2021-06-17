@@ -43,7 +43,10 @@ var (
 	logPath    string
 )
 
-var cpuprofile = flag.String("cpuprofile", "", "start pprof profiler on addr:port")
+var (
+	cpuprofile = flag.String("cpuprofile", "", "start pprof profiler on addr:port")
+	logTiming  = flag.Bool("logtiming", false, "log gRPC method timings")
+)
 
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.LUTC)
@@ -92,7 +95,11 @@ func main() {
 	}
 
 	// start gRPC server:
-	s := grpc.NewServer(grpc.ChainUnaryInterceptor(unaryInterceptor))
+	var serverOptions []grpc.ServerOption
+	if *logTiming {
+		serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(unaryInterceptor))
+	}
+	s := grpc.NewServer(serverOptions...)
 	sni.RegisterDevicesServer(s, &devicesService{})
 	sni.RegisterDeviceMemoryServer(s, &deviceMemoryService{})
 	reflection.Register(s)
@@ -107,18 +114,44 @@ func main() {
 	createSystray()
 }
 
+type methodRequestStringer interface {
+	MethodRequestString(method string, req interface{}) string
+}
+
+type methodResponseStringer interface {
+	MethodResponseString(method string, rsp interface{}) string
+}
+
 func unaryInterceptor(
 	ctx context.Context,
 	req interface{},
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler,
-) (resp interface{}, err error) {
+) (rsp interface{}, err error) {
 	// measure time taken for the call:
 	tStart := time.Now()
+
+	// report time taken:
 	defer func() {
+		// stop timer:
 		tEnd := time.Now()
-		log.Printf("%12s: %12d ns: %+v", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), req)
+		// format request message as string:
+		var reqStr, rspStr string
+		if reqStringer, ok := info.Server.(methodRequestStringer); ok {
+			reqStr = reqStringer.MethodRequestString(info.FullMethod, req)
+		} else {
+			reqStr = fmt.Sprintf("%+v", req)
+		}
+		// format response message as string:
+		if rspStringer, ok := info.Server.(methodResponseStringer); ok {
+			rspStr = rspStringer.MethodResponseString(info.FullMethod, rsp)
+		} else {
+			rspStr = fmt.Sprintf("%+v", rsp)
+		}
+		// log method, time taken, request, and response:
+		log.Printf("%26s: %10d ns: req=`%s`, rsp=`%s`", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), reqStr, rspStr)
 	}()
 
+	// invoke the method handler:
 	return handler(ctx, req)
 }
