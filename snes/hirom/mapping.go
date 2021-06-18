@@ -1,19 +1,8 @@
-package lorom
+package hirom
 
 import (
 	"sni/snes/util"
 )
-
-func BusAddressToPC(busAddr uint32) uint32 {
-	page := busAddr & 0xFFFF
-	if page < 0x8000 {
-		return 0x1000000
-	}
-
-	bank := busAddr >> 16
-	pcAddr := (bank << 15) | (page - 0x8000)
-	return pcAddr
-}
 
 func SnesBankToLinear(addr uint32) uint32 {
 	bank := addr >> 16

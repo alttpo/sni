@@ -169,8 +169,10 @@ func (d *Driver) openAsDevice(uri *url.URL) (device snes.Device, err error) {
 
 	var f serial.Port
 	f, err = d.openPort(portName, baudRequest)
-	device = &Device{f: f}
+	dev := &Device{f: f}
+	err = dev.Init()
 
+	device = dev
 	return
 }
 

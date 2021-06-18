@@ -49,8 +49,14 @@ type Device interface {
 	UseMemory(ctx context.Context, user DeviceMemoryUser) error
 }
 
+type DeviceMemoryMapping interface {
+	MappingDetect(ctx context.Context, fallbackMapping *sni.MemoryMapping) (sni.MemoryMapping, error)
+	MappingSet(mapping sni.MemoryMapping) sni.MemoryMapping
+	MappingGet() sni.MemoryMapping
+}
+
 type DeviceMemory interface {
-	// TODO: Set/Get/Detect MemoryMapping
-	MultiReadMemory(context context.Context, reads ...MemoryReadRequest) ([]MemoryReadResponse, error)
-	MultiWriteMemory(context context.Context, writes ...MemoryWriteRequest) ([]MemoryWriteResponse, error)
+	DeviceMemoryMapping
+	MultiReadMemory(ctx context.Context, reads ...MemoryReadRequest) ([]MemoryReadResponse, error)
+	MultiWriteMemory(ctx context.Context, writes ...MemoryWriteRequest) ([]MemoryWriteResponse, error)
 }

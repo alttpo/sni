@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sni/protos/sni"
 	"sni/snes"
-	"sni/snes/lorom"
+	"sni/snes/mapping"
 	"sni/udpclient"
 	"strings"
 	"time"
@@ -19,11 +20,13 @@ const hextable = "0123456789abcdef"
 
 type RAClient struct {
 	udpclient.UDPClient
+	snes.BaseDeviceMemory
 
 	addr *net.UDPAddr
 
 	version string
 	useRCR  bool
+	mapping sni.MemoryMapping
 }
 
 var (
@@ -34,6 +37,7 @@ func NewRAClient(addr *net.UDPAddr, name string) *RAClient {
 	c := &RAClient{
 		addr: addr,
 	}
+	c.DeviceMemory = c
 	udpclient.MakeUDPClient(name, &c.UDPClient)
 	return c
 }
@@ -102,16 +106,33 @@ func (c *RAClient) DetermineVersion() (err error) {
 const maxReadSize = 2048
 
 func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.MemoryReadRequest) (mrsp []snes.MemoryReadResponse, err error) {
+	// translate addresses:
+	mrsp = make([]snes.MemoryReadResponse, len(reads))
+	for j, read := range reads {
+		mrsp[j] = snes.MemoryReadResponse{
+			MemoryReadRequest:  read,
+			DeviceAddress:      0,
+			DeviceAddressSpace: sni.AddressSpace_SnesABus,
+			Data:               make([]byte, read.Size),
+		}
+
+		mrsp[j].DeviceAddress = mapping.TranslateAddress(
+			read.RequestAddress,
+			read.RequestAddressSpace,
+			c.Mapping,
+			sni.AddressSpace_SnesABus,
+		)
+	}
+
 	// build multiple requests:
 	var sb strings.Builder
-	for _, read := range reads {
+	for j, read := range reads {
 		size := read.Size
 		if size <= 0 {
 			continue
 		}
 
-		// TODO: support multiple ROM mappings
-		addr := lorom.PakAddressToBus(read.RequestAddress)
+		addr := mrsp[j].DeviceAddress
 		for size > maxReadSize {
 			_, _ = c.readCommand(&sb)
 			sb.WriteString(fmt.Sprintf("%06x %d\n", addr, maxReadSize))
@@ -140,20 +161,16 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 	}
 
 	// responses come in multiple packets:
-	mrsp = make([]snes.MemoryReadResponse, 0, len(reads))
-	for _, read := range reads {
+	for j, read := range reads {
 		size := read.Size
 		if size <= 0 {
 			continue
 		}
 
-		rrsp := snes.MemoryReadResponse{
-			MemoryReadRequest: read,
-			Data:              make([]byte, 0, read.Size),
-		}
+		rrsp := &mrsp[j]
 
 		// read chunks until complete:
-		addr := lorom.PakAddressToBus(read.RequestAddress)
+		addr := mrsp[j].DeviceAddress
 		for size > 0 {
 			// parse ASCII response:
 			rsp, err = c.ReadWithDeadline(deadline)
@@ -176,8 +193,6 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 			addr += uint32(len(data))
 			size -= len(data)
 		}
-
-		mrsp = append(mrsp, rrsp)
 	}
 
 	err = nil
@@ -251,12 +266,30 @@ func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.Memo
 		deadline = time.Now().Add(readWriteTimeout)
 	}
 
-	for _, write := range writes {
+	// translate addresses:
+	mrsps = make([]snes.MemoryWriteResponse, len(writes))
+	for i, write := range writes {
+		mrsps[i] = snes.MemoryWriteResponse{
+			RequestAddress:      write.RequestAddress,
+			RequestAddressSpace: write.RequestAddressSpace,
+			DeviceAddress:       0,
+			DeviceAddressSpace:  sni.AddressSpace_SnesABus,
+			Size:                len(write.Data),
+		}
+
+		mrsps[i].DeviceAddress = mapping.TranslateAddress(
+			write.RequestAddress,
+			write.RequestAddressSpace,
+			c.Mapping,
+			sni.AddressSpace_SnesABus,
+		)
+	}
+
+	for j, write := range writes {
 		var sb strings.Builder
 
 		_, _ = c.writeCommand(&sb)
-		writeAddress := lorom.PakAddressToBus(write.RequestAddress)
-		sb.WriteString(fmt.Sprintf("%06x ", writeAddress))
+		sb.WriteString(fmt.Sprintf("%06x ", mrsps[j].DeviceAddress))
 
 		// emit hex data:
 		lasti := len(write.Data) - 1
@@ -270,7 +303,7 @@ func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.Memo
 		sb.WriteByte('\n')
 		reqStr := sb.String()
 
-		log.Printf("retroarch: > %s", reqStr)
+		//log.Printf("retroarch: > %s", reqStr)
 		err = c.WriteWithDeadline([]byte(reqStr), deadline)
 		if err != nil {
 			_ = c.Close()
@@ -278,51 +311,40 @@ func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.Memo
 		}
 	}
 
-	mrsps = make([]snes.MemoryWriteResponse, 0, len(writes))
 	if c.useRCR {
-		// don't read any responses for READ_CORE_RAM:
-		for _, write := range writes {
-			mrsps = append(mrsps, snes.MemoryWriteResponse{
-				RequestAddress: write.RequestAddress,
-				Size:           len(write.Data),
-			})
+		// don't read any responses for READ_CORE_RAM
+		return
+	}
+
+	for j, write := range writes {
+		// expect a response from WRITE_CORE_MEMORY
+		var rsp []byte
+		rsp, err = c.ReadWithDeadline(deadline)
+		if err != nil {
+			_ = c.Close()
+			return
 		}
-	} else {
-		for _, write := range writes {
-			writeAddress := lorom.PakAddressToBus(write.RequestAddress)
+		//log.Printf("retroarch: < %s", rsp)
 
-			// expect a response from WRITE_CORE_MEMORY
-			var rsp []byte
-			rsp, err = c.ReadWithDeadline(deadline)
-			if err != nil {
-				_ = c.Close()
-				return
-			}
-			log.Printf("retroarch: < %s", rsp)
+		writeAddress := mrsps[j].DeviceAddress
 
-			var addr uint32
-			var wlen int
-			var n int
-			r := bytes.NewReader(rsp)
-			n, err = fmt.Fscanf(r, "WRITE_CORE_MEMORY %x %v\n", &addr, &wlen)
-			if n != 2 {
-				return
-			}
-			if addr != writeAddress {
-				err = fmt.Errorf("retroarch: write_core_memory returned unexpected address %06x; expected %06x", addr, writeAddress)
-				_ = c.Close()
-				return
-			}
-			if wlen != len(write.Data) {
-				err = fmt.Errorf("retroarch: write_core_memory returned unexpected length %d; expected %d", wlen, len(write.Data))
-				_ = c.Close()
-				return
-			}
-
-			mrsps = append(mrsps, snes.MemoryWriteResponse{
-				RequestAddress: write.RequestAddress,
-				Size:           wlen,
-			})
+		var addr uint32
+		var wlen int
+		var n int
+		r := bytes.NewReader(rsp)
+		n, err = fmt.Fscanf(r, "WRITE_CORE_MEMORY %x %v\n", &addr, &wlen)
+		if n != 2 {
+			return
+		}
+		if addr != writeAddress {
+			err = fmt.Errorf("retroarch: write_core_memory returned unexpected address %06x; expected %06x", addr, writeAddress)
+			_ = c.Close()
+			return
+		}
+		if wlen != len(write.Data) {
+			err = fmt.Errorf("retroarch: write_core_memory returned unexpected length %d; expected %d", wlen, len(write.Data))
+			_ = c.Close()
+			return
 		}
 	}
 

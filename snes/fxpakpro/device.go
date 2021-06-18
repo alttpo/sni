@@ -4,15 +4,24 @@ import (
 	"context"
 	"fmt"
 	"go.bug.st/serial"
+	"sni/protos/sni"
 	"sni/snes"
+	"sni/snes/mapping"
 	"sync"
 )
 
 type Device struct {
+	snes.BaseDeviceMemory
+
 	lock sync.Mutex
 	f    serial.Port
 
 	isClosed bool
+}
+
+func (d *Device) Init() error {
+	d.DeviceMemory = d
+	return nil
 }
 
 func (d *Device) IsClosed() bool {
@@ -44,9 +53,20 @@ func (d *Device) MultiReadMemory(
 ) (mrsp []snes.MemoryReadResponse, err error) {
 	// make all the response structs and preallocate Data buffers:
 	mrsp = make([]snes.MemoryReadResponse, len(reads))
-	for i, read := range reads {
-		mrsp[i].MemoryReadRequest = read
-		mrsp[i].Data = make([]byte, read.Size)
+	for j, read := range reads {
+		mrsp[j] = snes.MemoryReadResponse{
+			MemoryReadRequest:  read,
+			DeviceAddress:      0,
+			DeviceAddressSpace: sni.AddressSpace_FxPakPro,
+			Data:               make([]byte, read.Size),
+		}
+
+		mrsp[j].DeviceAddress = mapping.TranslateAddress(
+			read.RequestAddress,
+			read.RequestAddressSpace,
+			d.Mapping,
+			sni.AddressSpace_FxPakPro,
+		)
 	}
 
 	// Break up larger reads (> 255 bytes) into 255-byte chunks:
@@ -110,8 +130,9 @@ func (d *Device) MultiReadMemory(
 	}
 
 	rspStart := 0
-	for reqIndex, request := range reads {
-		addr := request.RequestAddress
+	for j, request := range reads {
+		startAddr := mrsp[j].DeviceAddress
+		addr := startAddr
 		size := request.Size
 
 		for size > 0 {
@@ -122,7 +143,7 @@ func (d *Device) MultiReadMemory(
 
 			// 4-byte struct: 1 byte size, 3 byte address
 			chunks = append(chunks, chunk{
-				request: reqIndex,
+				request: j,
 				vget: [4]byte{
 					byte(chunkSize),
 					byte((addr >> 16) & 0xFF),
@@ -130,7 +151,7 @@ func (d *Device) MultiReadMemory(
 					byte((addr >> 0) & 0xFF),
 				},
 				// target offset to write to in Data[] for MemoryReadResponse:
-				offset: int(addr - request.RequestAddress),
+				offset: int(addr - startAddr),
 				// source offset to read from in VGET response:
 				rspStart: rspStart,
 				rspEnd:   rspStart + chunkSize,
@@ -162,9 +183,21 @@ func (d *Device) MultiWriteMemory(
 ) (mrsp []snes.MemoryWriteResponse, err error) {
 	// make all the response structs:
 	mrsp = make([]snes.MemoryWriteResponse, len(writes))
-	for i, write := range writes {
-		mrsp[i].RequestAddress = write.RequestAddress
-		mrsp[i].Size = len(write.Data)
+	for j, write := range writes {
+		mrsp[j] = snes.MemoryWriteResponse{
+			RequestAddress:      write.RequestAddress,
+			RequestAddressSpace: write.RequestAddressSpace,
+			DeviceAddress:       0,
+			DeviceAddressSpace:  sni.AddressSpace_FxPakPro,
+			Size:                len(write.Data),
+		}
+
+		mrsp[j].DeviceAddress = mapping.TranslateAddress(
+			write.RequestAddress,
+			write.RequestAddressSpace,
+			d.Mapping,
+			sni.AddressSpace_FxPakPro,
+		)
 	}
 
 	// Break up larger writes (> 255 bytes) into 255-byte chunks:
@@ -225,8 +258,9 @@ func (d *Device) MultiWriteMemory(
 		}
 	}
 
-	for reqIndex, request := range writes {
-		addr := request.RequestAddress
+	for j, request := range writes {
+		startAddr := mrsp[j].DeviceAddress
+		addr := startAddr
 		size := len(request.Data)
 
 		for size > 0 {
@@ -237,7 +271,7 @@ func (d *Device) MultiWriteMemory(
 
 			// 4-byte struct: 1 byte size, 3 byte address
 			chunks = append(chunks, chunk{
-				request: reqIndex,
+				request: j,
 				vput: [4]byte{
 					byte(chunkSize),
 					byte((addr >> 16) & 0xFF),
@@ -245,7 +279,7 @@ func (d *Device) MultiWriteMemory(
 					byte((addr >> 0) & 0xFF),
 				},
 				// target offset to write to in Data[] for MemoryWriteResponse:
-				data: request.Data[int(addr-request.RequestAddress) : int(addr-request.RequestAddress)+chunkSize],
+				data: request.Data[int(addr-startAddr) : int(addr-startAddr)+chunkSize],
 			})
 
 			if len(chunks) == 8 {

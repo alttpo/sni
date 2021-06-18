@@ -12,7 +12,7 @@ type Device struct {
 }
 
 func (d *Device) Init() error {
-	// determine version:
+	// determine retroarch version:
 	return d.c.DetermineVersion()
 }
 

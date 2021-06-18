@@ -35,8 +35,8 @@ func WriteMemoryRequestString(wReq *sni.WriteMemoryRequest) string {
 func ReadMemoryResponseString(wReq *sni.ReadMemoryResponse) string {
 	return fmt.Sprintf(
 		"{address:%s($%#x),size:%#x}",
-		sni.AddressSpace_name[int32(wReq.GetRequestAddressSpace())],
-		wReq.GetRequestAddress(),
+		sni.AddressSpace_name[int32(wReq.GetDeviceAddressSpace())],
+		wReq.GetDeviceAddress(),
 		len(wReq.GetData()),
 	)
 }
@@ -44,8 +44,8 @@ func ReadMemoryResponseString(wReq *sni.ReadMemoryResponse) string {
 func WriteMemoryResponseString(wReq *sni.WriteMemoryResponse) string {
 	return fmt.Sprintf(
 		"{address:%s($%#x),size:%#x}",
-		sni.AddressSpace_name[int32(wReq.GetRequestAddressSpace())],
-		wReq.GetRequestAddress(),
+		sni.AddressSpace_name[int32(wReq.GetDeviceAddressSpace())],
+		wReq.GetDeviceAddress(),
 		wReq.GetSize(),
 	)
 }

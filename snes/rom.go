@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"sni/snes/lorom"
 )
 
 type ROM struct {
@@ -95,6 +94,37 @@ type Header struct {
 }
 
 func (h *Header) HeaderVersion() int { return h.version }
+
+// ReadHeader parses a ROM header starting from FFB0 up to FFE0
+func (h *Header) ReadHeader(b *bytes.Reader) (err error) {
+	// Read SNES header:
+	if err = readBinaryStruct(b, h); err != nil {
+		return
+	}
+
+	if h.OldMakerCode == 0x33 {
+		h.version = 3
+	} else if h.Title[20] == 0x00 {
+		h.version = 2
+	} else {
+		h.version = 1
+		// Zero-out all the version 2&3 fields:
+		h.MakerCode = 0
+		h.GameCode = 0
+		h.Fixed1 = [6]byte{}
+		h.FlashSize = 0
+		h.ExpansionRAMSize = 0
+		h.SpecialVersion = 0
+		h.CoCPUType = 0
+	}
+
+	return
+}
+
+func (h *Header) WriteHeader(b *bytes.Buffer) (err error) {
+	err = writeBinaryStruct(b, h)
+	return
+}
 
 type NativeVectors struct {
 	Unused1 [4]byte //`rom:"FFE0"`
@@ -241,30 +271,6 @@ func (r *ROM) ROMSize() uint32 {
 
 func (r *ROM) RAMSize() uint32 {
 	return 1024 << r.Header.RAMSize
-}
-
-// This is all for LoROM mapping:
-
-func (r *ROM) BusAddressToPC(busAddr uint32) uint32 {
-	// TODO: determine based on LoROM/HiROM mapping from header
-	return lorom.BusAddressToPC(busAddr)
-}
-
-func (r *ROM) U8(busAddr uint32) uint8 {
-	pcAddr := r.BusAddressToPC(busAddr)
-	if pcAddr >= 0x1000000 {
-		return 0xFF
-	}
-	return r.Contents[pcAddr]
-}
-
-func (r *ROM) U16(busAddr uint32) uint16 {
-	pcAddr := r.BusAddressToPC(busAddr)
-	if pcAddr >= 0x1000000-1 {
-		return 0xFFFF
-	}
-	// subtly wrong if crossing a page boundary
-	return binary.LittleEndian.Uint16(r.Contents[pcAddr : pcAddr+2])
 }
 
 type alwaysError struct{}

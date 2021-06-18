@@ -56,21 +56,82 @@ type deviceMemoryService struct {
 	sni.UnimplementedDeviceMemoryServer
 }
 
-//func (s *deviceMemoryService) MappingDetect(context.Context, *sni.DetectMemoryMappingRequest) (*sni.MemoryMappingResponse, error) {
-//	return nil, status.Errorf(codes.Unimplemented, "method MappingDetect not implemented")
-//}
-//func (s *deviceMemoryService) MappingSet(context.Context, *sni.SetMemoryMappingRequest) (*sni.MemoryMappingResponse, error) {
-//	return nil, status.Errorf(codes.Unimplemented, "method MappingSet not implemented")
-//}
-//func (s *deviceMemoryService) MappingGet(context.Context, *sni.GetMemoryMappingRequest) (*sni.MemoryMappingResponse, error) {
-//	return nil, status.Errorf(codes.Unimplemented, "method MappingGet not implemented")
-//}
+func (s *deviceMemoryService) MappingDetect(gctx context.Context, request *sni.DetectMemoryMappingRequest) (grsp *sni.MemoryMappingResponse, gerr error) {
+	uri, err := url.Parse(request.GetUri())
+	if err != nil {
+		gerr = status.Error(codes.InvalidArgument, err.Error())
+		return
+	}
+
+	gerr = snes.UseDeviceMemory(gctx, uri, func(mctx context.Context, memory snes.DeviceMemory) (err error) {
+		var mapping sni.MemoryMapping
+		mapping, err = memory.MappingDetect(mctx, request.FallbackMemoryMapping)
+
+		grsp = &sni.MemoryMappingResponse{
+			Uri:           request.GetUri(),
+			MemoryMapping: mapping,
+		}
+		return
+	})
+
+	if gerr != nil {
+		grsp = nil
+		return
+	}
+	return
+}
+func (s *deviceMemoryService) MappingSet(gctx context.Context, request *sni.SetMemoryMappingRequest) (grsp *sni.MemoryMappingResponse, gerr error) {
+	uri, err := url.Parse(request.GetUri())
+	if err != nil {
+		gerr = status.Error(codes.InvalidArgument, err.Error())
+		return
+	}
+
+	gerr = snes.UseDeviceMemory(gctx, uri, func(mctx context.Context, memory snes.DeviceMemory) (err error) {
+		mapping := memory.MappingSet(request.GetMemoryMapping())
+
+		grsp = &sni.MemoryMappingResponse{
+			Uri:           request.GetUri(),
+			MemoryMapping: mapping,
+		}
+		return
+	})
+
+	if gerr != nil {
+		grsp = nil
+		return
+	}
+	return
+}
+func (s *deviceMemoryService) MappingGet(gctx context.Context, request *sni.GetMemoryMappingRequest) (grsp *sni.MemoryMappingResponse, gerr error) {
+	uri, err := url.Parse(request.GetUri())
+	if err != nil {
+		gerr = status.Error(codes.InvalidArgument, err.Error())
+		return
+	}
+
+	gerr = snes.UseDeviceMemory(gctx, uri, func(mctx context.Context, memory snes.DeviceMemory) (err error) {
+		mapping := memory.MappingGet()
+
+		grsp = &sni.MemoryMappingResponse{
+			Uri:           request.GetUri(),
+			MemoryMapping: mapping,
+		}
+		return
+	})
+
+	if gerr != nil {
+		grsp = nil
+		return
+	}
+	return
+}
 
 func (s *deviceMemoryService) SingleRead(
 	rctx context.Context,
 	request *sni.SingleReadMemoryRequest,
 ) (rsp *sni.SingleReadMemoryResponse, gerr error) {
-	uri, err := url.Parse(request.Uri)
+	uri, err := url.Parse(request.GetUri())
 	if err != nil {
 		gerr = status.Error(codes.InvalidArgument, err.Error())
 		return
@@ -79,8 +140,9 @@ func (s *deviceMemoryService) SingleRead(
 	gerr = snes.UseDeviceMemory(rctx, uri, func(mctx context.Context, memory snes.DeviceMemory) (err error) {
 		var mrsp []snes.MemoryReadResponse
 		mrsp, err = memory.MultiReadMemory(mctx, snes.MemoryReadRequest{
-			RequestAddress: request.Request.RequestAddress,
-			Size:           int(request.Request.Size),
+			RequestAddress:      request.Request.GetRequestAddress(),
+			RequestAddressSpace: request.Request.GetRequestAddressSpace(),
+			Size:                int(request.Request.GetSize()),
 		})
 		if err != nil {
 			return
@@ -110,7 +172,7 @@ func (s *deviceMemoryService) SingleWrite(
 	rctx context.Context,
 	request *sni.SingleWriteMemoryRequest,
 ) (rsp *sni.SingleWriteMemoryResponse, gerr error) {
-	uri, err := url.Parse(request.Uri)
+	uri, err := url.Parse(request.GetUri())
 	if err != nil {
 		gerr = status.Error(codes.InvalidArgument, err.Error())
 		return
