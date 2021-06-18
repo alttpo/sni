@@ -30,16 +30,22 @@ func (d *Driver) DisplayDescription() string {
 
 func (d *Driver) Kind() string { return "mock" }
 
+var driverCapabilities = []sni.DeviceCapability{
+	sni.DeviceCapability_ReadMemory,
+	sni.DeviceCapability_WriteMemory,
+}
+
+func (d *Driver) HasCapabilities(capabilities ...sni.DeviceCapability) (bool, error) {
+	return snes.CheckCapabilities(capabilities, driverCapabilities)
+}
+
 func (d *Driver) Detect() ([]snes.DeviceDescriptor, error) {
 	return []snes.DeviceDescriptor{
 		{
-			Uri:         url.URL{Scheme: driverName, Opaque: "mock"},
-			DisplayName: "Mock",
-			Kind:        d.Kind(),
-			Capabilities: []sni.DeviceCapability{
-				sni.DeviceCapability_ReadMemory,
-				sni.DeviceCapability_WriteMemory,
-			},
+			Uri:                 url.URL{Scheme: driverName, Opaque: "mock"},
+			DisplayName:         "Mock",
+			Kind:                d.Kind(),
+			Capabilities:        driverCapabilities[:],
 			DefaultAddressSpace: sni.AddressSpace_SnesABus,
 		},
 	}, nil

@@ -50,6 +50,18 @@ func (d *Driver) DisplayDescription() string {
 
 func (d *Driver) Kind() string { return "retroarch" }
 
+// TODO: sni.DeviceCapability_ExecuteASM
+var driverCapabilities = []sni.DeviceCapability{
+	sni.DeviceCapability_ReadMemory,
+	sni.DeviceCapability_WriteMemory,
+	sni.DeviceCapability_ResetSystem,
+	sni.DeviceCapability_PauseToggleEmulation,
+}
+
+func (d *Driver) HasCapabilities(capabilities ...sni.DeviceCapability) (bool, error) {
+	return snes.CheckCapabilities(capabilities, driverCapabilities)
+}
+
 func (d *Driver) openDevice(uri *url.URL) (q snes.Device, err error) {
 	// create a new device with its own connection:
 	var addr *net.UDPAddr
@@ -109,16 +121,10 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 		}
 
 		descriptor := snes.DeviceDescriptor{
-			Uri:         url.URL{Scheme: driverName, Host: detector.addr.String()},
-			DisplayName: fmt.Sprintf("RetroArch at %s", detector.addr),
-			Kind:        d.Kind(),
-			// TODO: sni.DeviceCapability_ExecuteASM
-			Capabilities: []sni.DeviceCapability{
-				sni.DeviceCapability_ReadMemory,
-				sni.DeviceCapability_WriteMemory,
-				sni.DeviceCapability_ResetSystem,
-				sni.DeviceCapability_PauseToggleEmulation,
-			},
+			Uri:                 url.URL{Scheme: driverName, Host: detector.addr.String()},
+			DisplayName:         fmt.Sprintf("RetroArch at %s", detector.addr),
+			Kind:                d.Kind(),
+			Capabilities:        driverCapabilities[:],
 			DefaultAddressSpace: sni.AddressSpace_SnesABus,
 		}
 

@@ -17,13 +17,13 @@ func BusAddressToPC(busAddr uint32) uint32 {
 
 func BusAddressToPak(busAddr uint32) uint32 {
 	if busAddr >= 0x700000 && busAddr < 0x7E0000 {
-		sram := (busAddr-0x700000) + 0xE00000
+		sram := (busAddr - 0x700000) + 0xE00000
 		return sram
 	} else if busAddr >= 0x7E0000 && busAddr < 0x800000 {
 		wram := (busAddr - 0x7E0000) + 0xF50000
 		return wram
-	} else if busAddr & 0x8000 != 0 {
-		sram := util.BankToLinear(busAddr & 0x3FFFFF) + 0x000000
+	} else if busAddr&0x8000 != 0 {
+		sram := util.BankToLinear(busAddr&0x3FFFFF) + 0x000000
 		return sram
 	}
 	return busAddr

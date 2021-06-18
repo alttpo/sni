@@ -119,9 +119,9 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 	devices = make([]snes.DeviceDescriptor, 0, len(list.Results))
 	for _, name := range list.Results {
 		devices = append(devices, snes.DeviceDescriptor{
-			Uri:          url.URL{Scheme: driverName, Opaque: name},
-			DisplayName:  name,
-			Kind:         d.Kind(),
+			Uri:         url.URL{Scheme: driverName, Opaque: name},
+			DisplayName: name,
+			Kind:        d.Kind(),
 			Capabilities: []sni.DeviceCapability{
 				sni.DeviceCapability_ReadMemory,
 				sni.DeviceCapability_WriteMemory,

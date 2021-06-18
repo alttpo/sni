@@ -66,6 +66,22 @@ func (b *BaseDeviceDriver) Get(deviceKey string) (Device, bool) {
 	return device, ok
 }
 
+func CheckCapabilities(expectedCapabilities []sni.DeviceCapability, actualCapabilities []sni.DeviceCapability) (bool, error) {
+	for _, expected := range expectedCapabilities {
+		found := false
+		for _, actual := range actualCapabilities {
+			if expected == actual {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false, fmt.Errorf("missing required capability %s", sni.DeviceCapability_name[int32(expected)])
+		}
+	}
+	return true, nil
+}
+
 type BaseDeviceMemory struct {
 	DeviceMemory
 	Mapping sni.MemoryMapping

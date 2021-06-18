@@ -32,6 +32,8 @@ type DeviceDriver interface {
 
 	// UseDevice grants non-exclusive access for DeviceUser to a Device uniquely identified by its uri
 	UseDevice(ctx context.Context, uri *url.URL, user DeviceUser) error
+
+	HasCapabilities(capabilities ...sni.DeviceCapability) (bool, error)
 }
 
 type NamedDriver struct {
@@ -146,10 +148,15 @@ func UseDevice(ctx context.Context, uri *url.URL, user DeviceUser) (err error) {
 	return drv.UseDevice(ctx, uri, user)
 }
 
-func UseDeviceMemory(ctx context.Context, uri *url.URL, user DeviceMemoryUser) (err error) {
+func UseDeviceMemory(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user DeviceMemoryUser) (err error) {
 	var drv DeviceDriver
 	drv, err = DeviceDriverByUri(uri)
 	if err != nil {
+		return
+	}
+
+	var ok bool
+	if ok, err = drv.HasCapabilities(requiredCapabilities...); !ok {
 		return
 	}
 
@@ -158,10 +165,15 @@ func UseDeviceMemory(ctx context.Context, uri *url.URL, user DeviceMemoryUser) (
 	})
 }
 
-func UseDeviceControl(ctx context.Context, uri *url.URL, user DeviceControlUser) (err error) {
+func UseDeviceControl(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user DeviceControlUser) (err error) {
 	var drv DeviceDriver
 	drv, err = DeviceDriverByUri(uri)
 	if err != nil {
+		return
+	}
+
+	var ok bool
+	if ok, err = drv.HasCapabilities(requiredCapabilities...); !ok {
 		return
 	}
 

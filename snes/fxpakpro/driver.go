@@ -57,6 +57,17 @@ func (d *Driver) DisplayDescription() string {
 
 func (d *Driver) Kind() string { return "fxpakpro" }
 
+var driverCapabilities = []sni.DeviceCapability{
+	sni.DeviceCapability_ReadMemory,
+	sni.DeviceCapability_WriteMemory,
+	sni.DeviceCapability_ResetSystem,
+	sni.DeviceCapability_ExecuteASM,
+}
+
+func (d *Driver) HasCapabilities(capabilities ...sni.DeviceCapability) (bool, error) {
+	return snes.CheckCapabilities(capabilities, driverCapabilities)
+}
+
 func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 	var ports []*enumerator.PortDetails
 
@@ -75,15 +86,10 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 
 		if port.SerialNumber == "DEMO00000000" {
 			devices = append(devices, snes.DeviceDescriptor{
-				Uri:         url.URL{Scheme: driverName, Path: port.Name},
-				DisplayName: fmt.Sprintf("%s (%s:%s)", port.Name, port.VID, port.PID),
-				Kind:        d.Kind(),
-				Capabilities: []sni.DeviceCapability{
-					sni.DeviceCapability_ReadMemory,
-					sni.DeviceCapability_WriteMemory,
-					sni.DeviceCapability_ResetSystem,
-					sni.DeviceCapability_ExecuteASM,
-				},
+				Uri:                 url.URL{Scheme: driverName, Path: port.Name},
+				DisplayName:         fmt.Sprintf("%s (%s:%s)", port.Name, port.VID, port.PID),
+				Kind:                d.Kind(),
+				Capabilities:        driverCapabilities[:],
 				DefaultAddressSpace: sni.AddressSpace_FxPakPro,
 			})
 		}
