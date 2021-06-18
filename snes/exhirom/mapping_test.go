@@ -1,4 +1,4 @@
-package hirom
+package exhirom
 
 import "testing"
 
@@ -13,38 +13,31 @@ func TestPakAddressToBus(t *testing.T) {
 	}{
 		// ROM header shadows:
 		{
-			name: "ROM header bank $00",
-			args: args{
-				pakAddr: 0x007FC0,
-			},
-			want: 0x00FFC0,
-		},
-		{
-			name: "ROM header bank $40",
-			args: args{
-				pakAddr: 0x407FC0,
-			},
-			want: 0xC07FC0,
-		},
-		{
 			name: "ROM header bank $80",
 			args: args{
 				pakAddr: 0x807FC0,
 			},
-			want: 0xC07FC0,
+			want: 0x00FFC0,
 		},
 		{
 			name: "ROM header bank $C0",
 			args: args{
 				pakAddr: 0xC07FC0,
 			},
-			want: 0xC07FC0,
+			want: 0x00FFC0,
 		},
-		// ROM SlowROM last bank last byte:
+		// ROM SlowROM first bank first byte:
+		{
+			name: "ROM bank $00 first byte",
+			args: args{
+				pakAddr: 0x800000,
+			},
+			want: 0x008000,
+		},
 		{
 			name: "ROM bank $1F last byte",
 			args: args{
-				pakAddr: 0x1FFFFF,
+				pakAddr: 0x9FFFFF,
 			},
 			want: 0x3FFFFF,
 		},
@@ -54,49 +47,35 @@ func TestPakAddressToBus(t *testing.T) {
 			args: args{
 				pakAddr: 0x000000,
 			},
-			want: 0x008000,
+			want: 0xC00000,
 		},
 		{
 			name: "ROM first page last byte bank $00",
 			args: args{
 				pakAddr: 0x007FFF,
 			},
-			want: 0x00FFFF,
+			want: 0xC07FFF,
 		},
 		{
 			name: "ROM second page last byte bank $00",
 			args: args{
 				pakAddr: 0x00FFFF,
 			},
-			want: 0x01FFFF,
-		},
-		{
-			name: "ROM last page last byte bank $00",
-			args: args{
-				pakAddr: 0x1FFFFF,
-			},
-			want: 0x3FFFFF,
-		},
-		{
-			name: "ROM first page bank $20",
-			args: args{
-				pakAddr: 0x200000,
-			},
-			want: 0xE00000,
+			want: 0xC0FFFF,
 		},
 		{
 			name: "ROM first page bank $40",
 			args: args{
 				pakAddr: 0x400000,
 			},
-			want: 0xC00000,
+			want: 0x400000,
 		},
 		{
 			name: "ROM first page bank $80",
 			args: args{
 				pakAddr: 0x800000,
 			},
-			want: 0xC00000,
+			want: 0x008000,
 		},
 		{
 			name: "ROM first page bank $C0",
@@ -104,7 +83,7 @@ func TestPakAddressToBus(t *testing.T) {
 				// SRAM starts at 0xE00000 in fx pak pro space
 				pakAddr: 0xC00000,
 			},
-			want: 0xC00000,
+			want: 0x008000,
 		},
 		// ROM last page:
 		{
@@ -117,9 +96,23 @@ func TestPakAddressToBus(t *testing.T) {
 		{
 			name: "ROM last page bank $40",
 			args: args{
+				pakAddr: 0x7DFFFF,
+			},
+			want: 0x7DFFFF,
+		},
+		{
+			name: "ROM last page bank $40",
+			args: args{
+				pakAddr: 0x7EFFFF,
+			},
+			want: 0x3FFFFF,
+		},
+		{
+			name: "ROM last page bank $40",
+			args: args{
 				pakAddr: 0x7FFFFF,
 			},
-			want: 0xFFFFFF,
+			want: 0x41FFFF,
 		},
 		{
 			name: "ROM last page bank $80",
@@ -134,7 +127,7 @@ func TestPakAddressToBus(t *testing.T) {
 				// SRAM starts at 0xE00000 in fx pak pro space
 				pakAddr: 0xDFFFFF,
 			},
-			want: 0xDFFFFF,
+			want: 0x3FFFFF,
 		},
 		// SRAM:
 		{

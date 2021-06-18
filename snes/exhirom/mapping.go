@@ -38,7 +38,17 @@ func PakAddressToBus(pakAddr uint32) uint32 {
 	// ROM access:
 	if pakAddr < 0xE00000 {
 		var busAddr uint32
-		if pakAddr >= 0x7E0000 && pakAddr < 0x800000 {
+		if pakAddr >= 0x800000 {
+			// map FX Pak Pro $800000 to SlowROM banks $00-3F (mirrored to $40..$5F)
+			busAddr = (pakAddr - 0x800000) & 0x3FFFFF
+			offs := busAddr & 0x7FFF
+			bank := busAddr >> 15
+			// avoid WRAM conflict area:
+			if bank >= 0x7E {
+				bank += 0x80
+			}
+			busAddr = (bank << 16) + (offs | 0x8000)
+		} else if pakAddr >= 0x7E0000 && pakAddr < 0x800000 {
 			// program ROM area 3 is top half of banks $3E and $3F
 			busAddr = pakAddr - 0x7E0000
 			offs := busAddr & 0x7FFF
@@ -46,7 +56,7 @@ func PakAddressToBus(pakAddr uint32) uint32 {
 			busAddr = (bank << 16) + (offs | 0x8000)
 		} else if pakAddr >= 0x400000 && pakAddr < 0x7E0000 {
 			// program ROM area 2 is full banks $40-$7D
-			busAddr = 0x400000 + (pakAddr & 0x3DFFFF)
+			busAddr = 0x400000 + (pakAddr & 0x3FFFFF)
 		} else {
 			// program ROM area 1 is full banks $C0-$FF
 			busAddr = 0xC00000 + (pakAddr & 0x3FFFFF)
