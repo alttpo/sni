@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"github.com/getlantern/systray"
+	"github.com/getlantern/systray/example/icon"
 )
 
 func createSystray() {
@@ -22,7 +23,7 @@ func trayExit() {
 
 func trayStart() {
 	// Set up the systray:
-	//systray.SetTemplateIcon(icon.Data, icon.Data)
+	systray.SetTemplateIcon(icon.Data, icon.Data)
 	//systray.SetTitle("SNI")
 	systray.SetTooltip("SNI")
 	//mOpenWeb := systray.AddMenuItem("Web UI", "Opens the web UI in the default browser")
