@@ -56,6 +56,10 @@ type deviceMemoryService struct {
 	sni.UnimplementedDeviceMemoryServer
 }
 
+func nB(b bool) *bool {
+	return &b
+}
+
 func (s *deviceMemoryService) MappingDetect(gctx context.Context, request *sni.DetectMemoryMappingRequest) (grsp *sni.MemoryMappingResponse, gerr error) {
 	uri, err := url.Parse(request.GetUri())
 	if err != nil {
@@ -65,11 +69,13 @@ func (s *deviceMemoryService) MappingDetect(gctx context.Context, request *sni.D
 
 	gerr = snes.UseDeviceMemory(gctx, uri, func(mctx context.Context, memory snes.DeviceMemory) (err error) {
 		var mapping sni.MemoryMapping
-		mapping, err = memory.MappingDetect(mctx, request.FallbackMemoryMapping)
+		var confidence bool
+		mapping, confidence, err = memory.MappingDetect(mctx, request.FallbackMemoryMapping)
 
 		grsp = &sni.MemoryMappingResponse{
 			Uri:           request.GetUri(),
 			MemoryMapping: mapping,
+			Confidence:    nB(confidence),
 		}
 		return
 	})
@@ -80,6 +86,7 @@ func (s *deviceMemoryService) MappingDetect(gctx context.Context, request *sni.D
 	}
 	return
 }
+
 func (s *deviceMemoryService) MappingSet(gctx context.Context, request *sni.SetMemoryMappingRequest) (grsp *sni.MemoryMappingResponse, gerr error) {
 	uri, err := url.Parse(request.GetUri())
 	if err != nil {
@@ -147,6 +154,19 @@ func (s *deviceMemoryService) SingleRead(
 		if err != nil {
 			return
 		}
+		if len(mrsp) != 1 {
+			err = status.Error(codes.Internal, "internal bug: single read must have a single response")
+			return
+		}
+		if actual, expected := uint32(len(mrsp[0].Data)), request.Request.GetSize(); actual != expected {
+			err = status.Errorf(
+				codes.Internal,
+				"internal bug: single read must return data of the requested size; actual $%x expected $%x",
+				actual,
+				expected,
+			)
+			return
+		}
 
 		rsp = &sni.SingleReadMemoryResponse{
 			Uri: request.Uri,
@@ -186,6 +206,19 @@ func (s *deviceMemoryService) SingleWrite(
 			Data:                request.Request.GetData(),
 		})
 		if err != nil {
+			return
+		}
+		if len(mrsp) != 1 {
+			err = status.Error(codes.Internal, "internal bug: single write must have a single response")
+			return
+		}
+		if actual, expected := mrsp[0].Size, len(request.Request.GetData()); actual != expected {
+			err = status.Errorf(
+				codes.Internal,
+				"internal bug: single write must return size of the written data; actual $%x expected $%x",
+				actual,
+				expected,
+			)
 			return
 		}
 
@@ -235,9 +268,29 @@ func (s *deviceMemoryService) MultiRead(
 		if err != nil {
 			return
 		}
+		if actual, expected := len(mrsps), len(reads); actual != expected {
+			err = status.Errorf(
+				codes.Internal,
+				"internal bug: multi read must have equal number of responses and requests; actual %d expected %d",
+				actual,
+				expected,
+			)
+			return
+		}
 
 		grsps = make([]*sni.ReadMemoryResponse, 0, len(mrsps))
-		for _, mrsp := range mrsps {
+		for j, mrsp := range mrsps {
+			if actual, expected := len(mrsp.Data), reads[j].Size; actual != expected {
+				err = status.Errorf(
+					codes.Internal,
+					"internal bug: read[%d] must return data of the requested size; actual $%x expected $%x",
+					j,
+					actual,
+					expected,
+				)
+				return
+			}
+
 			grsps = append(grsps, &sni.ReadMemoryResponse{
 				RequestAddress:      mrsp.RequestAddress,
 				RequestAddressSpace: mrsp.RequestAddressSpace,
@@ -286,9 +339,29 @@ func (s *deviceMemoryService) MultiWrite(
 		if err != nil {
 			return
 		}
+		if actual, expected := len(mrsps), len(writes); actual != expected {
+			err = status.Errorf(
+				codes.Internal,
+				"internal bug: multi write must have equal number of responses and requests; actual %d expected %d",
+				actual,
+				expected,
+			)
+			return
+		}
 
 		grsps = make([]*sni.WriteMemoryResponse, 0, len(mrsps))
-		for _, mrsp := range mrsps {
+		for j, mrsp := range mrsps {
+			if actual, expected := mrsp.Size, len(writes[j].Data); actual != expected {
+				err = status.Errorf(
+					codes.Internal,
+					"internal bug: write[%d] must return size of the written data; actual $%x expected $%x",
+					j,
+					actual,
+					expected,
+				)
+				return
+			}
+
 			grsps = append(grsps, &sni.WriteMemoryResponse{
 				RequestAddress:      mrsp.RequestAddress,
 				RequestAddressSpace: mrsp.RequestAddressSpace,

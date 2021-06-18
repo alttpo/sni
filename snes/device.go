@@ -50,7 +50,7 @@ type Device interface {
 }
 
 type DeviceMemoryMapping interface {
-	MappingDetect(ctx context.Context, fallbackMapping *sni.MemoryMapping) (sni.MemoryMapping, error)
+	MappingDetect(ctx context.Context, fallbackMapping *sni.MemoryMapping) (sni.MemoryMapping, bool, error)
 	MappingSet(mapping sni.MemoryMapping) sni.MemoryMapping
 	MappingGet() sni.MemoryMapping
 }

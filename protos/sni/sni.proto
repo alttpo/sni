@@ -116,6 +116,7 @@ message GetMemoryMappingRequest {
 message MemoryMappingResponse {
   string uri = 1;
   MemoryMapping memoryMapping = 2;
+  optional bool confidence = 3;
 }
 
 message ReadMemoryRequest {

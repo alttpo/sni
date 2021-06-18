@@ -113,7 +113,7 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 			MemoryReadRequest:  read,
 			DeviceAddress:      0,
 			DeviceAddressSpace: sni.AddressSpace_SnesABus,
-			Data:               make([]byte, read.Size),
+			Data:               make([]byte, 0, read.Size),
 		}
 
 		mrsp[j].DeviceAddress = mapping.TranslateAddress(
