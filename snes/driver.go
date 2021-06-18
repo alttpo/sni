@@ -118,7 +118,7 @@ func DriverByName(name string) (Driver, bool) {
 	return d, ok
 }
 
-func UseDevice(ctx context.Context, uri *url.URL, user DeviceUser) (err error) {
+func DeviceDriverByUri(uri *url.URL) (drv DeviceDriver, err error) {
 	var ok bool
 	var gendrv Driver
 	gendrv, ok = DriverByName(uri.Scheme)
@@ -127,10 +127,19 @@ func UseDevice(ctx context.Context, uri *url.URL, user DeviceUser) (err error) {
 		return
 	}
 
-	var drv DeviceDriver
 	drv, ok = gendrv.(DeviceDriver)
 	if !ok {
 		err = fmt.Errorf("driver named '%s' is not a DeviceDriver", uri.Scheme)
+		return
+	}
+
+	return
+}
+
+func UseDevice(ctx context.Context, uri *url.URL, user DeviceUser) (err error) {
+	var drv DeviceDriver
+	drv, err = DeviceDriverByUri(uri)
+	if err != nil {
 		return
 	}
 
@@ -138,18 +147,9 @@ func UseDevice(ctx context.Context, uri *url.URL, user DeviceUser) (err error) {
 }
 
 func UseDeviceMemory(ctx context.Context, uri *url.URL, user DeviceMemoryUser) (err error) {
-	var ok bool
-	var gendrv Driver
-	gendrv, ok = DriverByName(uri.Scheme)
-	if !ok {
-		err = fmt.Errorf("driver not found by name '%s'", uri.Scheme)
-		return
-	}
-
 	var drv DeviceDriver
-	drv, ok = gendrv.(DeviceDriver)
-	if !ok {
-		err = fmt.Errorf("driver named '%s' is not a DeviceDriver", uri.Scheme)
+	drv, err = DeviceDriverByUri(uri)
+	if err != nil {
 		return
 	}
 
@@ -159,18 +159,9 @@ func UseDeviceMemory(ctx context.Context, uri *url.URL, user DeviceMemoryUser) (
 }
 
 func UseDeviceControl(ctx context.Context, uri *url.URL, user DeviceControlUser) (err error) {
-	var ok bool
-	var gendrv Driver
-	gendrv, ok = DriverByName(uri.Scheme)
-	if !ok {
-		err = fmt.Errorf("driver not found by name '%s'", uri.Scheme)
-		return
-	}
-
 	var drv DeviceDriver
-	drv, ok = gendrv.(DeviceDriver)
-	if !ok {
-		err = fmt.Errorf("driver named '%s' is not a DeviceDriver", uri.Scheme)
+	drv, err = DeviceDriverByUri(uri)
+	if err != nil {
 		return
 	}
 
