@@ -35,8 +35,16 @@ func PakAddressToBus(pakAddr uint32) uint32 {
 		return busAddr
 	}
 	// ROM access:
+	// HiROM is limited to $40 full banks
+	if pakAddr < 0x200000 {
+		// use SlowROM banks $00-$3F:
+		busAddr := pakAddr & 0x3FFFFF
+		offs := busAddr & 0x7FFF
+		bank := busAddr >> 15
+		busAddr = ((0x00 + bank) << 16) + (offs | 0x8000)
+		return busAddr
+	}
 	if pakAddr < 0xE00000 {
-		// HiROM is limited to $40 full banks
 		busAddr := pakAddr & 0x3FFFFF
 		// Accessing memory in banks $80-$FF is done at 3.58 MHz (120 ns) if the value at address $420D (hardware register) is set to 1.
 		// Starting at $C0 gets us the full linear mapping of ROM without having to cut up in $8000 sized chunks:
