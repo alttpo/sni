@@ -15,22 +15,16 @@ func BusAddressToPC(busAddr uint32) uint32 {
 	return pcAddr
 }
 
-func SnesBankToLinear(addr uint32) uint32 {
-	bank := addr >> 16
-	linbank := ((bank & 1) << 15) + ((bank >> 1) << 16)
-	linoffs := linbank + (addr & 0x7FFF)
-	return linoffs
-}
-
 func BusAddressToPak(busAddr uint32) uint32 {
-	if busAddr&0x8000 == 0 {
-		if busAddr >= 0x700000 && busAddr < 0x7E0000 {
-			sram := util.BankToLinear(busAddr-0x700000) + 0xE00000
-			return sram
-		} else if busAddr >= 0x7E0000 && busAddr < 0x800000 {
-			wram := (busAddr - 0x7E0000) + 0xF50000
-			return wram
-		}
+	if busAddr >= 0x700000 && busAddr < 0x7E0000 {
+		sram := (busAddr-0x700000) + 0xE00000
+		return sram
+	} else if busAddr >= 0x7E0000 && busAddr < 0x800000 {
+		wram := (busAddr - 0x7E0000) + 0xF50000
+		return wram
+	} else if busAddr & 0x8000 != 0 {
+		sram := util.BankToLinear(busAddr & 0x3FFFFF) + 0x000000
+		return sram
 	}
 	return busAddr
 }
@@ -42,7 +36,8 @@ func PakAddressToBus(pakAddr uint32) uint32 {
 	}
 	// SRAM is a little more complex, but not much:
 	if pakAddr >= 0xE00000 && pakAddr < 0xF00000 {
-		busAddr := pakAddr - 0xE00000
+		// bank $70-$7D
+		busAddr := (pakAddr - 0xE00000) & 0x0DFFFF
 		offs := busAddr & 0x7FFF
 		bank := busAddr >> 15
 		busAddr = ((0x70 + bank) << 16) + offs
@@ -50,7 +45,7 @@ func PakAddressToBus(pakAddr uint32) uint32 {
 	}
 	// ROM access:
 	if pakAddr < 0xE00000 {
-		busAddr := pakAddr
+		busAddr := pakAddr & 0x3FFFFF
 		offs := busAddr & 0x7FFF
 		bank := busAddr >> 15
 		busAddr = (bank << 16) + (offs | 0x8000)

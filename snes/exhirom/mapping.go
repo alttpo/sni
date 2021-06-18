@@ -4,6 +4,8 @@ import (
 	"sni/snes/util"
 )
 
+// https://thepoorstudenthobbyist.com/2019/05/18/custom-pcb-explanation/#exhirom
+
 func BusAddressToPak(busAddr uint32) uint32 {
 	if busAddr&0x8000 == 0 {
 		if busAddr >= 0x700000 && busAddr < 0x7E0000 {
@@ -25,17 +27,27 @@ func PakAddressToBus(pakAddr uint32) uint32 {
 	// SRAM is a little more complex, but not much:
 	if pakAddr >= 0xE00000 && pakAddr < 0xF00000 {
 		busAddr := pakAddr - 0xE00000
-		offs := busAddr & 0x7FFF
-		bank := busAddr >> 15
-		busAddr = ((0x70 + bank) << 16) + offs
+		offs := busAddr & 0x1FFF
+		bank := (busAddr >> 13) & 0x1F
+		busAddr = ((0xA0 + bank) << 16) + (offs + 0x6000)
 		return busAddr
 	}
 	// ROM access:
 	if pakAddr < 0xE00000 {
-		busAddr := pakAddr
-		offs := busAddr & 0x7FFF
-		bank := busAddr >> 15
-		busAddr = (bank << 16) + (offs | 0x8000)
+		var busAddr uint32
+		if pakAddr >= 0x7E0000 && pakAddr < 0x800000 {
+			// program ROM area 3 is top half of banks $3E and $3F
+			busAddr = pakAddr - 0x7E0000
+			offs := busAddr & 0x7FFF
+			bank := 0x3E + (busAddr >> 15)
+			busAddr = (bank << 16) + (offs | 0x8000)
+		} else if pakAddr >= 0x400000 && pakAddr < 0x7E0000 {
+			// program ROM area 2 is full banks $40-$7D
+			busAddr = 0x400000 + (pakAddr & 0x3DFFFF)
+		} else {
+			// program ROM area 1 is full banks $C0-$FF
+			busAddr = 0xC00000 + (pakAddr & 0x3FFFFF)
+		}
 		return busAddr
 	}
 	// /shrug
