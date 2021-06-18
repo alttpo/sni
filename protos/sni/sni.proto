@@ -3,64 +3,152 @@ syntax = "proto3";
 option go_package = "github.com/alttpo/sni/protos/sni";
 
 service Devices {
+  // detect and list devices currently connected to the system:
   rpc ListDevices(DevicesRequest) returns (DevicesResponse) {}
+}
+
+// address space used to interpret an address in:
+enum AddressSpace {
+  // The default is the FX Pak Pro / SD2SNES's address space:
+  // $00_0000..$DF_FFFF =   ROM contents, linearly mapped
+  // $E0_0000..$EF_FFFF =  SRAM contents, linearly mapped
+  // $F5_0000..$F6_FFFF =  WRAM contents, linearly mapped
+  // $F7_0000..$F7_FFFF =  VRAM contents, linearly mapped
+  // $F8_0000..$F8_FFFF =   APU contents, linearly mapped
+  // $F9_0000..$F9_01FF = CGRAM contents, linearly mapped
+  // $F9_0200..$F9_041F =   OAM contents, linearly mapped
+  // $F9_0420..$F9_04FF =  MISC contents, linearly mapped
+  // $F9_0500..$F9_06FF =         PPUREG, linearly mapped
+  // $F9_0700..$F9_08FF =         CPUREG, linearly mapped
+  // translated device address depends on device being talked to and its current MemoryMapping mode
+  FxPakPro = 0;
+  // The SNES's main A-bus; address depends on device's current MemoryMapping mode, e.g. LoROM, HiROM, ExHiROM, etc.
+  SnesABus = 1;
+  // Do not do any address translation; simply pass the raw address to the device as-is:
+  Raw = 2;
+}
+
+// memory mapping mode of a ROM cart:
+enum MemoryMapping {
+  Unknown = 0;
+  HiROM = 1;
+  LoROM = 2;
+  ExHiROM = 3; // (48-64Mbit)
+  // TODO: BSX = 4;
 }
 
 // capabilities of a SNES device [32-bit bit field]
 enum DeviceCapability {
-  NONE = 0x00;
-  READ = 0x01; // can read
-  WRITE = 0x02; // can write
-  EXEC_ASM = 0x04; // can execute custom ASM
-  RESET = 0x08; // can reset system
-  PAUSE = 0x10; // can pause emulation
-  // TODO: capabilities for dealing with ROMs on filesystems: upload, download, mkdir, ls, boot, etc.
+  None = 0;
+  ReadMemory = 1;
+  WriteMemory = 2;
+  ExecuteASM = 3;
+  ResetSystem = 4;
+  PauseEmulation = 5;
+  // TODO: query ROM name
+  // TODO: capabilities for dealing with ROM files on filesystems: upload, download, mkdir, ls, boot, etc.
 }
+
 message DevicesRequest {
   // optional list of device kind filters
   repeated string kinds = 1;
+  // TODO: repeated DeviceCapability capabilities;
 }
 message DevicesResponse {
   message Device {
-    // a URI that describes exactly how to connect to the device, e.g. udp://localhost:55355 for RetroArch, file://dev/usb.ttyS0, file://COM4
-    // this can also be used as a unique identifier for the device for clients to refer to
+    // URI that describes exactly how to connect to the device, e.g.:
+    // RetroArch:  "ra://127.0.0.1:55355"
+    // FX Pak Pro: "fxpakpro:///dev/cu.usbmodemDEMO000000001" (MacOS)
+    //             "fxpakpro://COM4"                          (Windows)
+    // uri is used as the unique identifier of the device for clients to refer to
     string uri = 1;
     // friendly display name of the device
     string displayName = 2;
     // device kind, e.g. "fxpakpro", "retroarch", "lua"
     string kind = 3;
-    // use DeviceCapability enum as bit field, ORing values together
-    int32 capabilities = 4;
+    // all device capabilities:
+    repeated DeviceCapability capabilities = 4;
+    // default address space for the device:
+    AddressSpace defaultAddressSpace = 5;
   }
 
   repeated Device devices = 1;
 }
 
 service DeviceMemory {
-  rpc Read(SingleReadMemoryRequest) returns (SingleReadMemoryResponse) {}
-  rpc Write(SingleWriteMemoryRequest) returns (SingleWriteMemoryResponse) {}
+  // detect the current memory mapping for the given device by reading $00:FFC0 header:
+  rpc MappingDetect(DetectMemoryMappingRequest) returns (MemoryMappingResponse) {}
+  // explicitly set the current memory mapping for the given device:
+  rpc MappingSet(SetMemoryMappingRequest) returns (MemoryMappingResponse) {}
+  // get the current memory mapping for the given device:
+  rpc MappingGet(GetMemoryMappingRequest) returns (MemoryMappingResponse) {}
+
+  // read a single memory segment with a given size from the given device:
+  rpc SingleRead(SingleReadMemoryRequest) returns (SingleReadMemoryResponse) {}
+  // write a single memory segment with given data to the given device:
+  rpc SingleWrite(SingleWriteMemoryRequest) returns (SingleWriteMemoryResponse) {}
+  // read multiple memory segments with given sizes from the given device:
   rpc MultiRead(MultiReadMemoryRequest) returns (MultiReadMemoryResponse) {}
+  // write multiple memory segments with given data to the given device:
   rpc MultiWrite(MultiWriteMemoryRequest) returns (MultiWriteMemoryResponse) {}
-  // TODO: streaming
+
+  // TODO: streaming reads/writes
+}
+
+message DetectMemoryMappingRequest {
+  string uri = 1;
+  // optional fallback value to set in case detection fails for some reason
+  optional MemoryMapping fallbackMemoryMapping = 2;
+  // optional ROM header (from bus address $00:FFC0, size 32 or 64 bytes) to use for detection
+  // if not provided, the header will be read from the device
+  optional bytes romHeader00FFC0 = 3;
+}
+
+message SetMemoryMappingRequest {
+  string uri = 1;
+  MemoryMapping memoryMapping = 2;
+}
+
+message GetMemoryMappingRequest {
+  string uri = 1;
+}
+
+message MemoryMappingResponse {
+  string uri = 1;
+  MemoryMapping memoryMapping = 2;
 }
 
 message ReadMemoryRequest {
-  uint32 address = 1;
-  uint32 size = 2;
+  uint32       requestAddress = 1;
+  AddressSpace requestAddressSpace = 2;
+
+  uint32 size = 3;
 }
 message ReadMemoryResponse {
-  uint32 address = 1;
-  bytes data = 2;
+  uint32       requestAddress = 1;
+  AddressSpace requestAddressSpace = 2;
+
+  // the address sent to the device and its space
+  uint32       deviceAddress = 3;
+  AddressSpace deviceAddressSpace = 4;
+
+  bytes data = 5;
 }
 message WriteMemoryRequest {
-  uint32 address = 1;
-  bytes data = 2;
+  uint32       requestAddress = 1;
+  AddressSpace requestAddressSpace = 2;
+
+  bytes data = 3;
 }
 message WriteMemoryResponse {
-  uint32 address = 1;
-  uint32 size = 2;
-}
+  uint32       requestAddress = 1;
+  AddressSpace requestAddressSpace = 2;
 
+  uint32       deviceAddress = 3;
+  AddressSpace deviceAddressSpace = 4;
+
+  uint32 size = 5;
+}
 
 message SingleReadMemoryRequest {
   string uri = 1;
