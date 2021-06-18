@@ -102,6 +102,7 @@ func main() {
 	s := grpc.NewServer(serverOptions...)
 	sni.RegisterDevicesServer(s, &devicesService{})
 	sni.RegisterDeviceMemoryServer(s, &deviceMemoryService{})
+	sni.RegisterDeviceControlServer(s, &deviceControlService{})
 	reflection.Register(s)
 
 	go func() {

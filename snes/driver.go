@@ -25,7 +25,6 @@ type Driver interface {
 }
 
 type DeviceUser func(context.Context, Device) error
-type DeviceMemoryUser func(context context.Context, memory DeviceMemory) error
 
 // DeviceDriver extends Driver
 type DeviceDriver interface {
@@ -156,5 +155,26 @@ func UseDeviceMemory(ctx context.Context, uri *url.URL, user DeviceMemoryUser) (
 
 	return drv.UseDevice(ctx, uri, func(ctx context.Context, device Device) error {
 		return device.UseMemory(ctx, user)
+	})
+}
+
+func UseDeviceControl(ctx context.Context, uri *url.URL, user DeviceControlUser) (err error) {
+	var ok bool
+	var gendrv Driver
+	gendrv, ok = DriverByName(uri.Scheme)
+	if !ok {
+		err = fmt.Errorf("driver not found by name '%s'", uri.Scheme)
+		return
+	}
+
+	var drv DeviceDriver
+	drv, ok = gendrv.(DeviceDriver)
+	if !ok {
+		err = fmt.Errorf("driver named '%s' is not a DeviceDriver", uri.Scheme)
+		return
+	}
+
+	return drv.UseDevice(ctx, uri, func(ctx context.Context, device Device) error {
+		return device.UseControl(ctx, user)
 	})
 }

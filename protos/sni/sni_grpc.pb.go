@@ -102,6 +102,170 @@ var Devices_ServiceDesc = grpc.ServiceDesc{
 	Metadata: "sni.proto",
 }
 
+// DeviceControlClient is the client API for DeviceControl service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type DeviceControlClient interface {
+	// only available if DeviceCapability ResetSystem is present
+	ResetSystem(ctx context.Context, in *ResetSystemRequest, opts ...grpc.CallOption) (*ResetSystemResponse, error)
+	// only available if DeviceCapability PauseUnpauseEmulation is present
+	PauseUnpauseEmulation(ctx context.Context, in *PauseEmulationRequest, opts ...grpc.CallOption) (*PauseEmulationResponse, error)
+	// only available if DeviceCapability PauseToggleEmulation is present
+	PauseToggleEmulation(ctx context.Context, in *PauseToggleEmulationRequest, opts ...grpc.CallOption) (*PauseToggleEmulationResponse, error)
+}
+
+type deviceControlClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewDeviceControlClient(cc grpc.ClientConnInterface) DeviceControlClient {
+	return &deviceControlClient{cc}
+}
+
+func (c *deviceControlClient) ResetSystem(ctx context.Context, in *ResetSystemRequest, opts ...grpc.CallOption) (*ResetSystemResponse, error) {
+	out := new(ResetSystemResponse)
+	err := c.cc.Invoke(ctx, "/DeviceControl/ResetSystem", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deviceControlClient) PauseUnpauseEmulation(ctx context.Context, in *PauseEmulationRequest, opts ...grpc.CallOption) (*PauseEmulationResponse, error) {
+	out := new(PauseEmulationResponse)
+	err := c.cc.Invoke(ctx, "/DeviceControl/PauseUnpauseEmulation", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deviceControlClient) PauseToggleEmulation(ctx context.Context, in *PauseToggleEmulationRequest, opts ...grpc.CallOption) (*PauseToggleEmulationResponse, error) {
+	out := new(PauseToggleEmulationResponse)
+	err := c.cc.Invoke(ctx, "/DeviceControl/PauseToggleEmulation", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// DeviceControlServer is the server API for DeviceControl service.
+// All implementations must embed UnimplementedDeviceControlServer
+// for forward compatibility
+type DeviceControlServer interface {
+	// only available if DeviceCapability ResetSystem is present
+	ResetSystem(context.Context, *ResetSystemRequest) (*ResetSystemResponse, error)
+	// only available if DeviceCapability PauseUnpauseEmulation is present
+	PauseUnpauseEmulation(context.Context, *PauseEmulationRequest) (*PauseEmulationResponse, error)
+	// only available if DeviceCapability PauseToggleEmulation is present
+	PauseToggleEmulation(context.Context, *PauseToggleEmulationRequest) (*PauseToggleEmulationResponse, error)
+	mustEmbedUnimplementedDeviceControlServer()
+}
+
+// UnimplementedDeviceControlServer must be embedded to have forward compatible implementations.
+type UnimplementedDeviceControlServer struct {
+}
+
+func (UnimplementedDeviceControlServer) ResetSystem(context.Context, *ResetSystemRequest) (*ResetSystemResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResetSystem not implemented")
+}
+func (UnimplementedDeviceControlServer) PauseUnpauseEmulation(context.Context, *PauseEmulationRequest) (*PauseEmulationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PauseUnpauseEmulation not implemented")
+}
+func (UnimplementedDeviceControlServer) PauseToggleEmulation(context.Context, *PauseToggleEmulationRequest) (*PauseToggleEmulationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PauseToggleEmulation not implemented")
+}
+func (UnimplementedDeviceControlServer) mustEmbedUnimplementedDeviceControlServer() {}
+
+// UnsafeDeviceControlServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to DeviceControlServer will
+// result in compilation errors.
+type UnsafeDeviceControlServer interface {
+	mustEmbedUnimplementedDeviceControlServer()
+}
+
+func RegisterDeviceControlServer(s grpc.ServiceRegistrar, srv DeviceControlServer) {
+	s.RegisterService(&DeviceControl_ServiceDesc, srv)
+}
+
+func _DeviceControl_ResetSystem_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResetSystemRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceControlServer).ResetSystem(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceControl/ResetSystem",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceControlServer).ResetSystem(ctx, req.(*ResetSystemRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeviceControl_PauseUnpauseEmulation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PauseEmulationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceControlServer).PauseUnpauseEmulation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceControl/PauseUnpauseEmulation",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceControlServer).PauseUnpauseEmulation(ctx, req.(*PauseEmulationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeviceControl_PauseToggleEmulation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PauseToggleEmulationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceControlServer).PauseToggleEmulation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceControl/PauseToggleEmulation",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceControlServer).PauseToggleEmulation(ctx, req.(*PauseToggleEmulationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// DeviceControl_ServiceDesc is the grpc.ServiceDesc for DeviceControl service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var DeviceControl_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "DeviceControl",
+	HandlerType: (*DeviceControlServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ResetSystem",
+			Handler:    _DeviceControl_ResetSystem_Handler,
+		},
+		{
+			MethodName: "PauseUnpauseEmulation",
+			Handler:    _DeviceControl_PauseUnpauseEmulation_Handler,
+		},
+		{
+			MethodName: "PauseToggleEmulation",
+			Handler:    _DeviceControl_PauseToggleEmulation_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "sni.proto",
+}
+
 // DeviceMemoryClient is the client API for DeviceMemory service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.

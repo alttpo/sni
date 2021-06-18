@@ -53,6 +53,17 @@ func (d *Device) UseMemory(context context.Context, user snes.DeviceMemoryUser) 
 	return user(context, d)
 }
 
+func (d *Device) UseControl(context context.Context, user snes.DeviceControlUser) error {
+	if user == nil {
+		return nil
+	}
+
+	defer d.lock.Unlock()
+	d.lock.Lock()
+
+	return user(context, d)
+}
+
 func (d *Device) MultiReadMemory(context context.Context, reads ...snes.MemoryReadRequest) (mrsps []snes.MemoryReadResponse, err error) {
 	// wait 1ms before returning response to simulate the delay of FX Pak Pro device:
 	<-time.After(time.Millisecond * 1)
@@ -96,4 +107,16 @@ func (d *Device) MultiWriteMemory(context context.Context, writes ...snes.Memory
 	}
 
 	return
+}
+
+func (d *Device) ResetSystem(ctx context.Context) error {
+	panic("implement me")
+}
+
+func (d *Device) PauseUnpause(ctx context.Context, pausedState bool) (bool, error) {
+	panic("implement me")
+}
+
+func (d *Device) PauseToggle(ctx context.Context) error {
+	panic("implement me")
 }

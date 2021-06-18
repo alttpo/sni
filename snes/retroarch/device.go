@@ -38,3 +38,14 @@ func (d *Device) UseMemory(ctx context.Context, user snes.DeviceMemoryUser) erro
 
 	return user(ctx, d.c)
 }
+
+func (d *Device) UseControl(ctx context.Context, user snes.DeviceControlUser) error {
+	if user == nil {
+		return nil
+	}
+
+	defer d.lock.Unlock()
+	d.lock.Lock()
+
+	return user(ctx, d.c)
+}

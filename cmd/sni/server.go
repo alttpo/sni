@@ -393,3 +393,73 @@ func (s *deviceMemoryService) MultiWrite(
 	}
 	return
 }
+
+type deviceControlService struct {
+	sni.UnimplementedDeviceControlServer
+}
+
+func (d *deviceControlService) ResetSystem(gctx context.Context, request *sni.ResetSystemRequest) (grsp *sni.ResetSystemResponse, gerr error) {
+	uri, err := url.Parse(request.Uri)
+	if err != nil {
+		gerr = status.Error(codes.InvalidArgument, err.Error())
+		return
+	}
+
+	gerr = snes.UseDeviceControl(gctx, uri, func(mctx context.Context, control snes.DeviceControl) (err error) {
+		return control.ResetSystem(mctx)
+	})
+	if gerr != nil {
+		grsp = nil
+		return
+	}
+
+	grsp = &sni.ResetSystemResponse{
+		Uri: request.Uri,
+	}
+	return
+}
+
+func (d *deviceControlService) PauseUnpauseEmulation(gctx context.Context, request *sni.PauseEmulationRequest) (grsp *sni.PauseEmulationResponse, gerr error) {
+	uri, err := url.Parse(request.Uri)
+	if err != nil {
+		gerr = status.Error(codes.InvalidArgument, err.Error())
+		return
+	}
+
+	paused := false
+	gerr = snes.UseDeviceControl(gctx, uri, func(mctx context.Context, control snes.DeviceControl) (err error) {
+		paused, err = control.PauseUnpause(mctx, request.Paused)
+		return
+	})
+	if gerr != nil {
+		grsp = nil
+		return
+	}
+
+	grsp = &sni.PauseEmulationResponse{
+		Uri:    request.Uri,
+		Paused: paused,
+	}
+	return
+}
+
+func (d *deviceControlService) PauseToggleEmulation(gctx context.Context, request *sni.PauseToggleEmulationRequest) (grsp *sni.PauseToggleEmulationResponse, gerr error) {
+	uri, err := url.Parse(request.Uri)
+	if err != nil {
+		gerr = status.Error(codes.InvalidArgument, err.Error())
+		return
+	}
+
+	gerr = snes.UseDeviceControl(gctx, uri, func(mctx context.Context, control snes.DeviceControl) (err error) {
+		return control.PauseToggle(mctx)
+	})
+	if gerr != nil {
+		grsp = nil
+		return
+	}
+
+	grsp = &sni.PauseToggleEmulationResponse{
+		Uri: request.Uri,
+	}
+	return
+}

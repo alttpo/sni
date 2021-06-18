@@ -47,6 +47,17 @@ func (d *Device) UseMemory(ctx context.Context, user snes.DeviceMemoryUser) erro
 	return user(ctx, d)
 }
 
+func (d *Device) UseControl(ctx context.Context, user snes.DeviceControlUser) error {
+	if user == nil {
+		return nil
+	}
+
+	defer d.lock.Unlock()
+	d.lock.Lock()
+
+	return user(ctx, d)
+}
+
 func (d *Device) MultiReadMemory(
 	ctx context.Context,
 	reads ...snes.MemoryReadRequest,
@@ -298,4 +309,16 @@ func (d *Device) MultiWriteMemory(
 	}
 
 	return
+}
+
+func (d *Device) ResetSystem(ctx context.Context) error {
+	panic("implement me")
+}
+
+func (d *Device) PauseUnpause(ctx context.Context, pausedState bool) (bool, error) {
+	panic("implement me")
+}
+
+func (d *Device) PauseToggle(ctx context.Context) error {
+	panic("implement me")
 }

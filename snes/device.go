@@ -47,7 +47,12 @@ type Device interface {
 
 	// UseMemory provides exclusive access to only the memory subsystem of the device to the user func
 	UseMemory(ctx context.Context, user DeviceMemoryUser) error
+
+	// UseControl provides exclusive access to only the control subsystem of the device to the user func
+	UseControl(ctx context.Context, user DeviceControlUser) error
 }
+
+type DeviceMemoryUser func(ctx context.Context, memory DeviceMemory) error
 
 type DeviceMemoryMapping interface {
 	MappingDetect(ctx context.Context, fallbackMapping *sni.MemoryMapping, inHeaderBytes []byte) (sni.MemoryMapping, bool, []byte, error)
@@ -59,4 +64,13 @@ type DeviceMemory interface {
 	DeviceMemoryMapping
 	MultiReadMemory(ctx context.Context, reads ...MemoryReadRequest) ([]MemoryReadResponse, error)
 	MultiWriteMemory(ctx context.Context, writes ...MemoryWriteRequest) ([]MemoryWriteResponse, error)
+}
+
+type DeviceControlUser func(ctx context.Context, control DeviceControl) error
+
+type DeviceControl interface {
+	ResetSystem(ctx context.Context) error
+
+	PauseUnpause(ctx context.Context, pausedState bool) (bool, error)
+	PauseToggle(ctx context.Context) error
 }

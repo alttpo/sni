@@ -350,3 +350,27 @@ func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.Memo
 
 	return
 }
+
+func (c *RAClient) ResetSystem(ctx context.Context) (err error) {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(readWriteTimeout)
+	}
+
+	err = c.WriteWithDeadline([]byte("RESET\n"), deadline)
+	return
+}
+
+func (c *RAClient) PauseUnpause(ctx context.Context, pausedState bool) (bool, error) {
+	return false, fmt.Errorf("capability unavailable")
+}
+
+func (c *RAClient) PauseToggle(ctx context.Context) (err error) {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(readWriteTimeout)
+	}
+
+	err = c.WriteWithDeadline([]byte("PAUSE_TOGGLE\n"), deadline)
+	return
+}

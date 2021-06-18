@@ -117,7 +117,7 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 				sni.DeviceCapability_ReadMemory,
 				sni.DeviceCapability_WriteMemory,
 				sni.DeviceCapability_ResetSystem,
-				sni.DeviceCapability_PauseEmulation,
+				sni.DeviceCapability_PauseToggleEmulation,
 			},
 			DefaultAddressSpace: sni.AddressSpace_SnesABus,
 		}

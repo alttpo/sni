@@ -44,7 +44,8 @@ enum DeviceCapability {
   WriteMemory = 2;
   ExecuteASM = 3;
   ResetSystem = 4;
-  PauseEmulation = 5;
+  PauseUnpauseEmulation = 5;
+  PauseToggleEmulation = 6;
   // TODO: query ROM name
   // TODO: capabilities for dealing with ROM files on filesystems: upload, download, mkdir, ls, boot, etc.
 }
@@ -73,6 +74,39 @@ message DevicesResponse {
   }
 
   repeated Device devices = 1;
+}
+
+service DeviceControl {
+  // only available if DeviceCapability ResetSystem is present
+  rpc ResetSystem(ResetSystemRequest) returns (ResetSystemResponse) {}
+  // only available if DeviceCapability PauseUnpauseEmulation is present
+  rpc PauseUnpauseEmulation(PauseEmulationRequest) returns (PauseEmulationResponse) {}
+  // only available if DeviceCapability PauseToggleEmulation is present
+  rpc PauseToggleEmulation(PauseToggleEmulationRequest) returns (PauseToggleEmulationResponse) {}
+}
+
+message ResetSystemRequest {
+  string uri = 1;
+}
+message ResetSystemResponse {
+  string uri = 1;
+}
+
+message PauseEmulationRequest {
+  string uri = 1;
+  // true to pause emulation, false to unpause
+  bool paused = 2;
+}
+message PauseEmulationResponse {
+  string uri = 1;
+  bool paused = 2;
+}
+
+message PauseToggleEmulationRequest {
+  string uri = 1;
+}
+message PauseToggleEmulationResponse {
+  string uri = 1;
 }
 
 service DeviceMemory {
