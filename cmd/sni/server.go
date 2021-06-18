@@ -60,22 +60,32 @@ func nB(b bool) *bool {
 	return &b
 }
 
-func (s *deviceMemoryService) MappingDetect(gctx context.Context, request *sni.DetectMemoryMappingRequest) (grsp *sni.MemoryMappingResponse, gerr error) {
+func (s *deviceMemoryService) MappingDetect(gctx context.Context, request *sni.DetectMemoryMappingRequest) (grsp *sni.DetectMemoryMappingResponse, gerr error) {
 	uri, err := url.Parse(request.GetUri())
 	if err != nil {
 		gerr = status.Error(codes.InvalidArgument, err.Error())
+		return
+	}
+	if request.RomHeader00FFB0 != nil && len(request.RomHeader00FFB0) < 0x30 {
+		gerr = status.Error(codes.InvalidArgument, "input ROM header must be at least $30 bytes")
 		return
 	}
 
 	gerr = snes.UseDeviceMemory(gctx, uri, func(mctx context.Context, memory snes.DeviceMemory) (err error) {
 		var mapping sni.MemoryMapping
 		var confidence bool
-		mapping, confidence, err = memory.MappingDetect(mctx, request.FallbackMemoryMapping)
+		var outHeaderBytes []byte
+		mapping, confidence, outHeaderBytes, err = memory.MappingDetect(
+			mctx,
+			request.FallbackMemoryMapping,
+			request.RomHeader00FFB0,
+		)
 
-		grsp = &sni.MemoryMappingResponse{
-			Uri:           request.GetUri(),
-			MemoryMapping: mapping,
-			Confidence:    nB(confidence),
+		grsp = &sni.DetectMemoryMappingResponse{
+			Uri:             request.GetUri(),
+			MemoryMapping:   mapping,
+			Confidence:      confidence,
+			RomHeader00FFB0: outHeaderBytes,
 		}
 		return
 	})

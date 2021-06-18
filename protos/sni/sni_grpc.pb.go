@@ -107,7 +107,7 @@ var Devices_ServiceDesc = grpc.ServiceDesc{
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DeviceMemoryClient interface {
 	// detect the current memory mapping for the given device by reading $00:FFC0 header:
-	MappingDetect(ctx context.Context, in *DetectMemoryMappingRequest, opts ...grpc.CallOption) (*MemoryMappingResponse, error)
+	MappingDetect(ctx context.Context, in *DetectMemoryMappingRequest, opts ...grpc.CallOption) (*DetectMemoryMappingResponse, error)
 	// explicitly set the current memory mapping for the given device:
 	MappingSet(ctx context.Context, in *SetMemoryMappingRequest, opts ...grpc.CallOption) (*MemoryMappingResponse, error)
 	// get the current memory mapping for the given device:
@@ -130,8 +130,8 @@ func NewDeviceMemoryClient(cc grpc.ClientConnInterface) DeviceMemoryClient {
 	return &deviceMemoryClient{cc}
 }
 
-func (c *deviceMemoryClient) MappingDetect(ctx context.Context, in *DetectMemoryMappingRequest, opts ...grpc.CallOption) (*MemoryMappingResponse, error) {
-	out := new(MemoryMappingResponse)
+func (c *deviceMemoryClient) MappingDetect(ctx context.Context, in *DetectMemoryMappingRequest, opts ...grpc.CallOption) (*DetectMemoryMappingResponse, error) {
+	out := new(DetectMemoryMappingResponse)
 	err := c.cc.Invoke(ctx, "/DeviceMemory/MappingDetect", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -198,7 +198,7 @@ func (c *deviceMemoryClient) MultiWrite(ctx context.Context, in *MultiWriteMemor
 // for forward compatibility
 type DeviceMemoryServer interface {
 	// detect the current memory mapping for the given device by reading $00:FFC0 header:
-	MappingDetect(context.Context, *DetectMemoryMappingRequest) (*MemoryMappingResponse, error)
+	MappingDetect(context.Context, *DetectMemoryMappingRequest) (*DetectMemoryMappingResponse, error)
 	// explicitly set the current memory mapping for the given device:
 	MappingSet(context.Context, *SetMemoryMappingRequest) (*MemoryMappingResponse, error)
 	// get the current memory mapping for the given device:
@@ -218,7 +218,7 @@ type DeviceMemoryServer interface {
 type UnimplementedDeviceMemoryServer struct {
 }
 
-func (UnimplementedDeviceMemoryServer) MappingDetect(context.Context, *DetectMemoryMappingRequest) (*MemoryMappingResponse, error) {
+func (UnimplementedDeviceMemoryServer) MappingDetect(context.Context, *DetectMemoryMappingRequest) (*DetectMemoryMappingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MappingDetect not implemented")
 }
 func (UnimplementedDeviceMemoryServer) MappingSet(context.Context, *SetMemoryMappingRequest) (*MemoryMappingResponse, error) {

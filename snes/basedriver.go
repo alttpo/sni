@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"sni/protos/sni"
 	"sync"
@@ -70,34 +71,53 @@ type BaseDeviceMemory struct {
 	Mapping sni.MemoryMapping
 }
 
-func (c *BaseDeviceMemory) MappingDetect(ctx context.Context, fallbackMapping *sni.MemoryMapping) (rsp sni.MemoryMapping, confidence bool, err error) {
-	var responses []MemoryReadResponse
-	readRequest := MemoryReadRequest{
-		RequestAddress:      0x00FFB0,
-		RequestAddressSpace: sni.AddressSpace_SnesABus,
-		Size:                0x30,
-	}
-	log.Printf(
-		"detect: read {address:%s($%06x),size:$%x}\n",
-		sni.AddressSpace_name[int32(readRequest.RequestAddressSpace)],
-		readRequest.RequestAddress,
-		readRequest.Size,
-	)
-	responses, err = c.DeviceMemory.MultiReadMemory(ctx, readRequest)
-	if err != nil {
-		return
-	}
+func (c *BaseDeviceMemory) MappingDetect(
+	ctx context.Context,
+	fallbackMapping *sni.MemoryMapping,
+	inHeaderBytes []byte,
+) (rsp sni.MemoryMapping, confidence bool, outHeaderBytes []byte, err error) {
+	if inHeaderBytes == nil {
+		var responses []MemoryReadResponse
+		readRequest := MemoryReadRequest{
+			RequestAddress:      0x00FFB0,
+			RequestAddressSpace: sni.AddressSpace_SnesABus,
+			Size:                0x50,
+		}
+		log.Printf(
+			"detect: read {address:%s($%06x),size:$%x}\n",
+			sni.AddressSpace_name[int32(readRequest.RequestAddressSpace)],
+			readRequest.RequestAddress,
+			readRequest.Size,
+		)
+		responses, err = c.DeviceMemory.MultiReadMemory(ctx, readRequest)
+		if err != nil {
+			return
+		}
 
-	log.Printf(
-		"detect: read {address:%s($%06x),size:$%x} complete:\n%s\n",
-		sni.AddressSpace_name[int32(responses[0].DeviceAddressSpace)],
-		responses[0].DeviceAddress,
-		len(responses[0].Data),
-		hex.Dump(responses[0].Data),
-	)
+		outHeaderBytes = responses[0].Data
+
+		log.Printf(
+			"detect: read {address:%s($%06x),size:$%x} complete:\n%s",
+			sni.AddressSpace_name[int32(responses[0].DeviceAddressSpace)],
+			responses[0].DeviceAddress,
+			len(outHeaderBytes),
+			hex.Dump(outHeaderBytes),
+		)
+	} else {
+		if len(inHeaderBytes) < 0x30 {
+			err = fmt.Errorf("input ROM header must be at least $30 bytes")
+			return
+		}
+		outHeaderBytes = inHeaderBytes
+		log.Printf(
+			"detect: provided header bytes {size:$%x}:\n%s",
+			len(outHeaderBytes),
+			hex.Dump(outHeaderBytes),
+		)
+	}
 
 	header := Header{}
-	err = header.ReadHeader(bytes.NewReader(responses[0].Data))
+	err = header.ReadHeader(bytes.NewReader(outHeaderBytes))
 	if err != nil {
 		return
 	}

@@ -77,7 +77,7 @@ message DevicesResponse {
 
 service DeviceMemory {
   // detect the current memory mapping for the given device by reading $00:FFC0 header:
-  rpc MappingDetect(DetectMemoryMappingRequest) returns (MemoryMappingResponse) {}
+  rpc MappingDetect(DetectMemoryMappingRequest) returns (DetectMemoryMappingResponse) {}
   // explicitly set the current memory mapping for the given device:
   rpc MappingSet(SetMemoryMappingRequest) returns (MemoryMappingResponse) {}
   // get the current memory mapping for the given device:
@@ -99,24 +99,29 @@ message DetectMemoryMappingRequest {
   string uri = 1;
   // optional fallback value to set in case detection fails for some reason
   optional MemoryMapping fallbackMemoryMapping = 2;
-  // optional ROM header (from bus address $00:FFC0, size 32 or 64 bytes) to use for detection
+  // optional ROM header (from bus address $00:FFB0, at least $30 bytes long) to use for detection
   // if not provided, the header will be read from the device
-  optional bytes romHeader00FFC0 = 3;
+  optional bytes romHeader00FFB0 = 3;
 }
+message DetectMemoryMappingResponse {
+  string uri = 1;
+  MemoryMapping memoryMapping = 2;
+  bool confidence = 3;
+  // the ROM header read from $00:FFB0, length is $50 bytes if server reads it, otherwise length of `romHeader00FFB0` from request
+  bytes romHeader00FFB0 = 4;
+}
+
 
 message SetMemoryMappingRequest {
   string uri = 1;
   MemoryMapping memoryMapping = 2;
 }
-
 message GetMemoryMappingRequest {
   string uri = 1;
 }
-
 message MemoryMappingResponse {
   string uri = 1;
   MemoryMapping memoryMapping = 2;
-  optional bool confidence = 3;
 }
 
 message ReadMemoryRequest {
