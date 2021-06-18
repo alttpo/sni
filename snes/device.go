@@ -1,28 +1,42 @@
 package snes
 
-import "context"
+import (
+	"context"
+	"sni/protos/sni"
+)
 
 type MemoryReadRequest struct {
-	Address uint32
-	Size    int
+	RequestAddress      uint32
+	RequestAddressSpace sni.AddressSpace
+
+	Size int
 }
 
 type MemoryReadResponse struct {
 	MemoryReadRequest
+
+	DeviceAddress      uint32
+	DeviceAddressSpace sni.AddressSpace
+
 	Data []byte
 }
 
 type MemoryWriteRequest struct {
-	Address uint32
-	Data    []byte
+	RequestAddress      uint32
+	RequestAddressSpace sni.AddressSpace
+
+	Data []byte
 }
 
 type MemoryWriteResponse struct {
-	Address uint32
-	Size    int
-}
+	RequestAddress      uint32
+	RequestAddressSpace sni.AddressSpace
 
-type DeviceMemoryUser func(context context.Context, memory DeviceMemory) error
+	DeviceAddress      uint32
+	DeviceAddressSpace sni.AddressSpace
+
+	Size int
+}
 
 // Device acts as an exclusive-access gateway to the subsystems of the SNES device
 type Device interface {
@@ -36,6 +50,7 @@ type Device interface {
 }
 
 type DeviceMemory interface {
+	// TODO: Set/Get/Detect MemoryMapping
 	MultiReadMemory(context context.Context, reads ...MemoryReadRequest) ([]MemoryReadResponse, error)
 	MultiWriteMemory(context context.Context, writes ...MemoryWriteRequest) ([]MemoryWriteResponse, error)
 }

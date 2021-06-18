@@ -112,8 +112,14 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 			Uri:         url.URL{Scheme: driverName, Host: detector.addr.String()},
 			DisplayName: fmt.Sprintf("RetroArch at %s", detector.addr),
 			Kind:        d.Kind(),
-			// TODO: sni.DeviceCapability_EXEC_ASM
-			Capabilities: sni.DeviceCapability_READ | sni.DeviceCapability_WRITE | sni.DeviceCapability_RESET | sni.DeviceCapability_PAUSE,
+			// TODO: sni.DeviceCapability_ExecuteASM
+			Capabilities: []sni.DeviceCapability{
+				sni.DeviceCapability_ReadMemory,
+				sni.DeviceCapability_WriteMemory,
+				sni.DeviceCapability_ResetSystem,
+				sni.DeviceCapability_PauseEmulation,
+			},
+			DefaultAddressSpace: sni.AddressSpace_SnesABus,
 		}
 
 		devices = append(devices, descriptor)

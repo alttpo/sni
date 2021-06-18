@@ -75,10 +75,16 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 
 		if port.SerialNumber == "DEMO00000000" {
 			devices = append(devices, snes.DeviceDescriptor{
-				Uri:          url.URL{Scheme: driverName, Path: port.Name},
-				DisplayName:  fmt.Sprintf("%s (%s:%s)", port.Name, port.VID, port.PID),
-				Kind:         d.Kind(),
-				Capabilities: sni.DeviceCapability_READ | sni.DeviceCapability_WRITE | sni.DeviceCapability_EXEC_ASM | sni.DeviceCapability_RESET,
+				Uri:         url.URL{Scheme: driverName, Path: port.Name},
+				DisplayName: fmt.Sprintf("%s (%s:%s)", port.Name, port.VID, port.PID),
+				Kind:        d.Kind(),
+				Capabilities: []sni.DeviceCapability{
+					sni.DeviceCapability_ReadMemory,
+					sni.DeviceCapability_WriteMemory,
+					sni.DeviceCapability_ResetSystem,
+					sni.DeviceCapability_ExecuteASM,
+				},
+				DefaultAddressSpace: sni.AddressSpace_FxPakPro,
 			})
 		}
 	}

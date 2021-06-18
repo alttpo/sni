@@ -10,10 +10,11 @@ import (
 )
 
 type DeviceDescriptor struct {
-	Uri          url.URL
-	DisplayName  string
-	Kind         string
-	Capabilities sni.DeviceCapability
+	Uri                 url.URL
+	DisplayName         string
+	Kind                string
+	Capabilities        []sni.DeviceCapability
+	DefaultAddressSpace sni.AddressSpace
 }
 
 type Driver interface {
@@ -24,6 +25,7 @@ type Driver interface {
 }
 
 type DeviceUser func(context.Context, Device) error
+type DeviceMemoryUser func(context context.Context, memory DeviceMemory) error
 
 // DeviceDriver extends Driver
 type DeviceDriver interface {

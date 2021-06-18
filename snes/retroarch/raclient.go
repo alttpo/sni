@@ -111,7 +111,7 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 		}
 
 		// TODO: support multiple ROM mappings
-		addr := lorom.PakAddressToBus(read.Address)
+		addr := lorom.PakAddressToBus(read.RequestAddress)
 		for size > maxReadSize {
 			_, _ = c.readCommand(&sb)
 			sb.WriteString(fmt.Sprintf("%06x %d\n", addr, maxReadSize))
@@ -153,7 +153,7 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 		}
 
 		// read chunks until complete:
-		addr := lorom.PakAddressToBus(read.Address)
+		addr := lorom.PakAddressToBus(read.RequestAddress)
 		for size > 0 {
 			// parse ASCII response:
 			rsp, err = c.ReadWithDeadline(deadline)
@@ -255,7 +255,7 @@ func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.Memo
 		var sb strings.Builder
 
 		_, _ = c.writeCommand(&sb)
-		writeAddress := lorom.PakAddressToBus(write.Address)
+		writeAddress := lorom.PakAddressToBus(write.RequestAddress)
 		sb.WriteString(fmt.Sprintf("%06x ", writeAddress))
 
 		// emit hex data:
@@ -283,13 +283,13 @@ func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.Memo
 		// don't read any responses for READ_CORE_RAM:
 		for _, write := range writes {
 			mrsps = append(mrsps, snes.MemoryWriteResponse{
-				Address: write.Address,
-				Size:    len(write.Data),
+				RequestAddress: write.RequestAddress,
+				Size:           len(write.Data),
 			})
 		}
 	} else {
 		for _, write := range writes {
-			writeAddress := lorom.PakAddressToBus(write.Address)
+			writeAddress := lorom.PakAddressToBus(write.RequestAddress)
 
 			// expect a response from WRITE_CORE_MEMORY
 			var rsp []byte
@@ -320,8 +320,8 @@ func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.Memo
 			}
 
 			mrsps = append(mrsps, snes.MemoryWriteResponse{
-				Address: write.Address,
-				Size:    wlen,
+				RequestAddress: write.RequestAddress,
+				Size:           wlen,
 			})
 		}
 	}

@@ -122,7 +122,11 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 			Uri:          url.URL{Scheme: driverName, Opaque: name},
 			DisplayName:  name,
 			Kind:         d.Kind(),
-			Capabilities: sni.DeviceCapability_READ | sni.DeviceCapability_WRITE,
+			Capabilities: []sni.DeviceCapability{
+				sni.DeviceCapability_ReadMemory,
+				sni.DeviceCapability_WriteMemory,
+			},
+			DefaultAddressSpace: sni.AddressSpace_FxPakPro,
 		})
 	}
 

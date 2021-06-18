@@ -111,7 +111,7 @@ func (d *Device) MultiReadMemory(
 
 	rspStart := 0
 	for reqIndex, request := range reads {
-		addr := request.Address
+		addr := request.RequestAddress
 		size := request.Size
 
 		for size > 0 {
@@ -130,7 +130,7 @@ func (d *Device) MultiReadMemory(
 					byte((addr >> 0) & 0xFF),
 				},
 				// target offset to write to in Data[] for MemoryReadResponse:
-				offset: int(addr - request.Address),
+				offset: int(addr - request.RequestAddress),
 				// source offset to read from in VGET response:
 				rspStart: rspStart,
 				rspEnd:   rspStart + chunkSize,
@@ -163,7 +163,7 @@ func (d *Device) MultiWriteMemory(
 	// make all the response structs:
 	mrsp = make([]snes.MemoryWriteResponse, len(writes))
 	for i, write := range writes {
-		mrsp[i].Address = write.Address
+		mrsp[i].RequestAddress = write.RequestAddress
 		mrsp[i].Size = len(write.Data)
 	}
 
@@ -226,7 +226,7 @@ func (d *Device) MultiWriteMemory(
 	}
 
 	for reqIndex, request := range writes {
-		addr := request.Address
+		addr := request.RequestAddress
 		size := len(request.Data)
 
 		for size > 0 {
@@ -245,7 +245,7 @@ func (d *Device) MultiWriteMemory(
 					byte((addr >> 0) & 0xFF),
 				},
 				// target offset to write to in Data[] for MemoryWriteResponse:
-				data: request.Data[int(addr-request.Address) : int(addr-request.Address)+chunkSize],
+				data: request.Data[int(addr-request.RequestAddress) : int(addr-request.RequestAddress)+chunkSize],
 			})
 
 			if len(chunks) == 8 {

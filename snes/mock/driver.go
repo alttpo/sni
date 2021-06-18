@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/url"
+	"sni/protos/sni"
 	"sni/snes"
 	"sni/util"
 	"sni/util/env"
@@ -35,6 +36,11 @@ func (d *Driver) Detect() ([]snes.DeviceDescriptor, error) {
 			Uri:         url.URL{Scheme: driverName, Opaque: "mock"},
 			DisplayName: "Mock",
 			Kind:        d.Kind(),
+			Capabilities: []sni.DeviceCapability{
+				sni.DeviceCapability_ReadMemory,
+				sni.DeviceCapability_WriteMemory,
+			},
+			DefaultAddressSpace: sni.AddressSpace_SnesABus,
 		},
 	}, nil
 }

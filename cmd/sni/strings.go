@@ -15,19 +15,39 @@ func (s *devicesService) MethodResponseString(method string, rsp interface{}) st
 }
 
 func ReadMemoryRequestString(wReq *sni.ReadMemoryRequest) string {
-	return fmt.Sprintf("{address:%#x,size:%#x}", wReq.GetAddress(), wReq.GetSize())
+	return fmt.Sprintf(
+		"{address:%s($%#x),size:%#x}",
+		sni.AddressSpace_name[int32(wReq.GetRequestAddressSpace())],
+		wReq.GetRequestAddress(),
+		wReq.GetSize(),
+	)
 }
 
 func WriteMemoryRequestString(wReq *sni.WriteMemoryRequest) string {
-	return fmt.Sprintf("{address:%#x,size:%#x}", wReq.GetAddress(), len(wReq.GetData()))
+	return fmt.Sprintf(
+		"{address:%s($%#x),size:%#x}",
+		sni.AddressSpace_name[int32(wReq.GetRequestAddressSpace())],
+		wReq.GetRequestAddress(),
+		len(wReq.GetData()),
+	)
 }
 
 func ReadMemoryResponseString(wReq *sni.ReadMemoryResponse) string {
-	return fmt.Sprintf("{address:%#x,size:%#x}", wReq.GetAddress(), len(wReq.GetData()))
+	return fmt.Sprintf(
+		"{address:%s($%#x),size:%#x}",
+		sni.AddressSpace_name[int32(wReq.GetRequestAddressSpace())],
+		wReq.GetRequestAddress(),
+		len(wReq.GetData()),
+	)
 }
 
 func WriteMemoryResponseString(wReq *sni.WriteMemoryResponse) string {
-	return fmt.Sprintf("{address:%#x,size:%#x}", wReq.GetAddress(), wReq.GetSize())
+	return fmt.Sprintf(
+		"{address:%s($%#x),size:%#x}",
+		sni.AddressSpace_name[int32(wReq.GetRequestAddressSpace())],
+		wReq.GetRequestAddress(),
+		wReq.GetSize(),
+	)
 }
 
 func (s *deviceMemoryService) MethodRequestString(method string, req interface{}) string {
