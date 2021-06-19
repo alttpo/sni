@@ -1,4 +1,4 @@
-const messages = require('./sni_pb');
+require('./sni_pb');
 const services = require('./sni_grpc_pb');
 const grpc = require('@grpc/grpc-js');
 
@@ -8,7 +8,7 @@ async function main() {
   const client = new services.DevicesClient(target, grpc.credentials.createInsecure());
 
   async function getDevices() {
-    const req = new messages.DevicesRequest();
+    const req = new sni.DevicesRequest();
 
     //request.addKinds("retroarch");
 
