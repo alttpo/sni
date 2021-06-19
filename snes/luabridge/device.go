@@ -56,9 +56,28 @@ func (d *Device) initConnection() {
 		}
 	}()
 
-	b := make([]byte, 65535)
-
 	_ = d.c.SetNoDelay(true)
+
+	err = d.CheckVersion()
+	if err != nil {
+		return
+	}
+
+	log.Printf("luabridge: client '%s' version '%s'\n", d.clientName, d.version)
+
+	for {
+		// every 5 seconds, check if connection is closed; only way to do this reliably is to read data:
+		time.Sleep(time.Second * 5)
+
+		err = d.CheckVersion()
+		if err != nil {
+			return
+		}
+	}
+}
+
+func (d *Device) CheckVersion() (err error) {
+	b := make([]byte, 65535)
 
 	var n int
 	n, err = d.WriteThenRead([]byte("Version\n"), b, time.Now().Add(time.Second*15))
@@ -81,8 +100,7 @@ func (d *Device) initConnection() {
 
 	d.clientName = rspn[1]
 	d.version = rspn[2]
-
-	log.Printf("luabridge: client '%s' version '%s'\n", d.clientName, d.version)
+	return
 }
 
 func (d *Device) WriteDeadline(write []byte, deadline time.Time) (n int, err error) {
