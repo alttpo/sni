@@ -2,32 +2,36 @@ require('./sni_pb');
 const services = require('./sni_grpc_pb');
 const grpc = require('@grpc/grpc-js');
 
-function main() {
+async function main() {
   const target = 'localhost:8191';
 
   const client = new services.DevicesClient(target, grpc.credentials.createInsecure());
 
-  const request = new proto.DevicesRequest();
-  //request.addKinds("retroarch");
+  async function getDevices() {
+    const req = new proto.DevicesRequest();
 
-  client.listDevices(request, function(err, response) {
-    if (err) {
-      console.error(err);
-    }
-    if (response) {
-      console.log('Devices:');
-      for (let dev of response.getDevicesList()) {
-        const uri = dev.getUri();
-        const displayName = dev.getDisplayname();
-        const kind = dev.getKind();
-        const caps = dev.getCapabilitiesList();
-        console.log(`  uri:         ${uri}`);
-        console.log(`  displayName: ${displayName}`);
-        console.log(`  kind:        ${kind}`);
-        console.log(`  caps:        ${caps}`);
-      }
-    }
-  });
+    //request.addKinds("retroarch");
+
+    return await new Promise((resolve, reject) => {
+      client.listDevices(req, (err, rsp) => {
+        if (err) reject(err);
+        else resolve(rsp);
+      });
+    });
+  }
+
+  const devices = (await getDevices()).getDevicesList();
+  console.log('Devices:');
+  for (let dev of devices) {
+    const uri = dev.getUri();
+    const displayName = dev.getDisplayname();
+    const kind = dev.getKind();
+    const caps = dev.getCapabilitiesList();
+    console.log(`  uri:         ${uri}`);
+    console.log(`  displayName: ${displayName}`);
+    console.log(`  kind:        ${kind}`);
+    console.log(`  caps:        ${caps}`);
+  }
 }
 
-main();
+main().then(_ => {});
