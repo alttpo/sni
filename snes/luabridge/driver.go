@@ -38,7 +38,7 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 	for _, device := range d.devicesMap {
 		devices = append(devices, snes.DeviceDescriptor{
 			Uri:                 url.URL{Scheme: driverName, Host: device.c.RemoteAddr().String()},
-			DisplayName:         "LuaBridge",
+			DisplayName:         fmt.Sprintf("%s v%s", device.clientName, device.version),
 			Kind:                d.Kind(),
 			Capabilities:        driverCapabilities[:],
 			DefaultAddressSpace: sni.AddressSpace_SnesABus,

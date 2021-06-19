@@ -17,18 +17,23 @@ type Device struct {
 	lock sync.Mutex
 	c    *net.TCPConn
 
-	driver   *Driver
+	driver    *Driver
 	deviceKey string
 
 	isClosed bool
+
+	clientName string
+	version    string
 }
 
 func NewDevice(conn *net.TCPConn, key string, driver *Driver) *Device {
 	d := &Device{
-		c:         conn,
-		driver:    driver,
-		deviceKey: key,
-		isClosed:  false,
+		c:          conn,
+		driver:     driver,
+		deviceKey:  key,
+		isClosed:   false,
+		clientName: "Unknown",
+		version:    "0",
 	}
 	d.DeviceMemory = d
 	return d
@@ -73,10 +78,11 @@ func (d *Device) initConnection() {
 		err = fmt.Errorf("expected Version response")
 		return
 	}
-	client := rspn[1]
-	version := rspn[2]
 
-	log.Printf("luabridge: client '%s' version '%s'\n", client, version)
+	d.clientName = rspn[1]
+	d.version = rspn[2]
+
+	log.Printf("luabridge: client '%s' version '%s'\n", d.clientName, d.version)
 }
 
 func (d *Device) WriteDeadline(write []byte, deadline time.Time) (n int, err error) {
