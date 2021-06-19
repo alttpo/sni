@@ -103,23 +103,15 @@ func (d *Driver) runServer(listener *net.TCPListener) {
 
 		// create the Device to handle this connection:
 		deviceKey := conn.RemoteAddr().String()
-		device := &Device{
-			c:         conn,
-			deviceKey: deviceKey,
-			onClose: func(device *Device) {
-				d.devicesRw.Lock()
-				delete(d.devicesMap, device.deviceKey)
-				d.devicesRw.Unlock()
-			},
-		}
+		device := NewDevice(conn, deviceKey, d)
 
 		// store the Device for reference:
 		d.devicesRw.Lock()
 		d.devicesMap[deviceKey] = device
 		d.devicesRw.Unlock()
 
-		// handle the Device's connection:
-		go device.handleConnection()
+		// initialize the Device:
+		device.Init()
 	}
 }
 

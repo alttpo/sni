@@ -12,26 +12,42 @@ import (
 )
 
 type Device struct {
+	snes.BaseDeviceMemory
+
 	lock sync.Mutex
 	c    *net.TCPConn
 
+	driver   *Driver
 	deviceKey string
 
 	isClosed bool
-	onClose  func(device *Device)
 }
 
-func (d *Device) handleConnection() {
+func NewDevice(conn *net.TCPConn, key string, driver *Driver) *Device {
+	d := &Device{
+		c:         conn,
+		driver:    driver,
+		deviceKey: key,
+		isClosed:  false,
+	}
+	d.DeviceMemory = d
+	return d
+}
+
+func (d *Device) Init() {
+	go d.initConnection()
+}
+
+func (d *Device) initConnection() {
 	var err error
 	defer func() {
 		if err != nil {
 			log.Printf("luabridge: %v\n", err)
-		}
-
-		err := d.Close()
-		if err != nil {
-			log.Printf("luabridge: close error: %v\n", err)
-			return
+			err := d.Close()
+			if err != nil {
+				log.Printf("luabridge: close error: %v\n", err)
+				return
+			}
 		}
 	}()
 
@@ -61,8 +77,40 @@ func (d *Device) handleConnection() {
 	version := rspn[2]
 
 	log.Printf("luabridge: client '%s' version '%s'\n", client, version)
+}
 
-	// TODO: read/write loop
+func (d *Device) WriteDeadline(write []byte, deadline time.Time) (n int, err error) {
+	defer d.lock.Unlock()
+	d.lock.Lock()
+
+	err = d.c.SetWriteDeadline(deadline)
+	if err != nil {
+		return
+	}
+
+	n, err = d.c.Write(write)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (d *Device) ReadDeadline(read []byte, deadline time.Time) (n int, err error) {
+	defer d.lock.Unlock()
+	d.lock.Lock()
+
+	err = d.c.SetReadDeadline(deadline)
+	if err != nil {
+		return
+	}
+
+	n, err = d.c.Read(read)
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 func (d *Device) WriteThenRead(write []byte, read []byte, deadline time.Time) (n int, err error) {
@@ -99,20 +147,25 @@ func (d *Device) Close() (err error) {
 
 	d.isClosed = true
 	err = d.c.Close()
-	d.onClose(d)
+
+	// remove device from driver:
+	d.driver.devicesRw.Lock()
+	delete(d.driver.devicesMap, d.deviceKey)
+	d.driver.devicesRw.Unlock()
+
 	return
 }
 
 func (d *Device) IsClosed() bool { return d.isClosed }
 
 func (d *Device) Use(ctx context.Context, user snes.DeviceUser) error {
-	panic("implement me")
+	return user(ctx, d)
 }
 
 func (d *Device) UseMemory(ctx context.Context, user snes.DeviceMemoryUser) error {
-	panic("implement me")
+	return user(ctx, d)
 }
 
 func (d *Device) UseControl(ctx context.Context, user snes.DeviceControlUser) error {
-	panic("implement me")
+	return user(ctx, d)
 }
