@@ -2,3 +2,4 @@
 .idea/
 *.pdf
 dist/
+node_modules/
