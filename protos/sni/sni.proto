@@ -37,7 +37,7 @@ enum MemoryMapping {
   // TODO: BSX = 4;
 }
 
-// capabilities of a SNES device [32-bit bit field]
+// capabilities of a SNES device
 enum DeviceCapability {
   None = 0;
   ReadMemory = 1;
