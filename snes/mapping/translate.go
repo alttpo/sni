@@ -2,9 +2,9 @@ package mapping
 
 import (
 	"sni/protos/sni"
-	"sni/snes/exhirom"
-	"sni/snes/hirom"
-	"sni/snes/lorom"
+	"sni/snes/mapping/exhirom"
+	"sni/snes/mapping/hirom"
+	"sni/snes/mapping/lorom"
 )
 
 func TranslateAddress(
