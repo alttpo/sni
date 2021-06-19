@@ -66,6 +66,12 @@ func (b *BaseDeviceDriver) Get(deviceKey string) (Device, bool) {
 	return device, ok
 }
 
+func (b *BaseDeviceDriver) Put(deviceKey string, device Device) {
+	b.devicesRw.Lock()
+	b.devicesMap[deviceKey] = device
+	b.devicesRw.Unlock()
+}
+
 func CheckCapabilities(expectedCapabilities []sni.DeviceCapability, actualCapabilities []sni.DeviceCapability) (bool, error) {
 	for _, expected := range expectedCapabilities {
 		found := false

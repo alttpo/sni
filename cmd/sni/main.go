@@ -24,6 +24,7 @@ import _ "net/http/pprof"
 // include these SNES drivers:
 import (
 	_ "sni/snes/fxpakpro"
+	_ "sni/snes/luabridge"
 	_ "sni/snes/mock"
 	_ "sni/snes/qusb2snes"
 	_ "sni/snes/retroarch"
