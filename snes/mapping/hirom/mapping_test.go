@@ -475,6 +475,34 @@ func TestBusAddressToPak(t *testing.T) {
 			},
 			want: 0xF51FFF,
 		},
+		{
+			name: "WRAM bank $A0:0000",
+			args: args{
+				busAddr: 0xA00000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM bank $A0:1FFF",
+			args: args{
+				busAddr: 0xA01FFF,
+			},
+			want: 0xF51FFF,
+		},
+		{
+			name: "WRAM bank $BF:0000",
+			args: args{
+				busAddr: 0xBF0000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM bank $BF:1FFF",
+			args: args{
+				busAddr: 0xBF1FFF,
+			},
+			want: 0xF51FFF,
+		},
 		// WRAM banks 7E-7F:
 		{
 			name: "WRAM bank $7E:0000",
@@ -596,6 +624,7 @@ func TestBusAddressToPak(t *testing.T) {
 			},
 			want: 0xE3FFFF,
 		},
+		// WRAM:
 		{
 			name: "WRAM bank $00:0000",
 			args: args{
@@ -621,6 +650,34 @@ func TestBusAddressToPak(t *testing.T) {
 			name: "WRAM bank $1F:1FFF",
 			args: args{
 				busAddr: 0x1F1FFF,
+			},
+			want: 0xF51FFF,
+		},
+		{
+			name: "WRAM bank $20:0000",
+			args: args{
+				busAddr: 0x200000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM bank $20:1FFF",
+			args: args{
+				busAddr: 0x201FFF,
+			},
+			want: 0xF51FFF,
+		},
+		{
+			name: "WRAM bank $3F:0000",
+			args: args{
+				busAddr: 0x3F0000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM bank $3F:1FFF",
+			args: args{
+				busAddr: 0x3F1FFF,
 			},
 			want: 0xF51FFF,
 		},
