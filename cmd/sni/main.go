@@ -98,7 +98,9 @@ func main() {
 	// start gRPC server:
 	var serverOptions []grpc.ServerOption
 	if *logTiming {
-		serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(unaryInterceptor))
+		serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(logTimingInterceptor))
+	} else {
+		serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(reportErrorInterceptor))
 	}
 	s := grpc.NewServer(serverOptions...)
 	sni.RegisterDevicesServer(s, &devicesService{})
@@ -124,7 +126,7 @@ type methodResponseStringer interface {
 	MethodResponseString(method string, rsp interface{}) string
 }
 
-func unaryInterceptor(
+func logTimingInterceptor(
 	ctx context.Context,
 	req interface{},
 	info *grpc.UnaryServerInfo,
@@ -137,6 +139,7 @@ func unaryInterceptor(
 	defer func() {
 		// stop timer:
 		tEnd := time.Now()
+
 		// format request message as string:
 		var reqStr, rspStr string
 		if reqStringer, ok := info.Server.(methodRequestStringer); ok {
@@ -144,16 +147,49 @@ func unaryInterceptor(
 		} else {
 			reqStr = fmt.Sprintf("%+v", req)
 		}
-		// format response message as string:
-		if rspStringer, ok := info.Server.(methodResponseStringer); ok {
-			rspStr = rspStringer.MethodResponseString(info.FullMethod, rsp)
+
+		if err == nil {
+			// format response message as string:
+			if rspStringer, ok := info.Server.(methodResponseStringer); ok {
+				rspStr = rspStringer.MethodResponseString(info.FullMethod, rsp)
+			} else {
+				rspStr = fmt.Sprintf("%+v", rsp)
+			}
+
+			// log method, time taken, request, and response:
+			log.Printf("%26s: %10d ns: req=`%s`, rsp=`%s`\n", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), reqStr, rspStr)
 		} else {
-			rspStr = fmt.Sprintf("%+v", rsp)
+			// log method, time taken, request, and error:
+			log.Printf("%26s: %10d ns: req=`%s`, err=`%v`\n", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), reqStr, err)
 		}
-		// log method, time taken, request, and response:
-		log.Printf("%26s: %10d ns: req=`%s`, rsp=`%s`", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), reqStr, rspStr)
 	}()
 
 	// invoke the method handler:
-	return handler(ctx, req)
+	rsp, err = handler(ctx, req)
+	return
+}
+
+func reportErrorInterceptor(
+	ctx context.Context,
+	req interface{},
+	info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler,
+) (rsp interface{}, err error) {
+	// invoke the method handler:
+	rsp, err = handler(ctx, req)
+
+	if err != nil {
+		// format request message as string:
+		var reqStr string
+		if reqStringer, ok := info.Server.(methodRequestStringer); ok {
+			reqStr = reqStringer.MethodRequestString(info.FullMethod, req)
+		} else {
+			reqStr = fmt.Sprintf("%+v", req)
+		}
+
+		// log method, time taken, request, and error:
+		log.Printf("%26s: req=`%s`, err=`%v`\n", info.FullMethod, reqStr, err)
+	}
+
+	return
 }
