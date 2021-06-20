@@ -331,3 +331,341 @@ func TestPakAddressToBus(t *testing.T) {
 		})
 	}
 }
+
+func TestBusAddressToPak(t *testing.T) {
+	type args struct {
+		busAddr uint32
+	}
+	tests := []struct {
+		name string
+		args args
+		want uint32
+	}{
+		// banks $80-FF:
+		{
+			name: "ROM bank $FE:0000",
+			args: args{
+				busAddr: 0xFE0000,
+			},
+			want: 0x3E0000,
+		},
+		{
+			name: "ROM bank $FE:FFFF",
+			args: args{
+				busAddr: 0xFEFFFF,
+			},
+			want: 0x3EFFFF,
+		},
+		{
+			name: "ROM bank $FF:0000",
+			args: args{
+				busAddr: 0xFF0000,
+			},
+			want: 0x3F0000,
+		},
+		{
+			name: "ROM bank $FF:FFFF",
+			args: args{
+				busAddr: 0xFFFFFF,
+			},
+			want: 0x3FFFFF,
+		},
+		{
+			name: "ROM bank $C0:0000",
+			args: args{
+				busAddr: 0xC00000,
+			},
+			want: 0x000000,
+		},
+		{
+			name: "ROM bank $C0:FFFF",
+			args: args{
+				busAddr: 0xC0FFFF,
+			},
+			want: 0x00FFFF,
+		},
+		{
+			name: "ROM bank $FD:0000",
+			args: args{
+				busAddr: 0xFD0000,
+			},
+			want: 0x3D0000,
+		},
+		{
+			name: "ROM bank $FD:FFFF",
+			args: args{
+				busAddr: 0xFDFFFF,
+			},
+			want: 0x3DFFFF,
+		},
+		{
+			name: "ROM bank $A0:8000",
+			args: args{
+				busAddr: 0xA08000,
+			},
+			want: 0x100000,
+		},
+		{
+			name: "ROM bank $A1:8000",
+			args: args{
+				busAddr: 0xA18000,
+			},
+			want: 0x108000,
+		},
+		{
+			name: "SRAM bank $A0:6000",
+			args: args{
+				busAddr: 0xA06000,
+			},
+			want: 0xE00000,
+		},
+		{
+			name: "SRAM bank $A1:6000",
+			args: args{
+				busAddr: 0xA16000,
+			},
+			want: 0xE02000,
+		},
+		{
+			name: "SRAM bank $BF:6000",
+			args: args{
+				busAddr: 0xBF6000,
+			},
+			want: 0xE3E000,
+		},
+		{
+			name: "SRAM bank $BF:7FFF",
+			args: args{
+				busAddr: 0xBF7FFF,
+			},
+			want: 0xE3FFFF,
+		},
+		{
+			name: "ROM bank $80:8000",
+			args: args{
+				busAddr: 0x808000,
+			},
+			want: 0x000000,
+		},
+		{
+			name: "ROM bank $81:8000",
+			args: args{
+				busAddr: 0x818000,
+			},
+			want: 0x008000,
+		},
+		{
+			name: "WRAM bank $80:0000",
+			args: args{
+				busAddr: 0x800000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM bank $80:1FFF",
+			args: args{
+				busAddr: 0x801FFF,
+			},
+			want: 0xF51FFF,
+		},
+		{
+			name: "WRAM bank $9F:0000",
+			args: args{
+				busAddr: 0x9F0000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM bank $9F:1FFF",
+			args: args{
+				busAddr: 0x9F1FFF,
+			},
+			want: 0xF51FFF,
+		},
+		{
+			name: "WRAM bank $A0:0000",
+			args: args{
+				busAddr: 0xA00000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM bank $A0:1FFF",
+			args: args{
+				busAddr: 0xA01FFF,
+			},
+			want: 0xF51FFF,
+		},
+		{
+			name: "WRAM bank $BF:0000",
+			args: args{
+				busAddr: 0xBF0000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM bank $BF:1FFF",
+			args: args{
+				busAddr: 0xBF1FFF,
+			},
+			want: 0xF51FFF,
+		},
+		// WRAM banks 7E-7F:
+		{
+			name: "WRAM bank $7E:0000",
+			args: args{
+				busAddr: 0x7E0000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM bank $7E:1FFF",
+			args: args{
+				busAddr: 0x7E1FFF,
+			},
+			want: 0xF51FFF,
+		},
+		{
+			name: "WRAM bank $7E:2000",
+			args: args{
+				busAddr: 0x7E2000,
+			},
+			want: 0xF52000,
+		},
+		{
+			name: "WRAM bank $7E:3FFF",
+			args: args{
+				busAddr: 0x7E3FFF,
+			},
+			want: 0xF53FFF,
+		},
+		{
+			name: "WRAM bank $7E:FFFF",
+			args: args{
+				busAddr: 0x7EFFFF,
+			},
+			want: 0xF5FFFF,
+		},
+		{
+			name: "WRAM bank $7F:0000",
+			args: args{
+				busAddr: 0x7F0000,
+			},
+			want: 0xF60000,
+		},
+		{
+			name: "WRAM bank $7F:FFFF",
+			args: args{
+				busAddr: 0x7FFFFF,
+			},
+			want: 0xF6FFFF,
+		},
+		// banks 00-7D:
+		{
+			name: "ROM bank $40:0000",
+			args: args{
+				busAddr: 0x400000,
+			},
+			want: 0x400000,
+		},
+		{
+			name: "ROM bank $40:FFFF",
+			args: args{
+				busAddr: 0x40FFFF,
+			},
+			want: 0x40FFFF,
+		},
+		{
+			name: "ROM bank $7D:0000",
+			args: args{
+				busAddr: 0x7D0000,
+			},
+			want: 0x7D0000,
+		},
+		{
+			name: "ROM bank $7D:FFFF",
+			args: args{
+				busAddr: 0x7DFFFF,
+			},
+			want: 0x7DFFFF,
+		},
+		{
+			name: "ROM bank $20:8000",
+			args: args{
+				busAddr: 0x208000,
+			},
+			want: 0x500000,
+		},
+		{
+			name: "ROM bank $21:8000",
+			args: args{
+				busAddr: 0x218000,
+			},
+			want: 0x508000,
+		},
+		// WRAM:
+		{
+			name: "WRAM bank $00:0000",
+			args: args{
+				busAddr: 0x000000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM bank $00:1FFF",
+			args: args{
+				busAddr: 0x001FFF,
+			},
+			want: 0xF51FFF,
+		},
+		{
+			name: "WRAM bank $1F:0000",
+			args: args{
+				busAddr: 0x1F0000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM bank $1F:1FFF",
+			args: args{
+				busAddr: 0x1F1FFF,
+			},
+			want: 0xF51FFF,
+		},
+		{
+			name: "WRAM bank $20:0000",
+			args: args{
+				busAddr: 0x200000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM bank $20:1FFF",
+			args: args{
+				busAddr: 0x201FFF,
+			},
+			want: 0xF51FFF,
+		},
+		{
+			name: "WRAM bank $3F:0000",
+			args: args{
+				busAddr: 0x3F0000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM bank $3F:1FFF",
+			args: args{
+				busAddr: 0x3F1FFF,
+			},
+			want: 0xF51FFF,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := BusAddressToPak(tt.args.busAddr); got != tt.want {
+				t.Errorf("BusAddressToPak() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
