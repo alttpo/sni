@@ -340,6 +340,35 @@ func TestBusAddressToPak(t *testing.T) {
 			},
 			want: 0xF6FFFF,
 		},
+		// banks F0-FF:
+		{
+			name: "ROM $F0 bank",
+			args: args{
+				busAddr: 0xF08000,
+			},
+			want: 0x180000,
+		},
+		{
+			name: "ROM $F0 bank last byte",
+			args: args{
+				busAddr: 0xF0FFFF,
+			},
+			want: 0x187FFF,
+		},
+		{
+			name: "ROM $FF bank",
+			args: args{
+				busAddr: 0xFF8000,
+			},
+			want: 0x1F8000,
+		},
+		{
+			name: "ROM $FF bank last byte",
+			args: args{
+				busAddr: 0xFFFFFF,
+			},
+			want: 0x1FFFFF,
+		},
 		// SRAM:
 		{
 			name: "SRAM $F0 bank",
@@ -390,6 +419,50 @@ func TestBusAddressToPak(t *testing.T) {
 			},
 			want: 0xE78000,
 		},
+		// WRAM:
+		{
+			name: "WRAM $80 bank $0000",
+			args: args{
+				busAddr: 0x800000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM $80 bank $1000",
+			args: args{
+				busAddr: 0x801000,
+			},
+			want: 0xF51000,
+		},
+		// banks 70-7D:
+		{
+			name: "ROM $70 bank",
+			args: args{
+				busAddr: 0x708000,
+			},
+			want: 0x180000,
+		},
+		{
+			name: "ROM $70 bank last byte",
+			args: args{
+				busAddr: 0x70FFFF,
+			},
+			want: 0x187FFF,
+		},
+		{
+			name: "ROM $7D bank",
+			args: args{
+				busAddr: 0x7D8000,
+			},
+			want: 0x1E8000,
+		},
+		{
+			name: "ROM $7D bank last byte",
+			args: args{
+				busAddr: 0x7DFFFF,
+			},
+			want: 0x1EFFFF,
+		},
 		{
 			name: "SRAM $70 bank",
 			args: args{
@@ -424,6 +497,21 @@ func TestBusAddressToPak(t *testing.T) {
 				busAddr: 0x7D7FFF,
 			},
 			want: 0xE6FFFF,
+		},
+		// WRAM:
+		{
+			name: "WRAM $00 bank $0000",
+			args: args{
+				busAddr: 0x000000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM $00 bank $1000",
+			args: args{
+				busAddr: 0x001000,
+			},
+			want: 0xF51000,
 		},
 	}
 	for _, tt := range tests {

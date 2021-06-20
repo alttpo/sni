@@ -4,17 +4,6 @@ import (
 	"sni/snes/mapping/util"
 )
 
-func BusAddressToPC(busAddr uint32) uint32 {
-	page := busAddr & 0xFFFF
-	if page < 0x8000 {
-		return 0x1000000
-	}
-
-	bank := busAddr >> 16
-	pcAddr := (bank << 15) | (page - 0x8000)
-	return pcAddr
-}
-
 func BusAddressToPak(busAddr uint32) uint32 {
 	if busAddr >= 0xF00000 && busAddr < 0x1_000000 {
 		if busAddr&0x8000 != 0 {
@@ -28,11 +17,11 @@ func BusAddressToPak(busAddr uint32) uint32 {
 		}
 	} else if busAddr >= 0x800000 && busAddr < 0xF00000 {
 		if busAddr&0x8000 != 0 {
-			// ROM access:         $80:8000-$80:FFFF
+			// ROM access:         $80:8000-$EF:FFFF
 			rom := util.BankToLinear(busAddr&0x3F7FFF) + 0x000000
 			return rom
 		} else if busAddr&0xFFFF < 0x2000 {
-			// Lower 8KiB of WRAM: $80:0000-$F0:1FFF
+			// Lower 8KiB of WRAM: $80:0000-$EF:1FFF
 			wram := (busAddr & 0x1FFF) + 0xF50000
 			return wram
 		}
