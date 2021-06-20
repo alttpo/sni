@@ -62,6 +62,14 @@ func (d *Device) MultiReadMemory(
 	ctx context.Context,
 	reads ...snes.MemoryReadRequest,
 ) (mrsp []snes.MemoryReadResponse, err error) {
+	defer func() {
+		if err != nil {
+			mrsp = nil
+			_ = d.f.Close()
+			d.isClosed = true
+		}
+	}()
+
 	// make all the response structs and preallocate Data buffers:
 	mrsp = make([]snes.MemoryReadResponse, len(reads))
 	for j, read := range reads {
@@ -192,6 +200,14 @@ func (d *Device) MultiWriteMemory(
 	ctx context.Context,
 	writes ...snes.MemoryWriteRequest,
 ) (mrsp []snes.MemoryWriteResponse, err error) {
+	defer func() {
+		if err != nil {
+			mrsp = nil
+			_ = d.f.Close()
+			d.isClosed = true
+		}
+	}()
+
 	// make all the response structs:
 	mrsp = make([]snes.MemoryWriteResponse, len(writes))
 	for j, write := range writes {
