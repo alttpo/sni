@@ -69,7 +69,7 @@ func BusAddressToPak(busAddr uint32) uint32 {
 			wram := (busAddr & 0x1FFF) + 0xF50000
 			return wram
 		}
-	} else if busAddr >= 0x000000 && busAddr < 0x200000 {
+	} else if busAddr < 0x200000 {
 		if busAddr&0x8000 != 0 {
 			// program area 2
 			// ROM access:         $00:8000-$1F:FFFF
