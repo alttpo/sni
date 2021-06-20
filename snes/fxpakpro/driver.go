@@ -134,7 +134,7 @@ func (d *Driver) openPort(portName string, baudRequest int) (f serial.Port, err 
 			continue
 		}
 
-		//log.Printf("%s: open(%d)\n", portName, baud)
+		log.Printf("%s: open(name=\"%s\", baud=%d)\n", driverName, portName, baud)
 		f, err = serial.Open(portName, &serial.Mode{
 			BaudRate: baud,
 			DataBits: 8,
@@ -144,7 +144,7 @@ func (d *Driver) openPort(portName string, baudRequest int) (f serial.Port, err 
 		if err == nil {
 			break
 		}
-		//log.Printf("%s: %v\n", portName, err)
+		log.Printf("%s: open(name=\"%s\"): %v\n", driverName, portName, err)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to open serial port at any baud rate: %w", driverName, err)
