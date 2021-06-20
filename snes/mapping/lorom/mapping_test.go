@@ -258,3 +258,179 @@ func TestPakAddressToBus(t *testing.T) {
 		})
 	}
 }
+
+func TestBusAddressToPak(t *testing.T) {
+	type args struct {
+		busAddr uint32
+	}
+	tests := []struct {
+		name string
+		args args
+		want uint32
+	}{
+		// ROM header shadows:
+		{
+			name: "ROM header bank $00",
+			args: args{
+				busAddr: 0x00FFC0,
+			},
+			want: 0x007FC0,
+		},
+		{
+			name: "ROM header bank $40",
+			args: args{
+				busAddr: 0x40FFC0,
+			},
+			want: 0x007FC0,
+		},
+		{
+			name: "ROM header bank $80",
+			args: args{
+				busAddr: 0x80FFC0,
+			},
+			want: 0x007FC0,
+		},
+		{
+			name: "ROM header bank $C0",
+			args: args{
+				busAddr: 0xC0FFC0,
+			},
+			want: 0x007FC0,
+		},
+		// WRAM:
+		{
+			name: "WRAM $00000",
+			args: args{
+				busAddr: 0x7E0000,
+			},
+			want: 0xF50000,
+		},
+		{
+			name: "WRAM $01000",
+			args: args{
+				busAddr: 0x7E1000,
+			},
+			want: 0xF51000,
+		},
+		{
+			name: "WRAM $02000",
+			args: args{
+				busAddr: 0x7E2000,
+			},
+			want: 0xF52000,
+		},
+		{
+			name: "WRAM $0FFFF",
+			args: args{
+				busAddr: 0x7EFFFF,
+			},
+			want: 0xF5FFFF,
+		},
+		{
+			name: "WRAM $10000",
+			args: args{
+				busAddr: 0x7F0000,
+			},
+			want: 0xF60000,
+		},
+		{
+			name: "WRAM $1FFFF",
+			args: args{
+				busAddr: 0x7FFFFF,
+			},
+			want: 0xF6FFFF,
+		},
+		// SRAM:
+		{
+			name: "SRAM $F0 bank",
+			args: args{
+				busAddr: 0xF00000,
+			},
+			want: 0xE00000,
+		},
+		{
+			name: "SRAM $F0 bank last byte",
+			args: args{
+				busAddr: 0xF07FFF,
+			},
+			want: 0xE07FFF,
+		},
+		{
+			name: "SRAM $F1 bank first byte",
+			args: args{
+				busAddr: 0xF10000,
+			},
+			want: 0xE08000,
+		},
+		{
+			name: "SRAM $FD bank first byte",
+			args: args{
+				busAddr: 0xFD0000,
+			},
+			want: 0xE68000,
+		},
+		{
+			name: "SRAM $FD bank last byte",
+			args: args{
+				busAddr: 0xFD7FFF,
+			},
+			want: 0xE6FFFF,
+		},
+		{
+			name: "SRAM $FE bank",
+			args: args{
+				busAddr: 0xFE0000,
+			},
+			want: 0xE70000,
+		},
+		{
+			name: "SRAM $FF bank",
+			args: args{
+				busAddr: 0xFF0000,
+			},
+			want: 0xE78000,
+		},
+		{
+			name: "SRAM $70 bank",
+			args: args{
+				busAddr: 0x700000,
+			},
+			want: 0xE00000,
+		},
+		{
+			name: "SRAM $70 bank last byte",
+			args: args{
+				busAddr: 0x707FFF,
+			},
+			want: 0xE07FFF,
+		},
+		{
+			name: "SRAM $71 bank first byte",
+			args: args{
+				busAddr: 0x710000,
+			},
+			want: 0xE08000,
+		},
+		{
+			name: "SRAM $7D bank first byte",
+			args: args{
+				busAddr: 0x7D0000,
+			},
+			want: 0xE68000,
+		},
+		{
+			name: "SRAM $7D bank last byte",
+			args: args{
+				busAddr: 0x7D7FFF,
+			},
+			want: 0xE6FFFF,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := BusAddressToPak(tt.args.busAddr); got != tt.want {
+				t.Errorf("BusAddressToPak() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

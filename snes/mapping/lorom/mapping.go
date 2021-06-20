@@ -16,15 +16,50 @@ func BusAddressToPC(busAddr uint32) uint32 {
 }
 
 func BusAddressToPak(busAddr uint32) uint32 {
-	if busAddr >= 0x700000 && busAddr < 0x7E0000 {
-		sram := (busAddr - 0x700000) + 0xE00000
-		return sram
+	if busAddr >= 0xF00000 && busAddr < 0x1_000000 {
+		if busAddr&0x8000 != 0 {
+			// ROM access:         $F0:8000-$F0:FFFF
+			rom := util.BankToLinear(busAddr&0x3F7FFF) + 0x000000
+			return rom
+		} else {
+			// SRAM access:        $F0:0000-$FF:7FFF
+			sram := util.BankToLinear(busAddr-0xF00000) + 0xE00000
+			return sram
+		}
+	} else if busAddr >= 0x800000 && busAddr < 0xF00000 {
+		if busAddr&0x8000 != 0 {
+			// ROM access:         $80:8000-$80:FFFF
+			rom := util.BankToLinear(busAddr&0x3F7FFF) + 0x000000
+			return rom
+		} else if busAddr&0x1FFF != 0 {
+			// Lower 8KiB of WRAM: $80:0000-$F0:1FFF
+			wram := (busAddr & 0x1FFF) + 0xF50000
+			return wram
+		}
 	} else if busAddr >= 0x7E0000 && busAddr < 0x800000 {
+		// WRAM access:
 		wram := (busAddr - 0x7E0000) + 0xF50000
 		return wram
-	} else if busAddr&0x8000 != 0 {
-		sram := util.BankToLinear(busAddr&0x3FFFFF) + 0x000000
-		return sram
+	} else if busAddr >= 0x700000 && busAddr < 0x7E0000 {
+		if busAddr&0x8000 != 0 {
+			// ROM access:         $70:8000-$7D:FFFF
+			rom := util.BankToLinear(busAddr&0x3F7FFF) + 0x000000
+			return rom
+		} else {
+			// SRAM access:        $70:0000-$7D:7FFF
+			sram := util.BankToLinear(busAddr-0x700000) + 0xE00000
+			return sram
+		}
+	} else if busAddr < 0x700000 {
+		if busAddr&0x8000 != 0 {
+			// ROM access:         $00:8000-$6F:FFFF
+			rom := util.BankToLinear(busAddr&0x3F7FFF) + 0x000000
+			return rom
+		} else if busAddr&0x1FFF != 0 {
+			// Lower 8KiB of WRAM: $00:0000-$6F:1FFF
+			wram := (busAddr & 0x1FFF) + 0xF50000
+			return wram
+		}
 	}
 	return busAddr
 }
