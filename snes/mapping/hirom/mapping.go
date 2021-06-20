@@ -1,16 +1,66 @@
 package hirom
 
 import (
-	"sni/snes/util"
+	"sni/snes/mapping/util"
 )
 
 func BusAddressToPak(busAddr uint32) uint32 {
-	if busAddr&0x8000 == 0 {
-		if busAddr >= 0x700000 && busAddr < 0x7E0000 {
-			sram := util.BankToLinear(busAddr-0x700000) + 0xE00000
+	if busAddr >= 0xFE0000 && busAddr < 0x1_000000 {
+		// ROM access:             $FE:0000-$FF:FFFF
+		rom := (busAddr & 0x3FFFFF) + 0x000000
+		return rom
+	} else if busAddr >= 0xC00000 && busAddr < 0xFE0000 {
+		// ROM access:             $C0:0000-$FD:FFFF
+		rom := (busAddr & 0x3FFFFF) + 0x000000
+		return rom
+	} else if busAddr >= 0xA00000 && busAddr < 0xC00000 {
+		if busAddr&0x8000 != 0 {
+			// ROM access:         $A0:8000-$BF:FFFF
+			rom := util.BankToLinear(busAddr&0x3F7FFF) + 0x000000
+			return rom
+		} else if busAddr&0x7FFF >= 0x6000 {
+			// SRAM access:        $A0:6000-$BF:7FFF
+			bank := (busAddr >> 16) - 0xA0
+			sram := ((bank << 13) + (busAddr & 0x1FFF)) + 0xE00000
 			return sram
-		} else if busAddr >= 0x7E0000 && busAddr < 0x800000 {
-			wram := (busAddr - 0x7E0000) + 0xF50000
+		}
+	} else if busAddr >= 0x800000 && busAddr < 0xA00000 {
+		if busAddr&0x8000 != 0 {
+			// ROM access:         $80:8000-$9F:FFFF
+			rom := util.BankToLinear(busAddr&0x3F7FFF) + 0x000000
+			return rom
+		} else if busAddr&0xFFFF < 0x2000 {
+			// Lower 8KiB of WRAM: $80:0000-$9F:1FFF
+			wram := (busAddr & 0x1FFF) + 0xF50000
+			return wram
+		}
+	} else if busAddr >= 0x7E0000 && busAddr < 0x800000 {
+		// WRAM access:
+		wram := (busAddr - 0x7E0000) + 0xF50000
+		return wram
+	} else if busAddr >= 0x400000 && busAddr < 0x7E0000 {
+		// ROM access:             $40:0000-$7D:FFFF
+		rom := (busAddr & 0x3FFFFF) + 0x000000
+		return rom
+	} else if busAddr >= 0x200000 && busAddr < 0x400000 {
+		if busAddr&0x8000 != 0 {
+			// ROM access:         $20:8000-$3F:FFFF
+			rom := util.BankToLinear(busAddr&0x3F7FFF) + 0x000000
+			return rom
+		} else if busAddr&0x7FFF >= 0x6000 {
+			// SRAM access:        $20:6000-$3F:7FFF
+			bank := (busAddr >> 16) - 0x20
+			sram := ((bank << 13) + (busAddr & 0x1FFF)) + 0xE00000
+			return sram
+		}
+	} else if busAddr >= 0x000000 && busAddr < 0x200000 {
+		if busAddr&0x8000 != 0 {
+			// ROM access:         $00:8000-$1F:FFFF
+			rom := util.BankToLinear(busAddr&0x3F7FFF) + 0x000000
+			return rom
+		} else if busAddr&0xFFFF < 0x2000 {
+			// Lower 8KiB of WRAM: $00:0000-$1F:1FFF
+			wram := (busAddr & 0x1FFF) + 0xF50000
 			return wram
 		}
 	}

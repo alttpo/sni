@@ -1,7 +1,7 @@
 package lorom
 
 import (
-	"sni/snes/util"
+	"sni/snes/mapping/util"
 )
 
 func BusAddressToPC(busAddr uint32) uint32 {
@@ -31,7 +31,7 @@ func BusAddressToPak(busAddr uint32) uint32 {
 			// ROM access:         $80:8000-$80:FFFF
 			rom := util.BankToLinear(busAddr&0x3F7FFF) + 0x000000
 			return rom
-		} else if busAddr&0x1FFF != 0 {
+		} else if busAddr&0xFFFF < 0x2000 {
 			// Lower 8KiB of WRAM: $80:0000-$F0:1FFF
 			wram := (busAddr & 0x1FFF) + 0xF50000
 			return wram
@@ -55,7 +55,7 @@ func BusAddressToPak(busAddr uint32) uint32 {
 			// ROM access:         $00:8000-$6F:FFFF
 			rom := util.BankToLinear(busAddr&0x3F7FFF) + 0x000000
 			return rom
-		} else if busAddr&0x1FFF != 0 {
+		} else if busAddr&0xFFFF < 0x2000 {
 			// Lower 8KiB of WRAM: $00:0000-$6F:1FFF
 			wram := (busAddr & 0x1FFF) + 0xF50000
 			return wram
