@@ -158,7 +158,7 @@ func (d *Driver) openPort(portName string, baudRequest int) (f serial.Port, err 
 		return nil, fmt.Errorf("%s: failed to set DTR: %w", driverName, err)
 	}
 
-	return f, err
+	return
 }
 
 func (d *Driver) DeviceKey(uri *url.URL) string {
@@ -175,6 +175,10 @@ func (d *Driver) openAsDevice(uri *url.URL) (device snes.Device, err error) {
 
 	var f serial.Port
 	f, err = d.openPort(portName, baudRequest)
+	if err != nil {
+		return
+	}
+
 	dev := &Device{f: f}
 	err = dev.Init()
 
