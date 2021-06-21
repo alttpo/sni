@@ -48,28 +48,6 @@ function deserialize_DevicesResponse(buffer_arg) {
   return sni_pb.DevicesResponse.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
-function serialize_GetMemoryMappingRequest(arg) {
-  if (!(arg instanceof sni_pb.GetMemoryMappingRequest)) {
-    throw new Error('Expected argument of type GetMemoryMappingRequest');
-  }
-  return Buffer.from(arg.serializeBinary());
-}
-
-function deserialize_GetMemoryMappingRequest(buffer_arg) {
-  return sni_pb.GetMemoryMappingRequest.deserializeBinary(new Uint8Array(buffer_arg));
-}
-
-function serialize_MemoryMappingResponse(arg) {
-  if (!(arg instanceof sni_pb.MemoryMappingResponse)) {
-    throw new Error('Expected argument of type MemoryMappingResponse');
-  }
-  return Buffer.from(arg.serializeBinary());
-}
-
-function deserialize_MemoryMappingResponse(buffer_arg) {
-  return sni_pb.MemoryMappingResponse.deserializeBinary(new Uint8Array(buffer_arg));
-}
-
 function serialize_MultiReadMemoryRequest(arg) {
   if (!(arg instanceof sni_pb.MultiReadMemoryRequest)) {
     throw new Error('Expected argument of type MultiReadMemoryRequest');
@@ -180,17 +158,6 @@ function deserialize_ResetSystemResponse(buffer_arg) {
   return sni_pb.ResetSystemResponse.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
-function serialize_SetMemoryMappingRequest(arg) {
-  if (!(arg instanceof sni_pb.SetMemoryMappingRequest)) {
-    throw new Error('Expected argument of type SetMemoryMappingRequest');
-  }
-  return Buffer.from(arg.serializeBinary());
-}
-
-function deserialize_SetMemoryMappingRequest(buffer_arg) {
-  return sni_pb.SetMemoryMappingRequest.deserializeBinary(new Uint8Array(buffer_arg));
-}
-
 function serialize_SingleReadMemoryRequest(arg) {
   if (!(arg instanceof sni_pb.SingleReadMemoryRequest)) {
     throw new Error('Expected argument of type SingleReadMemoryRequest');
@@ -293,7 +260,7 @@ pauseToggleEmulation: {
 
 exports.DeviceControlClient = grpc.makeGenericClientConstructor(DeviceControlService);
 var DeviceMemoryService = exports.DeviceMemoryService = {
-  // detect the current memory mapping for the given device by reading $00:FFC0 header:
+  // detect the current memory mapping for the given device by reading $00:FFB0 header:
 mappingDetect: {
     path: '/DeviceMemory/MappingDetect',
     requestStream: false,
@@ -304,30 +271,6 @@ mappingDetect: {
     requestDeserialize: deserialize_DetectMemoryMappingRequest,
     responseSerialize: serialize_DetectMemoryMappingResponse,
     responseDeserialize: deserialize_DetectMemoryMappingResponse,
-  },
-  // explicitly set the current memory mapping for the given device:
-mappingSet: {
-    path: '/DeviceMemory/MappingSet',
-    requestStream: false,
-    responseStream: false,
-    requestType: sni_pb.SetMemoryMappingRequest,
-    responseType: sni_pb.MemoryMappingResponse,
-    requestSerialize: serialize_SetMemoryMappingRequest,
-    requestDeserialize: deserialize_SetMemoryMappingRequest,
-    responseSerialize: serialize_MemoryMappingResponse,
-    responseDeserialize: deserialize_MemoryMappingResponse,
-  },
-  // get the current memory mapping for the given device:
-mappingGet: {
-    path: '/DeviceMemory/MappingGet',
-    requestStream: false,
-    responseStream: false,
-    requestType: sni_pb.GetMemoryMappingRequest,
-    responseType: sni_pb.MemoryMappingResponse,
-    requestSerialize: serialize_GetMemoryMappingRequest,
-    requestDeserialize: deserialize_GetMemoryMappingRequest,
-    responseSerialize: serialize_MemoryMappingResponse,
-    responseDeserialize: deserialize_MemoryMappingResponse,
   },
   // read a single memory segment with a given size from the given device:
 singleRead: {

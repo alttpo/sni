@@ -39,6 +39,7 @@ async function main() {
     const rr = new sni.ReadMemoryRequest();
     rr.setRequestaddress(0x7E0010);
     rr.setRequestaddressspace(sni.AddressSpace.SNESABUS);
+    rr.setRequestmemorymapping(sni.MemoryMapping.LOROM);
     rr.setSize(1);
     r.setRequest(rr);
     const memory = new services.DeviceMemoryClient(target, grpc.credentials.createInsecure());
