@@ -36,7 +36,7 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 		addr, err = mapping.TranslateAddress(
 			read.RequestAddress,
 			read.RequestAddressSpace,
-			d.Mapping,
+			read.RequestMapping,
 			sni.AddressSpace_SnesABus,
 		)
 		if err != nil {
@@ -100,7 +100,7 @@ func (d *Device) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWrit
 		addr, err = mapping.TranslateAddress(
 			write.RequestAddress,
 			write.RequestAddressSpace,
-			d.Mapping,
+			write.RequestMapping,
 			sni.AddressSpace_SnesABus,
 		)
 		if err != nil {

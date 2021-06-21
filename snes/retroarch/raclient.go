@@ -20,7 +20,6 @@ const hextable = "0123456789abcdef"
 
 type RAClient struct {
 	udpclient.UDPClient
-	snes.BaseDeviceMemory
 
 	addr *net.UDPAddr
 
@@ -37,7 +36,6 @@ func NewRAClient(addr *net.UDPAddr, name string) *RAClient {
 	c := &RAClient{
 		addr: addr,
 	}
-	c.DeviceMemory = c
 	udpclient.MakeUDPClient(name, &c.UDPClient)
 	return c
 }
@@ -119,7 +117,7 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 		mrsp[j].DeviceAddress, err = mapping.TranslateAddress(
 			read.RequestAddress,
 			read.RequestAddressSpace,
-			c.Mapping,
+			read.RequestMapping,
 			sni.AddressSpace_SnesABus,
 		)
 		if err != nil {
@@ -283,7 +281,7 @@ func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.Memo
 		mrsps[i].DeviceAddress, err = mapping.TranslateAddress(
 			write.RequestAddress,
 			write.RequestAddressSpace,
-			c.Mapping,
+			write.RequestMapping,
 			sni.AddressSpace_SnesABus,
 		)
 		if err != nil {

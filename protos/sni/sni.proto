@@ -110,12 +110,8 @@ message PauseToggleEmulationResponse {
 }
 
 service DeviceMemory {
-  // detect the current memory mapping for the given device by reading $00:FFC0 header:
+  // detect the current memory mapping for the given device by reading $00:FFB0 header:
   rpc MappingDetect(DetectMemoryMappingRequest) returns (DetectMemoryMappingResponse) {}
-  // explicitly set the current memory mapping for the given device:
-  rpc MappingSet(SetMemoryMappingRequest) returns (MemoryMappingResponse) {}
-  // get the current memory mapping for the given device:
-  rpc MappingGet(GetMemoryMappingRequest) returns (MemoryMappingResponse) {}
 
   // read a single memory segment with a given size from the given device:
   rpc SingleRead(SingleReadMemoryRequest) returns (SingleReadMemoryResponse) {}
@@ -139,34 +135,26 @@ message DetectMemoryMappingRequest {
 }
 message DetectMemoryMappingResponse {
   string uri = 1;
+  // the memory mapping mode detected
   MemoryMapping memoryMapping = 2;
+  // true if confident we detected a mapping; false if using a fallback or default value
   bool confidence = 3;
   // the ROM header read from $00:FFB0, length is $50 bytes if server reads it, otherwise length of `romHeader00FFB0` from request
   bytes romHeader00FFB0 = 4;
 }
 
 
-message SetMemoryMappingRequest {
-  string uri = 1;
-  MemoryMapping memoryMapping = 2;
-}
-message GetMemoryMappingRequest {
-  string uri = 1;
-}
-message MemoryMappingResponse {
-  string uri = 1;
-  MemoryMapping memoryMapping = 2;
-}
-
 message ReadMemoryRequest {
-  uint32       requestAddress = 1;
-  AddressSpace requestAddressSpace = 2;
+  uint32        requestAddress = 1;
+  AddressSpace  requestAddressSpace = 2;
+  MemoryMapping requestMemoryMapping = 4;
 
   uint32 size = 3;
 }
 message ReadMemoryResponse {
-  uint32       requestAddress = 1;
-  AddressSpace requestAddressSpace = 2;
+  uint32        requestAddress = 1;
+  AddressSpace  requestAddressSpace = 2;
+  MemoryMapping requestMemoryMapping = 6;
 
   // the address sent to the device and its space
   uint32       deviceAddress = 3;
@@ -175,14 +163,16 @@ message ReadMemoryResponse {
   bytes data = 5;
 }
 message WriteMemoryRequest {
-  uint32       requestAddress = 1;
-  AddressSpace requestAddressSpace = 2;
+  uint32        requestAddress = 1;
+  AddressSpace  requestAddressSpace = 2;
+  MemoryMapping requestMemoryMapping = 4;
 
   bytes data = 3;
 }
 message WriteMemoryResponse {
-  uint32       requestAddress = 1;
-  AddressSpace requestAddressSpace = 2;
+  uint32        requestAddress = 1;
+  AddressSpace  requestAddressSpace = 2;
+  MemoryMapping requestMemoryMapping = 6;
 
   uint32       deviceAddress = 3;
   AddressSpace deviceAddressSpace = 4;

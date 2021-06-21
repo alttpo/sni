@@ -12,8 +12,6 @@ import (
 )
 
 type Device struct {
-	snes.BaseDeviceMemory
-
 	lock sync.Mutex
 	c    *net.TCPConn
 
@@ -35,7 +33,6 @@ func NewDevice(conn *net.TCPConn, key string, driver *Driver) *Device {
 		clientName: "Unknown",
 		version:    "0",
 	}
-	d.DeviceMemory = d
 	return d
 }
 

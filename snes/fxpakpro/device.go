@@ -11,8 +11,6 @@ import (
 )
 
 type Device struct {
-	snes.BaseDeviceMemory
-
 	lock sync.Mutex
 	f    serial.Port
 
@@ -20,7 +18,6 @@ type Device struct {
 }
 
 func (d *Device) Init() error {
-	d.DeviceMemory = d
 	return nil
 }
 
@@ -83,7 +80,7 @@ func (d *Device) MultiReadMemory(
 		mrsp[j].DeviceAddress, err = mapping.TranslateAddress(
 			read.RequestAddress,
 			read.RequestAddressSpace,
-			d.Mapping,
+			read.RequestMapping,
 			sni.AddressSpace_FxPakPro,
 		)
 		if err != nil {
@@ -225,7 +222,7 @@ func (d *Device) MultiWriteMemory(
 		mrsp[j].DeviceAddress, err = mapping.TranslateAddress(
 			write.RequestAddress,
 			write.RequestAddressSpace,
-			d.Mapping,
+			write.RequestMapping,
 			sni.AddressSpace_FxPakPro,
 		)
 		if err != nil {

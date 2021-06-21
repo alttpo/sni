@@ -8,7 +8,7 @@ import (
 	"sni/snes/mapping/lorom"
 )
 
-var ErrUnknownMapping = fmt.Errorf("cannot map an address with an Unknown mapping; call MappingDetect or MappingSet first")
+var ErrUnknownMapping = fmt.Errorf("cannot remap an address using an Unknown memory mapping; call MappingDetect to detect it from the ROM")
 
 func TranslateAddress(
 	address uint32,

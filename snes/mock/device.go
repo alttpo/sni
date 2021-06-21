@@ -8,8 +8,6 @@ import (
 )
 
 type Device struct {
-	snes.BaseDeviceMemory
-
 	lock sync.Mutex
 
 	frameTicker *time.Ticker
