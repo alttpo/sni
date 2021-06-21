@@ -116,12 +116,15 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 			Data:               make([]byte, 0, read.Size),
 		}
 
-		mrsp[j].DeviceAddress = mapping.TranslateAddress(
+		mrsp[j].DeviceAddress, err = mapping.TranslateAddress(
 			read.RequestAddress,
 			read.RequestAddressSpace,
 			c.Mapping,
 			sni.AddressSpace_SnesABus,
 		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// build multiple requests:
@@ -277,12 +280,15 @@ func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.Memo
 			Size:                len(write.Data),
 		}
 
-		mrsps[i].DeviceAddress = mapping.TranslateAddress(
+		mrsps[i].DeviceAddress, err = mapping.TranslateAddress(
 			write.RequestAddress,
 			write.RequestAddressSpace,
 			c.Mapping,
 			sni.AddressSpace_SnesABus,
 		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	for j, write := range writes {

@@ -80,12 +80,15 @@ func (d *Device) MultiReadMemory(
 			Data:               make([]byte, read.Size),
 		}
 
-		mrsp[j].DeviceAddress = mapping.TranslateAddress(
+		mrsp[j].DeviceAddress, err = mapping.TranslateAddress(
 			read.RequestAddress,
 			read.RequestAddressSpace,
 			d.Mapping,
 			sni.AddressSpace_FxPakPro,
 		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Break up larger reads (> 255 bytes) into 255-byte chunks:
@@ -219,12 +222,15 @@ func (d *Device) MultiWriteMemory(
 			Size:                len(write.Data),
 		}
 
-		mrsp[j].DeviceAddress = mapping.TranslateAddress(
+		mrsp[j].DeviceAddress, err = mapping.TranslateAddress(
 			write.RequestAddress,
 			write.RequestAddressSpace,
 			d.Mapping,
 			sni.AddressSpace_FxPakPro,
 		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Break up larger writes (> 255 bytes) into 255-byte chunks:

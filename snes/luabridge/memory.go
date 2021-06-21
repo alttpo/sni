@@ -32,12 +32,16 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 
 	rsp = make([]snes.MemoryReadResponse, len(reads))
 	for j, read := range reads {
-		addr := mapping.TranslateAddress(
+		var addr uint32
+		addr, err = mapping.TranslateAddress(
 			read.RequestAddress,
 			read.RequestAddressSpace,
 			d.Mapping,
 			sni.AddressSpace_SnesABus,
 		)
+		if err != nil {
+			return
+		}
 
 		sb := bytes.NewBuffer(make([]byte, 0, 64))
 		_, _ = fmt.Fprintf(sb, "Read|%d|%d\n", addr, read.Size)
@@ -92,12 +96,16 @@ func (d *Device) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWrit
 
 	rsp = make([]snes.MemoryWriteResponse, len(writes))
 	for j, write := range writes {
-		addr := mapping.TranslateAddress(
+		var addr uint32
+		addr, err = mapping.TranslateAddress(
 			write.RequestAddress,
 			write.RequestAddressSpace,
 			d.Mapping,
 			sni.AddressSpace_SnesABus,
 		)
+		if err != nil {
+			return
+		}
 
 		// preallocate enough space to write the whole command:
 		sb := bytes.NewBuffer(make([]byte, 0, 24 + 4*len(write.Data)))
