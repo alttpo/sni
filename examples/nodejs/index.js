@@ -2,6 +2,15 @@ require('./sni_pb')
 const services = require('./sni_grpc_pb');
 const grpc = require('@grpc/grpc-js');
 
+function promisify(c) {
+  return new Promise((resolve, reject) => {
+    c((err, rsp) => {
+      if (err) reject(err);
+      else if (rsp) resolve(rsp);
+    });
+  });
+}
+
 async function main() {
   const target = 'localhost:8191';
 
@@ -12,12 +21,7 @@ async function main() {
 
     //request.addKinds("retroarch");
 
-    return await new Promise((resolve, reject) => {
-      client.listDevices(req, (err, rsp) => {
-        if (err) reject(err);
-        else resolve(rsp);
-      });
-    });
+    return await promisify(client.listDevices.bind(client, req));
   }
 
   const devices = (await getDevices()).getDevicesList();
@@ -34,23 +38,34 @@ async function main() {
   }
 
   if (devices.length > 0) {
-    const r = new sni.SingleReadMemoryRequest();
-    r.setUri(devices[0].getUri());
-    const rr = new sni.ReadMemoryRequest();
-    rr.setRequestaddress(0x7E0010);
-    rr.setRequestaddressspace(sni.AddressSpace.SNESABUS);
-    rr.setRequestmemorymapping(sni.MemoryMapping.LOROM);
-    rr.setSize(1);
-    r.setRequest(rr);
     const memory = new services.DeviceMemoryClient(target, grpc.credentials.createInsecure());
-    const readRsp = await new Promise((resolve, reject) => {
-      memory.singleRead(r, (err, rsp) => {
-        if (err) reject(err);
-        else if (rsp) resolve(rsp);
-      });
-    });
-    console.log(readRsp.getResponse().getData_asB64());
+
+    let mapping = sni.MemoryMapping.LOROM;
+    {
+      const d = new sni.DetectMemoryMappingRequest();
+      d.setUri(devices[0].getUri());
+      d.setFallbackmemorymapping(sni.MemoryMapping.LOROM);
+      const detectRsp = await promisify(memory.mappingDetect.bind(memory, d));
+      mapping = detectRsp.getMemorymapping();
+    }
+
+    {
+      const r = new sni.SingleReadMemoryRequest();
+      r.setUri(devices[0].getUri());
+      {
+        const rr = new sni.ReadMemoryRequest();
+        rr.setRequestaddress(0x7E0010);
+        rr.setRequestaddressspace(sni.AddressSpace.SNESABUS);
+        rr.setRequestmemorymapping(mapping);
+        rr.setSize(1);
+        r.setRequest(rr);
+      }
+      const readRsp = await promisify(memory.singleRead.bind(memory, r));
+
+      console.log(readRsp.getResponse().getData_asB64());
+    }
   }
 }
 
-main().then(_ => {});
+main().then(_ => {
+});
