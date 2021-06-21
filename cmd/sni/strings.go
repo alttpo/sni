@@ -56,10 +56,10 @@ func WriteMemoryResponseString(m *sni.WriteMemoryResponse) string {
 
 func (s *deviceMemoryService) MethodRequestString(method string, req interface{}) string {
 	switch method {
-	case "/DeviceMemory/Read":
+	case "/DeviceMemory/SingleRead":
 		srReq := req.(*sni.SingleReadMemoryRequest)
 		return fmt.Sprintf("uri:\"%s\",request:%s", srReq.GetUri(), ReadMemoryRequestString(srReq.GetRequest()))
-	case "/DeviceMemory/Write":
+	case "/DeviceMemory/SingleWrite":
 		swReq := req.(*sni.SingleWriteMemoryRequest)
 		return fmt.Sprintf("uri:\"%s\",request:%s", swReq.GetUri(), WriteMemoryRequestString(swReq.GetRequest()))
 	case "/DeviceMemory/MultiRead":
