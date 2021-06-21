@@ -14,39 +14,43 @@ func (s *devicesService) MethodResponseString(method string, rsp interface{}) st
 	return fmt.Sprintf("%+v", rsp)
 }
 
-func ReadMemoryRequestString(wReq *sni.ReadMemoryRequest) string {
+func ReadMemoryRequestString(m *sni.ReadMemoryRequest) string {
 	return fmt.Sprintf(
-		"{address:%s($%#x),size:%#x}",
-		sni.AddressSpace_name[int32(wReq.GetRequestAddressSpace())],
-		wReq.GetRequestAddress(),
-		wReq.GetSize(),
+		"{address:%s($%#x;%s),size:%#x}",
+		sni.AddressSpace_name[int32(m.GetRequestAddressSpace())],
+		m.GetRequestAddress(),
+		sni.MemoryMapping_name[int32(m.GetRequestMemoryMapping())],
+		m.GetSize(),
 	)
 }
 
-func WriteMemoryRequestString(wReq *sni.WriteMemoryRequest) string {
+func WriteMemoryRequestString(m *sni.WriteMemoryRequest) string {
 	return fmt.Sprintf(
-		"{address:%s($%#x),size:%#x}",
-		sni.AddressSpace_name[int32(wReq.GetRequestAddressSpace())],
-		wReq.GetRequestAddress(),
-		len(wReq.GetData()),
+		"{address:%s($%#x;%s),size:%#x}",
+		sni.AddressSpace_name[int32(m.GetRequestAddressSpace())],
+		m.GetRequestAddress(),
+		sni.MemoryMapping_name[int32(m.GetRequestMemoryMapping())],
+		len(m.GetData()),
 	)
 }
 
-func ReadMemoryResponseString(wReq *sni.ReadMemoryResponse) string {
+func ReadMemoryResponseString(m *sni.ReadMemoryResponse) string {
 	return fmt.Sprintf(
-		"{address:%s($%#x),size:%#x}",
-		sni.AddressSpace_name[int32(wReq.GetDeviceAddressSpace())],
-		wReq.GetDeviceAddress(),
-		len(wReq.GetData()),
+		"{address:%s($%#x;%s),size:%#x}",
+		sni.AddressSpace_name[int32(m.GetDeviceAddressSpace())],
+		m.GetDeviceAddress(),
+		sni.MemoryMapping_name[int32(m.GetRequestMemoryMapping())],
+		len(m.GetData()),
 	)
 }
 
-func WriteMemoryResponseString(wReq *sni.WriteMemoryResponse) string {
+func WriteMemoryResponseString(m *sni.WriteMemoryResponse) string {
 	return fmt.Sprintf(
-		"{address:%s($%#x),size:%#x}",
-		sni.AddressSpace_name[int32(wReq.GetDeviceAddressSpace())],
-		wReq.GetDeviceAddress(),
-		wReq.GetSize(),
+		"{address:%s($%#x;%s),size:%#x}",
+		sni.AddressSpace_name[int32(m.GetDeviceAddressSpace())],
+		m.GetDeviceAddress(),
+		sni.MemoryMapping_name[int32(m.GetRequestMemoryMapping())],
+		m.GetSize(),
 	)
 }
 
@@ -89,10 +93,10 @@ func (s *deviceMemoryService) MethodRequestString(method string, req interface{}
 
 func (s *deviceMemoryService) MethodResponseString(method string, rsp interface{}) string {
 	switch method {
-	case "/DeviceMemory/Read":
+	case "/DeviceMemory/SingleRead":
 		srReq := rsp.(*sni.SingleReadMemoryResponse)
 		return fmt.Sprintf("uri:\"%s\",response:%s", srReq.GetUri(), ReadMemoryResponseString(srReq.GetResponse()))
-	case "/DeviceMemory/Write":
+	case "/DeviceMemory/SingleWrite":
 		swReq := rsp.(*sni.SingleWriteMemoryResponse)
 		return fmt.Sprintf("uri:\"%s\",response:%s", swReq.GetUri(), WriteMemoryResponseString(swReq.GetResponse()))
 	case "/DeviceMemory/MultiRead":
