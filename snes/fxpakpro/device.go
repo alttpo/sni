@@ -71,16 +71,17 @@ func (d *Device) MultiReadMemory(
 	mrsp = make([]snes.MemoryReadResponse, len(reads))
 	for j, read := range reads {
 		mrsp[j] = snes.MemoryReadResponse{
-			MemoryReadRequest:  read,
-			DeviceAddress:      0,
-			DeviceAddressSpace: sni.AddressSpace_FxPakPro,
-			Data:               make([]byte, read.Size),
+			RequestAddress: read.RequestAddress,
+			DeviceAddress: snes.AddressTuple{
+				Address:       0,
+				AddressSpace:  sni.AddressSpace_FxPakPro,
+				MemoryMapping: read.RequestAddress.MemoryMapping,
+			},
+			Data: make([]byte, read.Size),
 		}
 
-		mrsp[j].DeviceAddress, err = mapping.TranslateAddress(
+		mrsp[j].DeviceAddress.Address, err = mapping.TranslateAddress(
 			read.RequestAddress,
-			read.RequestAddressSpace,
-			read.RequestMapping,
 			sni.AddressSpace_FxPakPro,
 		)
 		if err != nil {
@@ -150,7 +151,7 @@ func (d *Device) MultiReadMemory(
 
 	rspStart := 0
 	for j, request := range reads {
-		startAddr := mrsp[j].DeviceAddress
+		startAddr := mrsp[j].DeviceAddress.Address
 		addr := startAddr
 		size := request.Size
 
@@ -212,17 +213,17 @@ func (d *Device) MultiWriteMemory(
 	mrsp = make([]snes.MemoryWriteResponse, len(writes))
 	for j, write := range writes {
 		mrsp[j] = snes.MemoryWriteResponse{
-			RequestAddress:      write.RequestAddress,
-			RequestAddressSpace: write.RequestAddressSpace,
-			DeviceAddress:       0,
-			DeviceAddressSpace:  sni.AddressSpace_FxPakPro,
-			Size:                len(write.Data),
+			RequestAddress: write.RequestAddress,
+			DeviceAddress: snes.AddressTuple{
+				Address:       0,
+				AddressSpace:  sni.AddressSpace_FxPakPro,
+				MemoryMapping: write.RequestAddress.MemoryMapping,
+			},
+			Size: len(write.Data),
 		}
 
-		mrsp[j].DeviceAddress, err = mapping.TranslateAddress(
+		mrsp[j].DeviceAddress.Address, err = mapping.TranslateAddress(
 			write.RequestAddress,
-			write.RequestAddressSpace,
-			write.RequestMapping,
 			sni.AddressSpace_FxPakPro,
 		)
 		if err != nil {
@@ -289,7 +290,7 @@ func (d *Device) MultiWriteMemory(
 	}
 
 	for j, request := range writes {
-		startAddr := mrsp[j].DeviceAddress
+		startAddr := mrsp[j].DeviceAddress.Address
 		addr := startAddr
 		size := len(request.Data)
 

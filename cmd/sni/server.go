@@ -124,10 +124,12 @@ func (s *deviceMemoryService) SingleRead(
 		func(mctx context.Context, memory snes.DeviceMemory) (err error) {
 			var mrsp []snes.MemoryReadResponse
 			mrsp, err = memory.MultiReadMemory(mctx, snes.MemoryReadRequest{
-				RequestAddress:      request.Request.GetRequestAddress(),
-				RequestAddressSpace: request.Request.GetRequestAddressSpace(),
-				RequestMapping:      request.Request.GetRequestMemoryMapping(),
-				Size:                int(request.Request.GetSize()),
+				RequestAddress: snes.AddressTuple{
+					Address:       request.Request.GetRequestAddress(),
+					AddressSpace:  request.Request.GetRequestAddressSpace(),
+					MemoryMapping: request.Request.GetRequestMemoryMapping(),
+				},
+				Size: int(request.Request.GetSize()),
 			})
 			if err != nil {
 				return
@@ -149,11 +151,11 @@ func (s *deviceMemoryService) SingleRead(
 			grsp = &sni.SingleReadMemoryResponse{
 				Uri: request.Uri,
 				Response: &sni.ReadMemoryResponse{
-					RequestAddress:       mrsp[0].RequestAddress,
-					RequestAddressSpace:  mrsp[0].RequestAddressSpace,
-					RequestMemoryMapping: mrsp[0].RequestMapping,
-					DeviceAddress:        mrsp[0].DeviceAddress,
-					DeviceAddressSpace:   mrsp[0].DeviceAddressSpace,
+					RequestAddress:       mrsp[0].RequestAddress.Address,
+					RequestAddressSpace:  mrsp[0].RequestAddress.AddressSpace,
+					RequestMemoryMapping: mrsp[0].RequestAddress.MemoryMapping,
+					DeviceAddress:        mrsp[0].DeviceAddress.Address,
+					DeviceAddressSpace:   mrsp[0].DeviceAddress.AddressSpace,
 					Data:                 mrsp[0].Data,
 				},
 			}
@@ -190,10 +192,12 @@ func (s *deviceMemoryService) SingleWrite(
 		func(mctx context.Context, memory snes.DeviceMemory) (err error) {
 			var mrsp []snes.MemoryWriteResponse
 			mrsp, err = memory.MultiWriteMemory(mctx, snes.MemoryWriteRequest{
-				RequestAddress:      request.Request.GetRequestAddress(),
-				RequestAddressSpace: request.Request.GetRequestAddressSpace(),
-				RequestMapping:      request.Request.GetRequestMemoryMapping(),
-				Data:                request.Request.GetData(),
+				RequestAddress: snes.AddressTuple{
+					Address:       request.Request.GetRequestAddress(),
+					AddressSpace:  request.Request.GetRequestAddressSpace(),
+					MemoryMapping: request.Request.GetRequestMemoryMapping(),
+				},
+				Data: request.Request.GetData(),
 			})
 			if err != nil {
 				return
@@ -215,11 +219,11 @@ func (s *deviceMemoryService) SingleWrite(
 			grsp = &sni.SingleWriteMemoryResponse{
 				Uri: request.Uri,
 				Response: &sni.WriteMemoryResponse{
-					RequestAddress:       mrsp[0].RequestAddress,
-					RequestAddressSpace:  mrsp[0].RequestAddressSpace,
-					RequestMemoryMapping: mrsp[0].RequestMapping,
-					DeviceAddress:        mrsp[0].DeviceAddress,
-					DeviceAddressSpace:   mrsp[0].DeviceAddressSpace,
+					RequestAddress:       mrsp[0].RequestAddress.Address,
+					RequestAddressSpace:  mrsp[0].RequestAddress.AddressSpace,
+					RequestMemoryMapping: mrsp[0].RequestAddress.MemoryMapping,
+					DeviceAddress:        mrsp[0].DeviceAddress.Address,
+					DeviceAddressSpace:   mrsp[0].DeviceAddress.AddressSpace,
 					Size:                 uint32(mrsp[0].Size),
 				},
 			}
@@ -258,10 +262,12 @@ func (s *deviceMemoryService) MultiRead(
 			reads := make([]snes.MemoryReadRequest, 0, len(request.Requests))
 			for _, req := range request.Requests {
 				reads = append(reads, snes.MemoryReadRequest{
-					RequestAddress:      req.GetRequestAddress(),
-					RequestAddressSpace: req.GetRequestAddressSpace(),
-					RequestMapping:      req.GetRequestMemoryMapping(),
-					Size:                int(req.GetSize()),
+					RequestAddress: snes.AddressTuple{
+						Address:       req.GetRequestAddress(),
+						AddressSpace:  req.GetRequestAddressSpace(),
+						MemoryMapping: req.GetRequestMemoryMapping(),
+					},
+					Size: int(req.GetSize()),
 				})
 			}
 
@@ -294,11 +300,11 @@ func (s *deviceMemoryService) MultiRead(
 				}
 
 				grsps = append(grsps, &sni.ReadMemoryResponse{
-					RequestAddress:       mrsp.RequestAddress,
-					RequestAddressSpace:  mrsp.RequestAddressSpace,
-					RequestMemoryMapping: mrsp.RequestMapping,
-					DeviceAddress:        mrsp.DeviceAddress,
-					DeviceAddressSpace:   mrsp.DeviceAddressSpace,
+					RequestAddress:       mrsp.RequestAddress.Address,
+					RequestAddressSpace:  mrsp.RequestAddress.AddressSpace,
+					RequestMemoryMapping: mrsp.RequestAddress.MemoryMapping,
+					DeviceAddress:        mrsp.DeviceAddress.Address,
+					DeviceAddressSpace:   mrsp.DeviceAddress.AddressSpace,
 					Data:                 mrsp.Data,
 				})
 			}
@@ -341,10 +347,12 @@ func (s *deviceMemoryService) MultiWrite(
 			writes := make([]snes.MemoryWriteRequest, 0, len(request.Requests))
 			for _, req := range request.Requests {
 				writes = append(writes, snes.MemoryWriteRequest{
-					RequestAddress:      req.GetRequestAddress(),
-					RequestAddressSpace: req.GetRequestAddressSpace(),
-					RequestMapping:      req.GetRequestMemoryMapping(),
-					Data:                req.Data,
+					RequestAddress: snes.AddressTuple{
+						Address:       req.GetRequestAddress(),
+						AddressSpace:  req.GetRequestAddressSpace(),
+						MemoryMapping: req.GetRequestMemoryMapping(),
+					},
+					Data: req.Data,
 				})
 			}
 
@@ -377,11 +385,11 @@ func (s *deviceMemoryService) MultiWrite(
 				}
 
 				grsps = append(grsps, &sni.WriteMemoryResponse{
-					RequestAddress:       mrsp.RequestAddress,
-					RequestAddressSpace:  mrsp.RequestAddressSpace,
-					RequestMemoryMapping: mrsp.RequestMapping,
-					DeviceAddress:        mrsp.DeviceAddress,
-					DeviceAddressSpace:   mrsp.DeviceAddressSpace,
+					RequestAddress:       mrsp.RequestAddress.Address,
+					RequestAddressSpace:  mrsp.RequestAddress.AddressSpace,
+					RequestMemoryMapping: mrsp.RequestAddress.MemoryMapping,
+					DeviceAddress:        mrsp.DeviceAddress.Address,
+					DeviceAddressSpace:   mrsp.DeviceAddress.AddressSpace,
 					Size:                 uint32(mrsp.Size),
 				})
 			}

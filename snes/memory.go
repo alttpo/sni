@@ -2,41 +2,30 @@ package snes
 
 import (
 	"context"
-	"sni/protos/sni"
 )
 
 type MemoryReadRequest struct {
-	RequestAddress      uint32
-	RequestAddressSpace sni.AddressSpace
-	RequestMapping      sni.MemoryMapping
+	RequestAddress AddressTuple
 
 	Size int
 }
 
 type MemoryReadResponse struct {
-	MemoryReadRequest
-
-	DeviceAddress      uint32
-	DeviceAddressSpace sni.AddressSpace
+	RequestAddress AddressTuple
+	DeviceAddress  AddressTuple
 
 	Data []byte
 }
 
 type MemoryWriteRequest struct {
-	RequestAddress      uint32
-	RequestAddressSpace sni.AddressSpace
-	RequestMapping      sni.MemoryMapping
+	RequestAddress AddressTuple
 
 	Data []byte
 }
 
 type MemoryWriteResponse struct {
-	RequestAddress      uint32
-	RequestAddressSpace sni.AddressSpace
-	RequestMapping      sni.MemoryMapping
-
-	DeviceAddress      uint32
-	DeviceAddressSpace sni.AddressSpace
+	RequestAddress AddressTuple
+	DeviceAddress  AddressTuple
 
 	Size int
 }

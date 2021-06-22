@@ -35,8 +35,6 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 		var addr uint32
 		addr, err = mapping.TranslateAddress(
 			read.RequestAddress,
-			read.RequestAddressSpace,
-			read.RequestMapping,
 			sni.AddressSpace_SnesABus,
 		)
 		if err != nil {
@@ -68,10 +66,13 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 		}
 
 		rsp[j] = snes.MemoryReadResponse{
-			MemoryReadRequest:  read,
-			DeviceAddress:      addr,
-			DeviceAddressSpace: sni.AddressSpace_SnesABus,
-			Data:               tmp.Data,
+			RequestAddress: read.RequestAddress,
+			DeviceAddress: snes.AddressTuple{
+				Address:       addr,
+				AddressSpace:  sni.AddressSpace_SnesABus,
+				MemoryMapping: read.RequestAddress.MemoryMapping,
+			},
+			Data: tmp.Data,
 		}
 	}
 
@@ -99,8 +100,6 @@ func (d *Device) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWrit
 		var addr uint32
 		addr, err = mapping.TranslateAddress(
 			write.RequestAddress,
-			write.RequestAddressSpace,
-			write.RequestMapping,
 			sni.AddressSpace_SnesABus,
 		)
 		if err != nil {
@@ -108,7 +107,7 @@ func (d *Device) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWrit
 		}
 
 		// preallocate enough space to write the whole command:
-		sb := bytes.NewBuffer(make([]byte, 0, 24 + 4*len(write.Data)))
+		sb := bytes.NewBuffer(make([]byte, 0, 24+4*len(write.Data)))
 		_, _ = fmt.Fprintf(sb, "Write|%d", addr)
 		for _, b := range write.Data {
 			_, _ = fmt.Fprintf(sb, "|%d", b)
@@ -124,11 +123,13 @@ func (d *Device) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWrit
 		_ = n
 
 		rsp[j] = snes.MemoryWriteResponse{
-			RequestAddress:      write.RequestAddress,
-			RequestAddressSpace: write.RequestAddressSpace,
-			DeviceAddress:       addr,
-			DeviceAddressSpace:  sni.AddressSpace_SnesABus,
-			Size:                len(write.Data),
+			RequestAddress: write.RequestAddress,
+			DeviceAddress: snes.AddressTuple{
+				Address:       addr,
+				AddressSpace:  sni.AddressSpace_SnesABus,
+				MemoryMapping: write.RequestAddress.MemoryMapping,
+			},
+			Size: len(write.Data),
 		}
 	}
 

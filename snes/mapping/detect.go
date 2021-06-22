@@ -46,10 +46,8 @@ func Detect(
 				MemoryMapping: guessMapping,
 			}
 			readRequest := snes.MemoryReadRequest{
-				RequestAddress:      tuple.Address,
-				RequestAddressSpace: tuple.AddressSpace,
-				RequestMapping:      tuple.MemoryMapping,
-				Size:                0x50,
+				RequestAddress: tuple,
+				Size:           0x50,
 			}
 			log.Printf(
 				"detect: read {address:%s,size:$%x}\n",
@@ -65,11 +63,8 @@ func Detect(
 			}
 
 			outHeaderBytes = responses[0].Data
-			deviceAddress = snes.AddressTuple{
-				Address:       responses[0].DeviceAddress,
-				AddressSpace:  responses[0].DeviceAddressSpace,
-				MemoryMapping: tuple.MemoryMapping,
-			}
+			deviceAddress = responses[0].DeviceAddress
+			deviceAddress.MemoryMapping = tuple.MemoryMapping
 			break
 		}
 

@@ -73,10 +73,10 @@ func (d *Device) MultiReadMemory(context context.Context, reads ...snes.MemoryRe
 	mrsps = make([]snes.MemoryReadResponse, 0, len(reads))
 	for _, read := range reads {
 		data := make([]byte, read.Size)
-		copy(data, d.Memory[read.RequestAddress:int(read.RequestAddress)+read.Size])
+		copy(data, d.Memory[read.RequestAddress.Address:int(read.RequestAddress.Address)+read.Size])
 		mrsps = append(mrsps, snes.MemoryReadResponse{
-			MemoryReadRequest: read,
-			Data:              data,
+			RequestAddress: read.RequestAddress,
+			Data:           data,
 		})
 	}
 
@@ -96,7 +96,7 @@ func (d *Device) MultiWriteMemory(context context.Context, writes ...snes.Memory
 		data := write.Data
 		dataLen := len(data)
 
-		copy(d.Memory[write.RequestAddress:int(write.RequestAddress)+dataLen], data)
+		copy(d.Memory[write.RequestAddress.Address:int(write.RequestAddress.Address)+dataLen], data)
 
 		mrsps = append(mrsps, snes.MemoryWriteResponse{
 			RequestAddress: write.RequestAddress,

@@ -122,16 +122,17 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 	mrsp = make([]snes.MemoryReadResponse, len(reads))
 	for j, read := range reads {
 		mrsp[j] = snes.MemoryReadResponse{
-			MemoryReadRequest:  read,
-			DeviceAddress:      0,
-			DeviceAddressSpace: sni.AddressSpace_SnesABus,
-			Data:               make([]byte, 0, read.Size),
+			RequestAddress: read.RequestAddress,
+			DeviceAddress: snes.AddressTuple{
+				Address:       0,
+				AddressSpace:  sni.AddressSpace_SnesABus,
+				MemoryMapping: read.RequestAddress.MemoryMapping,
+			},
+			Data: make([]byte, 0, read.Size),
 		}
 
-		mrsp[j].DeviceAddress, err = mapping.TranslateAddress(
+		mrsp[j].DeviceAddress.Address, err = mapping.TranslateAddress(
 			read.RequestAddress,
-			read.RequestAddressSpace,
-			read.RequestMapping,
 			sni.AddressSpace_SnesABus,
 		)
 		if err != nil {
@@ -147,7 +148,7 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 			continue
 		}
 
-		addr := mrsp[j].DeviceAddress
+		addr := mrsp[j].DeviceAddress.Address
 		for size > maxReadSize {
 			_, _ = c.readCommand(&sb)
 			sb.WriteString(fmt.Sprintf("%06x %d\n", addr, maxReadSize))
@@ -187,7 +188,7 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 		rrsp := &mrsp[j]
 
 		// read chunks until complete:
-		addr := mrsp[j].DeviceAddress
+		addr := mrsp[j].DeviceAddress.Address
 		for size > 0 {
 			// parse ASCII response:
 			rsp, err = c.ReadWithDeadline(deadline)
@@ -311,17 +312,17 @@ func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.Memo
 	mrsps = make([]snes.MemoryWriteResponse, len(writes))
 	for i, write := range writes {
 		mrsps[i] = snes.MemoryWriteResponse{
-			RequestAddress:      write.RequestAddress,
-			RequestAddressSpace: write.RequestAddressSpace,
-			DeviceAddress:       0,
-			DeviceAddressSpace:  sni.AddressSpace_SnesABus,
-			Size:                len(write.Data),
+			RequestAddress: write.RequestAddress,
+			DeviceAddress: snes.AddressTuple{
+				Address:       0,
+				AddressSpace:  sni.AddressSpace_SnesABus,
+				MemoryMapping: write.RequestAddress.MemoryMapping,
+			},
+			Size: len(write.Data),
 		}
 
-		mrsps[i].DeviceAddress, err = mapping.TranslateAddress(
+		mrsps[i].DeviceAddress.Address, err = mapping.TranslateAddress(
 			write.RequestAddress,
-			write.RequestAddressSpace,
-			write.RequestMapping,
 			sni.AddressSpace_SnesABus,
 		)
 		if err != nil {
@@ -369,7 +370,7 @@ func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.Memo
 		}
 		//log.Printf("retroarch: < %s", rsp)
 
-		writeAddress := mrsps[j].DeviceAddress
+		writeAddress := mrsps[j].DeviceAddress.Address
 
 		var addr uint32
 		var wlen int
