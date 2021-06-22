@@ -331,8 +331,22 @@ func (d *Device) MultiWriteMemory(
 	return
 }
 
-func (d *Device) ResetSystem(ctx context.Context) error {
-	panic("implement me")
+func (d *Device) ResetSystem(ctx context.Context) (err error) {
+	sb := make([]byte, 64)
+	sb[0] = byte('U')
+	sb[1] = byte('S')
+	sb[2] = byte('B')
+	sb[3] = byte('A')
+	sb[4] = byte(OpRESET)
+	sb[5] = byte(SpaceFILE)
+	sb[6] = byte(FlagNORESP)
+
+	err = sendSerial(d.f, sb)
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 func (d *Device) PauseUnpause(ctx context.Context, pausedState bool) (bool, error) {
