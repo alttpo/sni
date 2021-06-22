@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"google.golang.org/grpc/codes"
 	"log"
 	"sni/protos/sni"
 	"sni/snes"
+	"strings"
 )
 
 func Detect(
@@ -16,6 +18,13 @@ func Detect(
 	fallbackMapping *sni.MemoryMapping,
 	inHeaderBytes []byte,
 ) (mapping sni.MemoryMapping, confidence bool, outHeaderBytes []byte, err error) {
+	// set default:
+	if fallbackMapping != nil {
+		mapping = *fallbackMapping
+	} else {
+		mapping = sni.MemoryMapping_Unknown
+	}
+
 	if inHeaderBytes == nil {
 		// use the fallback mapping mode as a "guess" mapping used to read the ROM header:
 		guessMapping := sni.MemoryMapping_LoROM
@@ -25,31 +34,56 @@ func Detect(
 			// then use heuristics to detect the ROM header
 		}
 
-		// read the ROM header:
-		var responses []snes.MemoryReadResponse
-		readRequest := snes.MemoryReadRequest{
-			RequestAddress:      0x40FFB0,
-			RequestAddressSpace: sni.AddressSpace_SnesABus,
-			RequestMapping:      guessMapping,
-			Size:                0x50,
+		var deviceAddress = snes.AddressTuple{}
+		headerAddresses := []uint32{0x00FFB0, 0x40FFB0, 0x80FFB0, 0xC0FFB0}
+		errors := make([]string, len(headerAddresses))
+		for j, headerAddress := range headerAddresses {
+			// read the ROM header:
+			var responses []snes.MemoryReadResponse
+			tuple := snes.AddressTuple{
+				Address:       headerAddress,
+				AddressSpace:  sni.AddressSpace_SnesABus,
+				MemoryMapping: guessMapping,
+			}
+			readRequest := snes.MemoryReadRequest{
+				RequestAddress:      tuple.Address,
+				RequestAddressSpace: tuple.AddressSpace,
+				RequestMapping:      tuple.MemoryMapping,
+				Size:                0x50,
+			}
+			log.Printf(
+				"detect: read {address:%s,size:$%x}\n",
+				&tuple,
+				readRequest.Size,
+			)
+			responses, err = memory.MultiReadMemory(ctx, readRequest)
+			if err != nil {
+				err = fmt.Errorf("%w: %s", err, &tuple)
+				errors[j] = err.Error()
+				log.Printf("detect: %v\n", errors[j])
+				continue
+			}
+
+			outHeaderBytes = responses[0].Data
+			deviceAddress = snes.AddressTuple{
+				Address:       responses[0].DeviceAddress,
+				AddressSpace:  responses[0].DeviceAddressSpace,
+				MemoryMapping: tuple.MemoryMapping,
+			}
+			break
 		}
-		log.Printf(
-			"detect: read {address:%s($%06x),size:$%x}\n",
-			sni.AddressSpace_name[int32(readRequest.RequestAddressSpace)],
-			readRequest.RequestAddress,
-			readRequest.Size,
-		)
-		responses, err = memory.MultiReadMemory(ctx, readRequest)
-		if err != nil {
+
+		if outHeaderBytes == nil {
+			err = snes.WithCode(codes.FailedPrecondition, fmt.Errorf(
+				"detect: unable to read ROM header:\n%v",
+				strings.Join(errors, "\n"),
+			))
 			return
 		}
 
-		outHeaderBytes = responses[0].Data
-
 		log.Printf(
-			"detect: read {address:%s($%06x),size:$%x} complete:\n%s",
-			sni.AddressSpace_name[int32(responses[0].DeviceAddressSpace)],
-			responses[0].DeviceAddress,
+			"detect: read {address:%s,size:$%x} complete:\n%s",
+			&deviceAddress,
 			len(outHeaderBytes),
 			hex.Dump(outHeaderBytes),
 		)
