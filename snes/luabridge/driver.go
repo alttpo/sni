@@ -19,6 +19,8 @@ type Driver struct {
 	devicesMap map[string]*Device
 }
 
+var driver *Driver
+
 func (d *Driver) Kind() string {
 	return "luabridge"
 }
@@ -52,7 +54,11 @@ func (d *Driver) DeviceKey(uri *url.URL) string {
 	return uri.Host
 }
 
-func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, user snes.DeviceUser) (err error) {
+func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user snes.DeviceUser) (err error) {
+	if ok, err := driver.HasCapabilities(requiredCapabilities...); !ok {
+		return err
+	}
+
 	deviceKey := d.DeviceKey(uri)
 
 	d.devicesRw.RLock()
@@ -63,7 +69,7 @@ func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, user snes.DeviceUs
 		return fmt.Errorf("no device found")
 	}
 
-	err = device.Use(ctx, user)
+	err = user(ctx, device)
 
 	return
 }
@@ -103,7 +109,7 @@ func (d *Driver) runServer(listener *net.TCPListener) {
 
 		// create the Device to handle this connection:
 		deviceKey := conn.RemoteAddr().String()
-		device := NewDevice(conn, deviceKey, d)
+		device := NewDevice(conn, deviceKey)
 
 		// store the Device for reference:
 		d.devicesRw.Lock()
@@ -117,7 +123,7 @@ func (d *Driver) runServer(listener *net.TCPListener) {
 
 func init() {
 	// attempt to start the luabridge server:
-	driver := &Driver{}
+	driver = &Driver{}
 	err := driver.StartServer()
 	if err != nil {
 		log.Printf("luabridge: could not start server: %v\n", err)

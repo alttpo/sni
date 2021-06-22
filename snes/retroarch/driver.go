@@ -16,6 +16,7 @@ import (
 const driverName = "ra"
 
 var logDetector = false
+var driver *Driver
 
 type Driver struct {
 	base snes.BaseDeviceDriver
@@ -27,6 +28,7 @@ func NewDriver(addresses []*net.UDPAddr) *Driver {
 	d := &Driver{
 		detectors: make([]*RAClient, len(addresses)),
 	}
+	d.base.DeviceDriver = d
 
 	for i, addr := range addresses {
 		c := NewRAClient(addr, fmt.Sprintf("retroarch[%d]", i))
@@ -139,10 +141,11 @@ func (d *Driver) DeviceKey(uri *url.URL) string {
 	return uri.Host
 }
 
-func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, user snes.DeviceUser) error {
+func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user snes.DeviceUser) error {
 	return d.base.UseDevice(
 		ctx,
 		d.DeviceKey(uri),
+		requiredCapabilities,
 		func() (snes.Device, error) { return d.openDevice(uri) },
 		user,
 	)
@@ -194,5 +197,6 @@ func init() {
 	}
 
 	// register the driver:
-	snes.Register(driverName, NewDriver(addresses))
+	driver = NewDriver(addresses)
+	snes.Register(driverName, driver)
 }

@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"sni/protos/sni"
 	"sni/snes"
 	"sync"
 	"time"
@@ -32,34 +33,34 @@ func (d *Device) IsClosed() bool {
 	return false
 }
 
-func (d *Device) Use(context context.Context, user snes.DeviceUser) error {
+func (d *Device) UseMemory(ctx context.Context, requiredCapabilities []sni.DeviceCapability, user snes.DeviceMemoryUser) error {
 	if user == nil {
 		return nil
 	}
 
-	return user(context, d)
-}
-
-func (d *Device) UseMemory(context context.Context, user snes.DeviceMemoryUser) error {
-	if user == nil {
-		return nil
+	if ok, err := driver.HasCapabilities(requiredCapabilities...); !ok {
+		return err
 	}
 
 	defer d.lock.Unlock()
 	d.lock.Lock()
 
-	return user(context, d)
+	return user(ctx, d)
 }
 
-func (d *Device) UseControl(context context.Context, user snes.DeviceControlUser) error {
+func (d *Device) UseControl(ctx context.Context, requiredCapabilities []sni.DeviceCapability, user snes.DeviceControlUser) error {
 	if user == nil {
 		return nil
+	}
+
+	if ok, err := driver.HasCapabilities(requiredCapabilities...); !ok {
+		return err
 	}
 
 	defer d.lock.Unlock()
 	d.lock.Lock()
 
-	return user(context, d)
+	return user(ctx, d)
 }
 
 func (d *Device) MultiReadMemory(context context.Context, reads ...snes.MemoryReadRequest) (mrsps []snes.MemoryReadResponse, err error) {

@@ -18,6 +18,8 @@ const (
 	driverName = "fxpakpro"
 )
 
+var driver *Driver
+
 var (
 	ErrNoFXPakProFound = fmt.Errorf("%s: no device found among serial ports", driverName)
 
@@ -186,13 +188,12 @@ func (d *Driver) openAsDevice(uri *url.URL) (device snes.Device, err error) {
 	return
 }
 
-func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, user snes.DeviceUser) error {
+func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user snes.DeviceUser) error {
 	return d.base.UseDevice(
 		ctx,
 		d.DeviceKey(uri),
-		func() (snes.Device, error) {
-			return d.openAsDevice(uri)
-		},
+		requiredCapabilities,
+		func() (snes.Device, error) { return d.openAsDevice(uri) },
 		user,
 	)
 }
@@ -202,5 +203,7 @@ func init() {
 		log.Printf("disabling fxpakpro snes driver\n")
 		return
 	}
-	snes.Register(driverName, &Driver{})
+	driver = &Driver{}
+	driver.base.DeviceDriver = driver
+	snes.Register(driverName, driver)
 }

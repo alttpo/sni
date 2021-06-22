@@ -16,6 +16,8 @@ type Driver struct {
 	base snes.BaseDeviceDriver
 }
 
+var driver *Driver
+
 func (d *Driver) DisplayOrder() int {
 	return 1000
 }
@@ -64,10 +66,11 @@ func (d *Driver) openDevice(uri *url.URL) (snes.Device, error) {
 	return mock, nil
 }
 
-func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, user snes.DeviceUser) error {
+func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user snes.DeviceUser) error {
 	return d.base.UseDevice(
 		ctx,
 		d.DeviceKey(uri),
+		requiredCapabilities,
 		func() (snes.Device, error) { return d.openDevice(uri) },
 		user,
 	)
@@ -78,6 +81,7 @@ func (d *Driver) DeviceKey(uri *url.URL) string { return uri.Opaque }
 func init() {
 	if util.IsTruthy(env.GetOrDefault("SNI_MOCK_ENABLE", "0")) {
 		log.Printf("enabling mock snes driver\n")
-		snes.Register(driverName, &Driver{})
+		driver = &Driver{}
+		snes.Register(driverName, driver)
 	}
 }

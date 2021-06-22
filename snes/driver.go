@@ -26,12 +26,16 @@ type Driver interface {
 
 type DeviceUser func(context.Context, Device) error
 
+type UseDevice interface {
+	// UseDevice grants non-exclusive access for DeviceUser to a Device uniquely identified by its uri
+	UseDevice(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user DeviceUser) error
+}
+
 // DeviceDriver extends Driver
 type DeviceDriver interface {
-	DeviceKey(uri *url.URL) string
+	UseDevice
 
-	// UseDevice grants non-exclusive access for DeviceUser to a Device uniquely identified by its uri
-	UseDevice(ctx context.Context, uri *url.URL, user DeviceUser) error
+	DeviceKey(uri *url.URL) string
 
 	HasCapabilities(capabilities ...sni.DeviceCapability) (bool, error)
 }
@@ -138,46 +142,36 @@ func DeviceDriverByUri(uri *url.URL) (drv DeviceDriver, err error) {
 	return
 }
 
-func UseDevice(ctx context.Context, uri *url.URL, user DeviceUser) (err error) {
+func WithDevice(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user DeviceUser) (err error) {
 	var drv DeviceDriver
 	drv, err = DeviceDriverByUri(uri)
 	if err != nil {
 		return
 	}
 
-	return drv.UseDevice(ctx, uri, user)
+	return drv.UseDevice(ctx, uri, requiredCapabilities, user)
 }
 
-func UseDeviceMemory(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user DeviceMemoryUser) (err error) {
+func WithDeviceMemory(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user DeviceMemoryUser) (err error) {
 	var drv DeviceDriver
 	drv, err = DeviceDriverByUri(uri)
 	if err != nil {
 		return
 	}
 
-	var ok bool
-	if ok, err = drv.HasCapabilities(requiredCapabilities...); !ok {
-		return
-	}
-
-	return drv.UseDevice(ctx, uri, func(ctx context.Context, device Device) error {
-		return device.UseMemory(ctx, user)
+	return drv.UseDevice(ctx, uri, requiredCapabilities, func(ctx context.Context, device Device) error {
+		return device.UseMemory(ctx, nil, user)
 	})
 }
 
-func UseDeviceControl(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user DeviceControlUser) (err error) {
+func WithDeviceControl(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user DeviceControlUser) (err error) {
 	var drv DeviceDriver
 	drv, err = DeviceDriverByUri(uri)
 	if err != nil {
 		return
 	}
 
-	var ok bool
-	if ok, err = drv.HasCapabilities(requiredCapabilities...); !ok {
-		return
-	}
-
-	return drv.UseDevice(ctx, uri, func(ctx context.Context, device Device) error {
-		return device.UseControl(ctx, user)
+	return drv.UseDevice(ctx, uri, requiredCapabilities, func(ctx context.Context, device Device) error {
+		return device.UseControl(ctx, nil, user)
 	})
 }

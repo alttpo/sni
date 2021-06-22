@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sni/protos/sni"
 	"sni/snes"
 	"strings"
 	"sync"
@@ -15,7 +16,6 @@ type Device struct {
 	lock sync.Mutex
 	c    *net.TCPConn
 
-	driver    *Driver
 	deviceKey string
 
 	isClosed bool
@@ -24,10 +24,9 @@ type Device struct {
 	version    string
 }
 
-func NewDevice(conn *net.TCPConn, key string, driver *Driver) *Device {
+func NewDevice(conn *net.TCPConn, key string) *Device {
 	d := &Device{
 		c:          conn,
-		driver:     driver,
 		deviceKey:  key,
 		isClosed:   false,
 		clientName: "Unknown",
@@ -170,23 +169,27 @@ func (d *Device) Close() (err error) {
 	err = d.c.Close()
 
 	// remove device from driver:
-	d.driver.devicesRw.Lock()
-	delete(d.driver.devicesMap, d.deviceKey)
-	d.driver.devicesRw.Unlock()
+	driver.devicesRw.Lock()
+	delete(driver.devicesMap, d.deviceKey)
+	driver.devicesRw.Unlock()
 
 	return
 }
 
 func (d *Device) IsClosed() bool { return d.isClosed }
 
-func (d *Device) Use(ctx context.Context, user snes.DeviceUser) error {
+func (d *Device) UseMemory(ctx context.Context, requiredCapabilities []sni.DeviceCapability, user snes.DeviceMemoryUser) error {
+	if ok, err := driver.HasCapabilities(requiredCapabilities...); !ok {
+		return err
+	}
+
 	return user(ctx, d)
 }
 
-func (d *Device) UseMemory(ctx context.Context, user snes.DeviceMemoryUser) error {
-	return user(ctx, d)
-}
+func (d *Device) UseControl(ctx context.Context, requiredCapabilities []sni.DeviceCapability, user snes.DeviceControlUser) error {
+	if ok, err := driver.HasCapabilities(requiredCapabilities...); !ok {
+		return err
+	}
 
-func (d *Device) UseControl(ctx context.Context, user snes.DeviceControlUser) error {
 	return user(ctx, d)
 }

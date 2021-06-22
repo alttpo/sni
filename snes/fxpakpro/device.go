@@ -25,17 +25,13 @@ func (d *Device) IsClosed() bool {
 	return d.isClosed
 }
 
-func (d *Device) Use(ctx context.Context, user snes.DeviceUser) error {
+func (d *Device) UseMemory(ctx context.Context, requiredCapabilities []sni.DeviceCapability, user snes.DeviceMemoryUser) error {
 	if user == nil {
 		return nil
 	}
 
-	return user(ctx, d)
-}
-
-func (d *Device) UseMemory(ctx context.Context, user snes.DeviceMemoryUser) error {
-	if user == nil {
-		return nil
+	if ok, err := driver.HasCapabilities(requiredCapabilities...); !ok {
+		return err
 	}
 
 	defer d.lock.Unlock()
@@ -44,9 +40,13 @@ func (d *Device) UseMemory(ctx context.Context, user snes.DeviceMemoryUser) erro
 	return user(ctx, d)
 }
 
-func (d *Device) UseControl(ctx context.Context, user snes.DeviceControlUser) error {
+func (d *Device) UseControl(ctx context.Context, requiredCapabilities []sni.DeviceCapability, user snes.DeviceControlUser) error {
 	if user == nil {
 		return nil
+	}
+
+	if ok, err := driver.HasCapabilities(requiredCapabilities...); !ok {
+		return err
 	}
 
 	defer d.lock.Unlock()

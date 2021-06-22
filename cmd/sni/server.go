@@ -69,18 +69,17 @@ func (s *deviceMemoryService) MappingDetect(gctx context.Context, request *sni.D
 		return
 	}
 
-	gerr = snes.UseDeviceMemory(
+	gerr = snes.WithDevice(
 		gctx,
 		uri,
-		// TODO: this capability is optional; validate it in the call itself when it is about to be used:
-		[]sni.DeviceCapability{sni.DeviceCapability_ReadMemory},
-		func(mctx context.Context, memory snes.DeviceMemory) (err error) {
+		nil,
+		func(mctx context.Context, device snes.Device) (err error) {
 			var memoryMapping sni.MemoryMapping
 			var confidence bool
 			var outHeaderBytes []byte
 			memoryMapping, confidence, outHeaderBytes, err = mapping.Detect(
 				mctx,
-				memory,
+				device,
 				request.FallbackMemoryMapping,
 				request.RomHeader00FFB0,
 			)
@@ -117,7 +116,7 @@ func (s *deviceMemoryService) SingleRead(
 		return
 	}
 
-	gerr = snes.UseDeviceMemory(
+	gerr = snes.WithDeviceMemory(
 		rctx,
 		uri,
 		[]sni.DeviceCapability{sni.DeviceCapability_ReadMemory},
@@ -185,7 +184,7 @@ func (s *deviceMemoryService) SingleWrite(
 		return
 	}
 
-	gerr = snes.UseDeviceMemory(
+	gerr = snes.WithDeviceMemory(
 		rctx,
 		uri,
 		[]sni.DeviceCapability{sni.DeviceCapability_WriteMemory},
@@ -254,7 +253,7 @@ func (s *deviceMemoryService) MultiRead(
 	}
 
 	var grsps []*sni.ReadMemoryResponse
-	gerr = snes.UseDeviceMemory(
+	gerr = snes.WithDeviceMemory(
 		gctx,
 		uri,
 		[]sni.DeviceCapability{sni.DeviceCapability_ReadMemory},
@@ -339,7 +338,7 @@ func (s *deviceMemoryService) MultiWrite(
 	}
 
 	var grsps []*sni.WriteMemoryResponse
-	gerr = snes.UseDeviceMemory(
+	gerr = snes.WithDeviceMemory(
 		gctx,
 		uri,
 		[]sni.DeviceCapability{sni.DeviceCapability_WriteMemory},
@@ -424,7 +423,7 @@ func (d *deviceControlService) ResetSystem(gctx context.Context, request *sni.Re
 		return
 	}
 
-	gerr = snes.UseDeviceControl(
+	gerr = snes.WithDeviceControl(
 		gctx,
 		uri,
 		[]sni.DeviceCapability{sni.DeviceCapability_ResetSystem},
@@ -456,7 +455,7 @@ func (d *deviceControlService) PauseUnpauseEmulation(gctx context.Context, reque
 	}
 
 	paused := false
-	gerr = snes.UseDeviceControl(
+	gerr = snes.WithDeviceControl(
 		gctx,
 		uri,
 		[]sni.DeviceCapability{sni.DeviceCapability_PauseUnpauseEmulation},
@@ -489,7 +488,7 @@ func (d *deviceControlService) PauseToggleEmulation(gctx context.Context, reques
 		return
 	}
 
-	gerr = snes.UseDeviceControl(
+	gerr = snes.WithDeviceControl(
 		gctx,
 		uri,
 		[]sni.DeviceCapability{sni.DeviceCapability_PauseToggleEmulation},

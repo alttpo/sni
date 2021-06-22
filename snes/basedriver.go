@@ -8,19 +8,20 @@ import (
 )
 
 type BaseDeviceDriver struct {
+	DeviceDriver
+
 	// track opened devices by URI
 	devicesRw  sync.RWMutex
 	devicesMap map[string]Device
 }
 
-func (b *BaseDeviceDriver) UseDevice(
-	ctx context.Context,
-	deviceKey string,
-	openDevice func() (Device, error),
-	use DeviceUser,
-) (err error) {
+func (b *BaseDeviceDriver) UseDevice(ctx context.Context, deviceKey string, requiredCapabilities []sni.DeviceCapability, openDevice func() (Device, error), use DeviceUser, ) (err error) {
 	var device Device
 	var ok bool
+
+	if ok, err = b.DeviceDriver.HasCapabilities(requiredCapabilities...); !ok {
+		return
+	}
 
 	b.devicesRw.RLock()
 	device, ok = b.devicesMap[deviceKey]
@@ -41,7 +42,7 @@ func (b *BaseDeviceDriver) UseDevice(
 		b.devicesRw.Unlock()
 	}
 
-	err = device.Use(ctx, use)
+	err = use(ctx, device)
 
 	if device.IsClosed() {
 		b.devicesRw.Lock()
