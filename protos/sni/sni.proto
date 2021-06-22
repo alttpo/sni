@@ -122,7 +122,10 @@ service DeviceMemory {
   // write multiple memory segments with given data to the given device:
   rpc MultiWrite(MultiWriteMemoryRequest) returns (MultiWriteMemoryResponse) {}
 
-  // TODO: streaming reads/writes
+  // stream read multiple memory segments with given sizes from the given device:
+  rpc StreamRead(stream MultiReadMemoryRequest) returns (stream MultiReadMemoryResponse) {}
+  // stream write multiple memory segments with given data to the given device:
+  rpc StreamWrite(stream MultiWriteMemoryRequest) returns (stream MultiWriteMemoryResponse) {}
 }
 
 message DetectMemoryMappingRequest {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"io"
 	"net/url"
 	"sni/protos/sni"
 	"sni/snes"
@@ -410,6 +411,48 @@ func (s *deviceMemoryService) MultiWrite(
 		Responses: grsps,
 	}
 	return
+}
+
+func (s *deviceMemoryService) StreamRead(stream sni.DeviceMemory_StreamReadServer) error {
+	for {
+		in, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		grsp, gerr := s.MultiRead(stream.Context(), in)
+		if gerr != nil {
+			// TODO: stream errors as responses?
+			return gerr
+		}
+		err = stream.Send(grsp)
+		if err != nil {
+			return err
+		}
+	}
+}
+
+func (s *deviceMemoryService) StreamWrite(stream sni.DeviceMemory_StreamWriteServer) error {
+	for {
+		in, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		grsp, gerr := s.MultiWrite(stream.Context(), in)
+		if gerr != nil {
+			// TODO: stream errors as responses?
+			return gerr
+		}
+		err = stream.Send(grsp)
+		if err != nil {
+			return err
+		}
+	}
 }
 
 type deviceControlService struct {

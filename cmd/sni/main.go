@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
 	"io"
 	"log"
@@ -102,6 +103,8 @@ func main() {
 	} else {
 		serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(reportErrorInterceptor))
 	}
+	serverOptions = append(serverOptions, grpc.ChainStreamInterceptor(reportErrorStreamInterceptor))
+
 	s := grpc.NewServer(serverOptions...)
 	sni.RegisterDevicesServer(s, &devicesService{})
 	sni.RegisterDeviceMemoryServer(s, &deviceMemoryService{})
@@ -189,6 +192,28 @@ func reportErrorInterceptor(
 
 		// log method, time taken, request, and error:
 		log.Printf("%26s: req=`%s`, err=`%v`\n", info.FullMethod, reqStr, err)
+	}
+
+	return
+}
+
+func reportErrorStreamInterceptor(
+	srv interface{},
+	ss grpc.ServerStream,
+	info *grpc.StreamServerInfo,
+	handler grpc.StreamHandler,
+) (err error) {
+	streamSource := "unknown peer"
+	if p, ok := peer.FromContext(ss.Context()); ok {
+		streamSource = p.Addr.String()
+	}
+
+	log.Printf("%26s: start stream from %s\n", info.FullMethod, streamSource)
+	err = handler(srv, ss)
+	if err != nil {
+		log.Printf("%26s: end stream from %s; err=`%v`\n", info.FullMethod, streamSource, err)
+	} else {
+		log.Printf("%26s: end stream from %s\n", info.FullMethod, streamSource)
 	}
 
 	return
