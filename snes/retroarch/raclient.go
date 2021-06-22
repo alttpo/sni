@@ -1,9 +1,12 @@
 package retroarch
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"google.golang.org/grpc/codes"
 	"log"
 	"net"
 	"sni/protos/sni"
@@ -28,9 +31,20 @@ type RAClient struct {
 	mapping sni.MemoryMapping
 }
 
-var (
-	ErrNoCore = fmt.Errorf("retroarch: no core loaded to satisfy read request")
-)
+// isCloseWorthy returns true if the error should close the connection
+func isCloseWorthy(err error) bool {
+	var coded *snes.CodedError
+	if errors.As(err, &coded) {
+		if coded.Code == codes.Internal {
+			return true
+		}
+		return false
+	}
+	if errors.Is(err, net.ErrClosed) {
+		return false
+	}
+	return true
+}
 
 func NewRAClient(addr *net.UDPAddr, name string) *RAClient {
 	c := &RAClient{
@@ -157,7 +171,9 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 	// send all commands up front in one packet:
 	err = c.WriteWithDeadline([]byte(reqStr), deadline)
 	if err != nil {
-		_ = c.Close()
+		if isCloseWorthy(err) {
+			_ = c.Close()
+		}
 		return
 	}
 
@@ -176,15 +192,17 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 			// parse ASCII response:
 			rsp, err = c.ReadWithDeadline(deadline)
 			if err != nil {
+				if isCloseWorthy(err) {
+					_ = c.Close()
+				}
 				return
 			}
 			var data []byte
 			data, err = c.parseReadMemoryResponse(rsp, addr, maxReadSize)
-			if err == ErrNoCore {
-				return
-			}
 			if err != nil {
-				_ = c.Close()
+				if isCloseWorthy(err) {
+					_ = c.Close()
+				}
 				return
 			}
 
@@ -236,8 +254,30 @@ func (c *RAClient) parseReadMemoryResponse(rsp []byte, expectedAddr uint32, size
 		n, err = fmt.Fscanf(t, "%d", &test)
 		if n == 1 && test < 0 {
 			// read a -1:
-			err = ErrNoCore
-			return
+			if c.useRCR {
+				err = snes.WithCode(codes.FailedPrecondition, fmt.Errorf("retroarch: unknown error"))
+				return
+			} else {
+				// READ_CORE_MEMORY returns an error description after -1
+				// e.g. `READ_CORE_MEMORY 40ffb0 -1 no data for descriptor`
+				var txt string
+				txt, err = bufio.NewReader(t).ReadString('\n')
+				if err != nil {
+					log.Printf("retroarch: error attempting to read RA error text from response: %v; `%s`", err, string(rsp))
+					err = snes.WithCode(codes.FailedPrecondition, fmt.Errorf("retroarch: unknown error"))
+					return
+				}
+
+				txt = strings.TrimSpace(txt)
+				err = fmt.Errorf("retroarch: READ_CORE_MEMORY error '%s'", txt)
+				if txt == "no data for descriptor" {
+					err = snes.WithCode(codes.InvalidArgument, err)
+				} else {
+					// e.g. "no memory map defined" means no ROM loaded or emulator core doesn't support READ_CORE_MEMORY
+					err = snes.WithCode(codes.FailedPrecondition, err)
+				}
+				return
+			}
 		}
 		err = nil
 	}
@@ -307,7 +347,9 @@ func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.Memo
 		//log.Printf("retroarch: > %s", reqStr)
 		err = c.WriteWithDeadline([]byte(reqStr), deadline)
 		if err != nil {
-			_ = c.Close()
+			if isCloseWorthy(err) {
+				_ = c.Close()
+			}
 			return
 		}
 	}
