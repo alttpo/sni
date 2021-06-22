@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sni/protos/sni"
+	"sni/snes"
 	"strings"
 )
 
@@ -16,40 +17,48 @@ func (s *devicesService) MethodResponseString(method string, rsp interface{}) st
 
 func ReadMemoryRequestString(m *sni.ReadMemoryRequest) string {
 	return fmt.Sprintf(
-		"{address:%s($%#x;%s),size:%#x}",
-		sni.AddressSpace_name[int32(m.GetRequestAddressSpace())],
-		m.GetRequestAddress(),
-		sni.MemoryMapping_name[int32(m.GetRequestMemoryMapping())],
+		"{address:%s,size:%#x}",
+		&snes.AddressTuple{
+			Address:       m.GetRequestAddress(),
+			AddressSpace:  m.GetRequestAddressSpace(),
+			MemoryMapping: m.GetRequestMemoryMapping(),
+		},
 		m.GetSize(),
 	)
 }
 
 func WriteMemoryRequestString(m *sni.WriteMemoryRequest) string {
 	return fmt.Sprintf(
-		"{address:%s($%#x;%s),size:%#x}",
-		sni.AddressSpace_name[int32(m.GetRequestAddressSpace())],
-		m.GetRequestAddress(),
-		sni.MemoryMapping_name[int32(m.GetRequestMemoryMapping())],
+		"{address:%s,size:%#x}",
+		&snes.AddressTuple{
+			Address:       m.GetRequestAddress(),
+			AddressSpace:  m.GetRequestAddressSpace(),
+			MemoryMapping: m.GetRequestMemoryMapping(),
+		},
 		len(m.GetData()),
 	)
 }
 
 func ReadMemoryResponseString(m *sni.ReadMemoryResponse) string {
 	return fmt.Sprintf(
-		"{address:%s($%#x;%s),size:%#x}",
-		sni.AddressSpace_name[int32(m.GetDeviceAddressSpace())],
-		m.GetDeviceAddress(),
-		sni.MemoryMapping_name[int32(m.GetRequestMemoryMapping())],
+		"{address:%s,size:%#x}",
+		&snes.AddressTuple{
+			Address:       m.GetDeviceAddress(),
+			AddressSpace:  m.GetDeviceAddressSpace(),
+			MemoryMapping: m.GetRequestMemoryMapping(),
+		},
 		len(m.GetData()),
 	)
 }
 
 func WriteMemoryResponseString(m *sni.WriteMemoryResponse) string {
 	return fmt.Sprintf(
-		"{address:%s($%#x;%s),size:%#x}",
-		sni.AddressSpace_name[int32(m.GetDeviceAddressSpace())],
-		m.GetDeviceAddress(),
-		sni.MemoryMapping_name[int32(m.GetRequestMemoryMapping())],
+		"{address:%s,size:%#x}",
+		&snes.AddressTuple{
+			Address:       m.GetDeviceAddress(),
+			AddressSpace:  m.GetDeviceAddressSpace(),
+			MemoryMapping: m.GetRequestMemoryMapping(),
+		},
 		m.GetSize(),
 	)
 }
