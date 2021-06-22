@@ -18,9 +18,6 @@ async function main() {
 
   async function getDevices() {
     const req = new sni.DevicesRequest();
-
-    //request.addKinds("retroarch");
-
     return await promisify(client.listDevices.bind(client, req));
   }
 
@@ -50,7 +47,7 @@ async function main() {
     }
 
     {
-      const r = new sni.SingleReadMemoryRequest();
+      const r = new sni.MultiReadMemoryRequest();
       r.setUri(devices[0].getUri());
       {
         const rr = new sni.ReadMemoryRequest();
@@ -58,15 +55,23 @@ async function main() {
         rr.setRequestaddressspace(sni.AddressSpace.SNESABUS);
         rr.setRequestmemorymapping(mapping);
         rr.setSize(1);
-        r.setRequest(rr);
+        r.setRequestsList([rr]);
       }
+
+      const stream = memory.streamRead((err, stats) => {
+        console.log(stats);
+        console.log(err);
+      });
+
+      stream.on('data', (readRsp) => {
+        console.log(readRsp.getResponsesList()[0].getData()[0]);
+      });
 
       for (let i = 0; i < 60*60; i++) {
-        const readRsp = await promisify(memory.singleRead.bind(memory, r));
-
-        // console.log(readRsp.getResponse().getData_asB64());
-        console.log(readRsp.getResponse().getData()[0]);
+        stream.write(r);
       }
+
+      stream.end();
     }
   }
 }

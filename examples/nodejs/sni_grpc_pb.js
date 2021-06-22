@@ -320,6 +320,30 @@ multiWrite: {
     responseSerialize: serialize_MultiWriteMemoryResponse,
     responseDeserialize: deserialize_MultiWriteMemoryResponse,
   },
+  // stream read multiple memory segments with given sizes from the given device:
+streamRead: {
+    path: '/DeviceMemory/StreamRead',
+    requestStream: true,
+    responseStream: true,
+    requestType: sni_pb.MultiReadMemoryRequest,
+    responseType: sni_pb.MultiReadMemoryResponse,
+    requestSerialize: serialize_MultiReadMemoryRequest,
+    requestDeserialize: deserialize_MultiReadMemoryRequest,
+    responseSerialize: serialize_MultiReadMemoryResponse,
+    responseDeserialize: deserialize_MultiReadMemoryResponse,
+  },
+  // stream write multiple memory segments with given data to the given device:
+streamWrite: {
+    path: '/DeviceMemory/StreamWrite',
+    requestStream: true,
+    responseStream: true,
+    requestType: sni_pb.MultiWriteMemoryRequest,
+    responseType: sni_pb.MultiWriteMemoryResponse,
+    requestSerialize: serialize_MultiWriteMemoryRequest,
+    requestDeserialize: deserialize_MultiWriteMemoryRequest,
+    responseSerialize: serialize_MultiWriteMemoryResponse,
+    responseDeserialize: deserialize_MultiWriteMemoryResponse,
+  },
 };
 
 exports.DeviceMemoryClient = grpc.makeGenericClientConstructor(DeviceMemoryService);
