@@ -28,11 +28,11 @@ func TranslateAddress(
 		case sni.AddressSpace_SnesABus:
 			switch mapping {
 			case sni.MemoryMapping_LoROM:
-				return lorom.PakAddressToBus(address), nil
+				return lorom.PakAddressToBus(address)
 			case sni.MemoryMapping_HiROM:
-				return hirom.PakAddressToBus(address), nil
+				return hirom.PakAddressToBus(address)
 			case sni.MemoryMapping_ExHiROM:
-				return exhirom.PakAddressToBus(address), nil
+				return exhirom.PakAddressToBus(address)
 			default:
 				return 0, ErrUnknownMapping
 			}
@@ -46,11 +46,11 @@ func TranslateAddress(
 		case sni.AddressSpace_FxPakPro:
 			switch mapping {
 			case sni.MemoryMapping_LoROM:
-				return lorom.BusAddressToPak(address), nil
+				return lorom.BusAddressToPak(address)
 			case sni.MemoryMapping_HiROM:
-				return hirom.BusAddressToPak(address), nil
+				return hirom.BusAddressToPak(address)
 			case sni.MemoryMapping_ExHiROM:
-				return exhirom.BusAddressToPak(address), nil
+				return exhirom.BusAddressToPak(address)
 			default:
 				return 0, ErrUnknownMapping
 			}

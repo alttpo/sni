@@ -325,7 +325,7 @@ func TestPakAddressToBus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := PakAddressToBus(tt.args.pakAddr); got != tt.want {
+			if got, _ := PakAddressToBus(tt.args.pakAddr); got != tt.want {
 				t.Errorf("PakAddressToBus() = %06x, want %06x", got, tt.want)
 			}
 		})
@@ -708,7 +708,7 @@ func TestBusAddressToPak(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := BusAddressToPak(tt.args.busAddr); got != tt.want {
+			if got, _ := BusAddressToPak(tt.args.busAddr); got != tt.want {
 				t.Errorf("BusAddressToPak() = %v, want %v", got, tt.want)
 			}
 		})
