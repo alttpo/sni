@@ -45,6 +45,10 @@ func (c *UDPClient) Address() *net.UDPAddr { return c.addr }
 var ErrTimeout = fmt.Errorf("timeout")
 
 func (c *UDPClient) WriteWithDeadline(m []byte, deadline time.Time) (err error) {
+	if c.isClosed {
+		return net.ErrClosed
+	}
+
 	err = c.c.SetWriteDeadline(deadline)
 	if err != nil {
 		return
@@ -64,6 +68,10 @@ func (c *UDPClient) WriteWithDeadline(m []byte, deadline time.Time) (err error) 
 }
 
 func (c *UDPClient) ReadWithDeadline(deadline time.Time) (b []byte, err error) {
+	if c.isClosed {
+		return nil, net.ErrClosed
+	}
+
 	// wait for a packet from UDP socket:
 	err = c.c.SetReadDeadline(deadline)
 	if err != nil {
@@ -89,6 +97,10 @@ func (c *UDPClient) ReadWithDeadline(deadline time.Time) (b []byte, err error) {
 }
 
 func (c *UDPClient) WriteThenRead(m []byte, deadline time.Time) (rsp []byte, err error) {
+	if c.isClosed {
+		return nil, net.ErrClosed
+	}
+
 	// hold a lock so we're guaranteed write->read consistency:
 	defer c.seqLock.Unlock()
 	c.seqLock.Lock()
