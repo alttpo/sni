@@ -293,16 +293,13 @@ func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.Memo
 		var sb strings.Builder
 
 		_, _ = c.writeCommand(&sb)
-		sb.WriteString(fmt.Sprintf("%06x ", mrsps[j].DeviceAddress))
+		sb.WriteString(fmt.Sprintf("%06x", mrsps[j].DeviceAddress))
 
 		// emit hex data:
-		lasti := len(write.Data) - 1
-		for i, v := range write.Data {
+		for _, v := range write.Data {
+			sb.WriteByte(' ')
 			sb.WriteByte(hextable[(v>>4)&0xF])
 			sb.WriteByte(hextable[v&0xF])
-			if i < lasti {
-				sb.WriteByte(' ')
-			}
 		}
 		sb.WriteByte('\n')
 		reqStr := sb.String()
