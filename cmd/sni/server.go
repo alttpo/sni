@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"net/url"
@@ -95,7 +96,12 @@ func (s *deviceMemoryService) MappingDetect(gctx context.Context, request *sni.D
 	)
 
 	if gerr != nil {
-		grsp = nil
+		var coded *snes.CodedError
+		if errors.As(gerr, &coded) {
+			gerr = status.Error(coded.Code, coded.Error())
+		} else {
+			grsp = nil
+		}
 		return
 	}
 	return
@@ -104,7 +110,7 @@ func (s *deviceMemoryService) MappingDetect(gctx context.Context, request *sni.D
 func (s *deviceMemoryService) SingleRead(
 	rctx context.Context,
 	request *sni.SingleReadMemoryRequest,
-) (rsp *sni.SingleReadMemoryResponse, gerr error) {
+) (grsp *sni.SingleReadMemoryResponse, gerr error) {
 	uri, err := url.Parse(request.GetUri())
 	if err != nil {
 		gerr = status.Error(codes.InvalidArgument, err.Error())
@@ -140,7 +146,7 @@ func (s *deviceMemoryService) SingleRead(
 				return
 			}
 
-			rsp = &sni.SingleReadMemoryResponse{
+			grsp = &sni.SingleReadMemoryResponse{
 				Uri: request.Uri,
 				Response: &sni.ReadMemoryResponse{
 					RequestAddress:       mrsp[0].RequestAddress,
@@ -156,7 +162,12 @@ func (s *deviceMemoryService) SingleRead(
 	)
 
 	if gerr != nil {
-		rsp = nil
+		var coded *snes.CodedError
+		if errors.As(gerr, &coded) {
+			gerr = status.Error(coded.Code, coded.Error())
+		} else {
+			grsp = nil
+		}
 		return
 	}
 	return
@@ -165,7 +176,7 @@ func (s *deviceMemoryService) SingleRead(
 func (s *deviceMemoryService) SingleWrite(
 	rctx context.Context,
 	request *sni.SingleWriteMemoryRequest,
-) (rsp *sni.SingleWriteMemoryResponse, gerr error) {
+) (grsp *sni.SingleWriteMemoryResponse, gerr error) {
 	uri, err := url.Parse(request.GetUri())
 	if err != nil {
 		gerr = status.Error(codes.InvalidArgument, err.Error())
@@ -201,7 +212,7 @@ func (s *deviceMemoryService) SingleWrite(
 				return
 			}
 
-			rsp = &sni.SingleWriteMemoryResponse{
+			grsp = &sni.SingleWriteMemoryResponse{
 				Uri: request.Uri,
 				Response: &sni.WriteMemoryResponse{
 					RequestAddress:       mrsp[0].RequestAddress,
@@ -217,7 +228,12 @@ func (s *deviceMemoryService) SingleWrite(
 	)
 
 	if gerr != nil {
-		rsp = nil
+		var coded *snes.CodedError
+		if errors.As(gerr, &coded) {
+			gerr = status.Error(coded.Code, coded.Error())
+		} else {
+			grsp = nil
+		}
 		return
 	}
 	return
@@ -290,7 +306,12 @@ func (s *deviceMemoryService) MultiRead(
 		},
 	)
 	if gerr != nil {
-		grsp = nil
+		var coded *snes.CodedError
+		if errors.As(gerr, &coded) {
+			gerr = status.Error(coded.Code, coded.Error())
+		} else {
+			grsp = nil
+		}
 		return
 	}
 
@@ -368,7 +389,12 @@ func (s *deviceMemoryService) MultiWrite(
 		},
 	)
 	if gerr != nil {
-		grsp = nil
+		var coded *snes.CodedError
+		if errors.As(gerr, &coded) {
+			gerr = status.Error(coded.Code, coded.Error())
+		} else {
+			grsp = nil
+		}
 		return
 	}
 
@@ -399,7 +425,12 @@ func (d *deviceControlService) ResetSystem(gctx context.Context, request *sni.Re
 		},
 	)
 	if gerr != nil {
-		grsp = nil
+		var coded *snes.CodedError
+		if errors.As(gerr, &coded) {
+			gerr = status.Error(coded.Code, coded.Error())
+		} else {
+			grsp = nil
+		}
 		return
 	}
 
@@ -427,7 +458,12 @@ func (d *deviceControlService) PauseUnpauseEmulation(gctx context.Context, reque
 		},
 	)
 	if gerr != nil {
-		grsp = nil
+		var coded *snes.CodedError
+		if errors.As(gerr, &coded) {
+			gerr = status.Error(coded.Code, coded.Error())
+		} else {
+			grsp = nil
+		}
 		return
 	}
 
@@ -454,7 +490,12 @@ func (d *deviceControlService) PauseToggleEmulation(gctx context.Context, reques
 		},
 	)
 	if gerr != nil {
-		grsp = nil
+		var coded *snes.CodedError
+		if errors.As(gerr, &coded) {
+			gerr = status.Error(coded.Code, coded.Error())
+		} else {
+			grsp = nil
+		}
 		return
 	}
 
