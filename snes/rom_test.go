@@ -30,12 +30,6 @@ func TestNewROM(t *testing.T) {
 	}
 
 	// check:
-	if gotR.Header.MakerCode != 0x8D01 {
-		t.Fatal("MakerCode")
-	}
-	if gotR.Header.GameCode != 0x30E20124 {
-		t.Fatal("GameCode")
-	}
 	if gotR.NativeVectors.NMI != 0x80c9 {
 		t.Fatal("NativeVectors.NMI")
 	}
