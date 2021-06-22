@@ -60,9 +60,13 @@ async function main() {
         rr.setSize(1);
         r.setRequest(rr);
       }
-      const readRsp = await promisify(memory.singleRead.bind(memory, r));
 
-      console.log(readRsp.getResponse().getData_asB64());
+      for (let i = 0; i < 240; i++) {
+        const readRsp = await promisify(memory.singleRead.bind(memory, r));
+
+        // console.log(readRsp.getResponse().getData_asB64());
+        console.log(readRsp.getResponse().getData()[0]);
+      }
     }
   }
 }
