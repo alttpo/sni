@@ -59,14 +59,6 @@ func (d *Device) MultiReadMemory(
 	ctx context.Context,
 	reads ...snes.MemoryReadRequest,
 ) (mrsp []snes.MemoryReadResponse, err error) {
-	defer func() {
-		if err != nil {
-			mrsp = nil
-			_ = d.f.Close()
-			d.isClosed = true
-		}
-	}()
-
 	// make all the response structs and preallocate Data buffers:
 	mrsp = make([]snes.MemoryReadResponse, len(reads))
 	for j, read := range reads {
@@ -123,6 +115,7 @@ func (d *Device) MultiReadMemory(
 
 		err = sendSerial(d.f, sb)
 		if err != nil {
+			_ = d.Close()
 			return
 		}
 
@@ -138,6 +131,7 @@ func (d *Device) MultiReadMemory(
 		rsp := make([]byte, expected)
 		err = recvSerial(d.f, rsp, expected)
 		if err != nil {
+			_ = d.Close()
 			return
 		}
 
@@ -197,18 +191,16 @@ func (d *Device) MultiReadMemory(
 	return
 }
 
+func (d *Device) Close() (err error) {
+	err = d.f.Close()
+	d.isClosed = true
+	return
+}
+
 func (d *Device) MultiWriteMemory(
 	ctx context.Context,
 	writes ...snes.MemoryWriteRequest,
 ) (mrsp []snes.MemoryWriteResponse, err error) {
-	defer func() {
-		if err != nil {
-			mrsp = nil
-			_ = d.f.Close()
-			d.isClosed = true
-		}
-	}()
-
 	// make all the response structs:
 	mrsp = make([]snes.MemoryWriteResponse, len(writes))
 	for j, write := range writes {
@@ -263,6 +255,7 @@ func (d *Device) MultiWriteMemory(
 
 		err = sendSerial(d.f, sb)
 		if err != nil {
+			_ = d.Close()
 			return
 		}
 
@@ -285,6 +278,7 @@ func (d *Device) MultiWriteMemory(
 		// send the expected number of 64-byte packets:
 		err = sendSerial(d.f, whole)
 		if err != nil {
+			_ = d.Close()
 			return
 		}
 	}
@@ -332,17 +326,24 @@ func (d *Device) MultiWriteMemory(
 }
 
 func (d *Device) ResetSystem(ctx context.Context) (err error) {
-	sb := make([]byte, 64)
+	sb := make([]byte, 512)
 	sb[0] = byte('U')
 	sb[1] = byte('S')
 	sb[2] = byte('B')
 	sb[3] = byte('A')
 	sb[4] = byte(OpRESET)
 	sb[5] = byte(SpaceFILE)
-	sb[6] = byte(FlagNORESP)
+	sb[6] = byte(FlagNONE)
 
 	err = sendSerial(d.f, sb)
 	if err != nil {
+		_ = d.Close()
+		return
+	}
+
+	err = recvSerial(d.f, sb, 512)
+	if err != nil {
+		_ = d.Close()
 		return
 	}
 
