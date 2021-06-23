@@ -1,3 +1,6 @@
+/* eslint-disable */
+// @ts-nocheck
+
 require('./sni_pb')
 const services = require('./sni_grpc_pb');
 const grpc = require('@grpc/grpc-js');
@@ -7,6 +10,15 @@ function promisify(c) {
     c((err, rsp) => {
       if (err) reject(err);
       else if (rsp) resolve(rsp);
+    });
+  });
+}
+
+function promisifyObj(c) {
+  return new Promise((resolve, reject) => {
+    c((err, rsp) => {
+      if (err) reject(err);
+      else if (rsp) resolve(rsp.toObject());
     });
   });
 }
@@ -21,37 +33,34 @@ async function main() {
 
     //request.addKinds("retroarch");
 
-    return await promisify(client.listDevices.bind(client, req));
+    return await promisifyObj(client.listDevices.bind(client, req));
   }
 
-  const devices = (await getDevices()).getDevicesList();
+  const devicesResponse = await getDevices();
+  const devicesList = devicesResponse.devicesList;
   console.log('Devices:');
-  for (let dev of devices) {
-    const uri = dev.getUri();
-    const displayName = dev.getDisplayname();
-    const kind = dev.getKind();
-    const caps = dev.getCapabilitiesList();
-    console.log(`  uri:         ${uri}`);
-    console.log(`  displayName: ${displayName}`);
-    console.log(`  kind:        ${kind}`);
-    console.log(`  caps:        ${caps}`);
+  for (let dev of devicesList) {
+    console.log(`  uri:         ${(dev.uri)}`);
+    console.log(`  displayName: ${(dev.displayname)}`);
+    console.log(`  kind:        ${(dev.kind)}`);
+    console.log(`  caps:        ${(dev.capabilitiesList)}`);
   }
 
-  if (devices.length > 0) {
+  if (devicesList.length > 0) {
     const memory = new services.DeviceMemoryClient(target, grpc.credentials.createInsecure());
 
     let mapping = sni.MemoryMapping.LOROM;
     {
       const d = new sni.DetectMemoryMappingRequest();
-      d.setUri(devices[0].getUri());
+      d.setUri(devicesList[0].uri);
       d.setFallbackmemorymapping(sni.MemoryMapping.LOROM);
-      const detectRsp = await promisify(memory.mappingDetect.bind(memory, d));
-      mapping = detectRsp.getMemorymapping();
+      const detectRsp = await promisifyObj(memory.mappingDetect.bind(memory, d));
+      mapping = detectRsp.memorymapping;
     }
 
     {
       const r = new sni.SingleReadMemoryRequest();
-      r.setUri(devices[0].getUri());
+      r.setUri(devicesList[0].uri);
       {
         const rr = new sni.ReadMemoryRequest();
         rr.setRequestaddress(0x7E0010);
@@ -62,10 +71,10 @@ async function main() {
       }
 
       for (let i = 0; i < 60*60; i++) {
-        const readRsp = await promisify(memory.singleRead.bind(memory, r));
-
-        // console.log(readRsp.getResponse().getData_asB64());
-        console.log(readRsp.getResponse().getData()[0]);
+        const readRsp = await promisifyObj(memory.singleRead.bind(memory, r));
+        // FIXME: toObject() forcibly calls getData_asB64() instead of getData(), so we have to decode:
+        const data = Buffer.from(readRsp.response.data, 'base64');
+        console.log(data[0]);
       }
     }
   }
