@@ -270,12 +270,8 @@ var DeviceControl_ServiceDesc = grpc.ServiceDesc{
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DeviceMemoryClient interface {
-	// detect the current memory mapping for the given device by reading $00:FFC0 header:
+	// detect the current memory mapping for the given device by reading $00:FFB0 header:
 	MappingDetect(ctx context.Context, in *DetectMemoryMappingRequest, opts ...grpc.CallOption) (*DetectMemoryMappingResponse, error)
-	// explicitly set the current memory mapping for the given device:
-	MappingSet(ctx context.Context, in *SetMemoryMappingRequest, opts ...grpc.CallOption) (*MemoryMappingResponse, error)
-	// get the current memory mapping for the given device:
-	MappingGet(ctx context.Context, in *GetMemoryMappingRequest, opts ...grpc.CallOption) (*MemoryMappingResponse, error)
 	// read a single memory segment with a given size from the given device:
 	SingleRead(ctx context.Context, in *SingleReadMemoryRequest, opts ...grpc.CallOption) (*SingleReadMemoryResponse, error)
 	// write a single memory segment with given data to the given device:
@@ -284,6 +280,10 @@ type DeviceMemoryClient interface {
 	MultiRead(ctx context.Context, in *MultiReadMemoryRequest, opts ...grpc.CallOption) (*MultiReadMemoryResponse, error)
 	// write multiple memory segments with given data to the given device:
 	MultiWrite(ctx context.Context, in *MultiWriteMemoryRequest, opts ...grpc.CallOption) (*MultiWriteMemoryResponse, error)
+	// stream read multiple memory segments with given sizes from the given device:
+	StreamRead(ctx context.Context, opts ...grpc.CallOption) (DeviceMemory_StreamReadClient, error)
+	// stream write multiple memory segments with given data to the given device:
+	StreamWrite(ctx context.Context, opts ...grpc.CallOption) (DeviceMemory_StreamWriteClient, error)
 }
 
 type deviceMemoryClient struct {
@@ -297,24 +297,6 @@ func NewDeviceMemoryClient(cc grpc.ClientConnInterface) DeviceMemoryClient {
 func (c *deviceMemoryClient) MappingDetect(ctx context.Context, in *DetectMemoryMappingRequest, opts ...grpc.CallOption) (*DetectMemoryMappingResponse, error) {
 	out := new(DetectMemoryMappingResponse)
 	err := c.cc.Invoke(ctx, "/DeviceMemory/MappingDetect", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *deviceMemoryClient) MappingSet(ctx context.Context, in *SetMemoryMappingRequest, opts ...grpc.CallOption) (*MemoryMappingResponse, error) {
-	out := new(MemoryMappingResponse)
-	err := c.cc.Invoke(ctx, "/DeviceMemory/MappingSet", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *deviceMemoryClient) MappingGet(ctx context.Context, in *GetMemoryMappingRequest, opts ...grpc.CallOption) (*MemoryMappingResponse, error) {
-	out := new(MemoryMappingResponse)
-	err := c.cc.Invoke(ctx, "/DeviceMemory/MappingGet", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -357,16 +339,74 @@ func (c *deviceMemoryClient) MultiWrite(ctx context.Context, in *MultiWriteMemor
 	return out, nil
 }
 
+func (c *deviceMemoryClient) StreamRead(ctx context.Context, opts ...grpc.CallOption) (DeviceMemory_StreamReadClient, error) {
+	stream, err := c.cc.NewStream(ctx, &DeviceMemory_ServiceDesc.Streams[0], "/DeviceMemory/StreamRead", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &deviceMemoryStreamReadClient{stream}
+	return x, nil
+}
+
+type DeviceMemory_StreamReadClient interface {
+	Send(*MultiReadMemoryRequest) error
+	Recv() (*MultiReadMemoryResponse, error)
+	grpc.ClientStream
+}
+
+type deviceMemoryStreamReadClient struct {
+	grpc.ClientStream
+}
+
+func (x *deviceMemoryStreamReadClient) Send(m *MultiReadMemoryRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *deviceMemoryStreamReadClient) Recv() (*MultiReadMemoryResponse, error) {
+	m := new(MultiReadMemoryResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *deviceMemoryClient) StreamWrite(ctx context.Context, opts ...grpc.CallOption) (DeviceMemory_StreamWriteClient, error) {
+	stream, err := c.cc.NewStream(ctx, &DeviceMemory_ServiceDesc.Streams[1], "/DeviceMemory/StreamWrite", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &deviceMemoryStreamWriteClient{stream}
+	return x, nil
+}
+
+type DeviceMemory_StreamWriteClient interface {
+	Send(*MultiWriteMemoryRequest) error
+	Recv() (*MultiWriteMemoryResponse, error)
+	grpc.ClientStream
+}
+
+type deviceMemoryStreamWriteClient struct {
+	grpc.ClientStream
+}
+
+func (x *deviceMemoryStreamWriteClient) Send(m *MultiWriteMemoryRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *deviceMemoryStreamWriteClient) Recv() (*MultiWriteMemoryResponse, error) {
+	m := new(MultiWriteMemoryResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // DeviceMemoryServer is the server API for DeviceMemory service.
 // All implementations must embed UnimplementedDeviceMemoryServer
 // for forward compatibility
 type DeviceMemoryServer interface {
-	// detect the current memory mapping for the given device by reading $00:FFC0 header:
+	// detect the current memory mapping for the given device by reading $00:FFB0 header:
 	MappingDetect(context.Context, *DetectMemoryMappingRequest) (*DetectMemoryMappingResponse, error)
-	// explicitly set the current memory mapping for the given device:
-	MappingSet(context.Context, *SetMemoryMappingRequest) (*MemoryMappingResponse, error)
-	// get the current memory mapping for the given device:
-	MappingGet(context.Context, *GetMemoryMappingRequest) (*MemoryMappingResponse, error)
 	// read a single memory segment with a given size from the given device:
 	SingleRead(context.Context, *SingleReadMemoryRequest) (*SingleReadMemoryResponse, error)
 	// write a single memory segment with given data to the given device:
@@ -375,6 +415,10 @@ type DeviceMemoryServer interface {
 	MultiRead(context.Context, *MultiReadMemoryRequest) (*MultiReadMemoryResponse, error)
 	// write multiple memory segments with given data to the given device:
 	MultiWrite(context.Context, *MultiWriteMemoryRequest) (*MultiWriteMemoryResponse, error)
+	// stream read multiple memory segments with given sizes from the given device:
+	StreamRead(DeviceMemory_StreamReadServer) error
+	// stream write multiple memory segments with given data to the given device:
+	StreamWrite(DeviceMemory_StreamWriteServer) error
 	mustEmbedUnimplementedDeviceMemoryServer()
 }
 
@@ -384,12 +428,6 @@ type UnimplementedDeviceMemoryServer struct {
 
 func (UnimplementedDeviceMemoryServer) MappingDetect(context.Context, *DetectMemoryMappingRequest) (*DetectMemoryMappingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MappingDetect not implemented")
-}
-func (UnimplementedDeviceMemoryServer) MappingSet(context.Context, *SetMemoryMappingRequest) (*MemoryMappingResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method MappingSet not implemented")
-}
-func (UnimplementedDeviceMemoryServer) MappingGet(context.Context, *GetMemoryMappingRequest) (*MemoryMappingResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method MappingGet not implemented")
 }
 func (UnimplementedDeviceMemoryServer) SingleRead(context.Context, *SingleReadMemoryRequest) (*SingleReadMemoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SingleRead not implemented")
@@ -402,6 +440,12 @@ func (UnimplementedDeviceMemoryServer) MultiRead(context.Context, *MultiReadMemo
 }
 func (UnimplementedDeviceMemoryServer) MultiWrite(context.Context, *MultiWriteMemoryRequest) (*MultiWriteMemoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MultiWrite not implemented")
+}
+func (UnimplementedDeviceMemoryServer) StreamRead(DeviceMemory_StreamReadServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamRead not implemented")
+}
+func (UnimplementedDeviceMemoryServer) StreamWrite(DeviceMemory_StreamWriteServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamWrite not implemented")
 }
 func (UnimplementedDeviceMemoryServer) mustEmbedUnimplementedDeviceMemoryServer() {}
 
@@ -430,42 +474,6 @@ func _DeviceMemory_MappingDetect_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DeviceMemoryServer).MappingDetect(ctx, req.(*DetectMemoryMappingRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _DeviceMemory_MappingSet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetMemoryMappingRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DeviceMemoryServer).MappingSet(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/DeviceMemory/MappingSet",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DeviceMemoryServer).MappingSet(ctx, req.(*SetMemoryMappingRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _DeviceMemory_MappingGet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetMemoryMappingRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DeviceMemoryServer).MappingGet(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/DeviceMemory/MappingGet",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DeviceMemoryServer).MappingGet(ctx, req.(*GetMemoryMappingRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -542,6 +550,58 @@ func _DeviceMemory_MultiWrite_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DeviceMemory_StreamRead_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(DeviceMemoryServer).StreamRead(&deviceMemoryStreamReadServer{stream})
+}
+
+type DeviceMemory_StreamReadServer interface {
+	Send(*MultiReadMemoryResponse) error
+	Recv() (*MultiReadMemoryRequest, error)
+	grpc.ServerStream
+}
+
+type deviceMemoryStreamReadServer struct {
+	grpc.ServerStream
+}
+
+func (x *deviceMemoryStreamReadServer) Send(m *MultiReadMemoryResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *deviceMemoryStreamReadServer) Recv() (*MultiReadMemoryRequest, error) {
+	m := new(MultiReadMemoryRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func _DeviceMemory_StreamWrite_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(DeviceMemoryServer).StreamWrite(&deviceMemoryStreamWriteServer{stream})
+}
+
+type DeviceMemory_StreamWriteServer interface {
+	Send(*MultiWriteMemoryResponse) error
+	Recv() (*MultiWriteMemoryRequest, error)
+	grpc.ServerStream
+}
+
+type deviceMemoryStreamWriteServer struct {
+	grpc.ServerStream
+}
+
+func (x *deviceMemoryStreamWriteServer) Send(m *MultiWriteMemoryResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *deviceMemoryStreamWriteServer) Recv() (*MultiWriteMemoryRequest, error) {
+	m := new(MultiWriteMemoryRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // DeviceMemory_ServiceDesc is the grpc.ServiceDesc for DeviceMemory service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -552,14 +612,6 @@ var DeviceMemory_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "MappingDetect",
 			Handler:    _DeviceMemory_MappingDetect_Handler,
-		},
-		{
-			MethodName: "MappingSet",
-			Handler:    _DeviceMemory_MappingSet_Handler,
-		},
-		{
-			MethodName: "MappingGet",
-			Handler:    _DeviceMemory_MappingGet_Handler,
 		},
 		{
 			MethodName: "SingleRead",
@@ -578,6 +630,19 @@ var DeviceMemory_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _DeviceMemory_MultiWrite_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "StreamRead",
+			Handler:       _DeviceMemory_StreamRead_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "StreamWrite",
+			Handler:       _DeviceMemory_StreamWrite_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "sni.proto",
 }
