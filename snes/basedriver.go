@@ -27,11 +27,24 @@ func (b *BaseDeviceDriver) UseDevice(ctx context.Context, deviceKey string, requ
 	device, ok = b.devicesMap[deviceKey]
 	b.devicesRw.RUnlock()
 
+	closed := false
+	defer func() {
+		if closed {
+			b.devicesRw.Lock()
+			if b.devicesMap == nil {
+				b.devicesMap = make(map[string]Device)
+			}
+			delete(b.devicesMap, deviceKey)
+			b.devicesRw.Unlock()
+		}
+	}()
+
 	if !ok {
 		b.devicesRw.Lock()
 		device, err = openDevice()
 		if err != nil {
 			b.devicesRw.Unlock()
+			closed = true
 			return
 		}
 
@@ -44,15 +57,7 @@ func (b *BaseDeviceDriver) UseDevice(ctx context.Context, deviceKey string, requ
 
 	err = use(ctx, device)
 
-	if device.IsClosed() {
-		b.devicesRw.Lock()
-		if b.devicesMap == nil {
-			b.devicesMap = make(map[string]Device)
-		}
-		delete(b.devicesMap, deviceKey)
-		b.devicesRw.Unlock()
-	}
-
+	closed = device.IsClosed()
 	return
 }
 
