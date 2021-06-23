@@ -70,7 +70,7 @@ async function main() {
         r.setRequest(rr);
       }
 
-      for (let i = 0; i < 60*60; i++) {
+      for (let i = 0; i < 10*60; i++) {
         const readRsp = await promisifyObj(memory.singleRead.bind(memory, r));
         // FIXME: toObject() forcibly calls getData_asB64() instead of getData(), so we have to decode:
         const data = Buffer.from(readRsp.response.data, 'base64');

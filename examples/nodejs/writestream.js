@@ -47,24 +47,24 @@ async function main() {
     }
 
     {
-      const r = new sni.MultiReadMemoryRequest();
+      const r = new sni.MultiWriteMemoryRequest();
       r.setUri(devices[0].getUri());
       {
-        const rr = new sni.ReadMemoryRequest();
+        const rr = new sni.WriteMemoryRequest();
         rr.setRequestaddress(0x7E0010);
         rr.setRequestaddressspace(sni.AddressSpace.SNESABUS);
         rr.setRequestmemorymapping(mapping);
-        rr.setSize(1);
+        rr.setData(new Uint8Array([7]));
         r.setRequestsList([rr]);
       }
 
-      const stream = memory.streamRead((err, stats) => {
+      const stream = memory.streamWrite((err, stats) => {
         console.log(stats);
         console.log(err);
       });
 
-      stream.on('data', (readRsp) => {
-        console.log(readRsp.getResponsesList()[0].getData()[0]);
+      stream.on('data', (writeRsp) => {
+        console.log(writeRsp.getResponsesList()[0].getSize());
       });
 
       for (let i = 0; i < 10*60; i++) {
