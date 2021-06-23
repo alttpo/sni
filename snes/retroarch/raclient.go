@@ -14,6 +14,7 @@ import (
 	"sni/snes/mapping"
 	"sni/udpclient"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -21,14 +22,46 @@ const readWriteTimeout = time.Millisecond * 256
 
 const hextable = "0123456789abcdef"
 
+type readOperation struct {
+	RequestAddress snes.AddressTuple
+	DeviceAddress  snes.AddressTuple
+
+	RequestSize  int
+	ResponseData []byte
+}
+
+type writeOperation struct {
+	RequestAddress snes.AddressTuple
+	DeviceAddress  snes.AddressTuple
+
+	RequestData  []byte
+	ResponseSize int
+}
+
+type rwRequest struct {
+	index    int
+	deadline time.Time
+
+	isWrite bool
+	command string
+	address uint32
+
+	Read  readOperation
+	Write writeOperation
+	R     chan<- error
+}
+
 type RAClient struct {
 	udpclient.UDPClient
 
 	addr *net.UDPAddr
 
+	expectationLock  sync.Mutex
+	outgoing         chan *rwRequest
+	expectedIncoming chan *rwRequest
+
 	version string
 	useRCR  bool
-	mapping sni.MemoryMapping
 }
 
 // isCloseWorthy returns true if the error should close the connection
@@ -48,10 +81,25 @@ func isCloseWorthy(err error) bool {
 
 func NewRAClient(addr *net.UDPAddr, name string) *RAClient {
 	c := &RAClient{
-		addr: addr,
+		addr:             addr,
+		outgoing:         make(chan *rwRequest, 8),
+		expectedIncoming: make(chan *rwRequest, 8),
 	}
 	udpclient.MakeUDPClient(name, &c.UDPClient)
+
+	go c.handleIncoming()
+	go c.handleOutgoing()
+
 	return c
+}
+
+func (c *RAClient) IsClosed() bool { return c.UDPClient.IsClosed() }
+
+func (c *RAClient) Close() (err error) {
+	err = c.UDPClient.Close()
+	close(c.outgoing)
+	close(c.expectedIncoming)
+	return
 }
 
 func (c *RAClient) GetId() string {
@@ -117,8 +165,30 @@ func (c *RAClient) DetermineVersion() (err error) {
 // RA 1.9.0 allows a maximum read size of 2723 bytes so we cut that off at 2048 to make division easier
 const maxReadSize = 2048
 
-func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.MemoryReadRequest) (mrsp []snes.MemoryReadResponse, err error) {
-	// translate addresses:
+func (c *RAClient) readCommand() string {
+	if c.useRCR {
+		return "READ_CORE_RAM"
+	} else {
+		return "READ_CORE_MEMORY"
+	}
+}
+
+func (c *RAClient) writeCommand() string {
+	if c.useRCR {
+		return "WRITE_CORE_RAM"
+	} else {
+		return "WRITE_CORE_MEMORY"
+	}
+}
+
+func (c *RAClient) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRequest) (mrsp []snes.MemoryReadResponse, err error) {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(readWriteTimeout)
+	}
+	outgoing := make([]*rwRequest, 0, len(reads)*2)
+
+	// translate request addresses to device space:
 	mrsp = make([]snes.MemoryReadResponse, len(reads))
 	for j, read := range reads {
 		mrsp[j] = snes.MemoryReadResponse{
@@ -138,117 +208,283 @@ func (c *RAClient) MultiReadMemory(context context.Context, reads ...snes.Memory
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	// build multiple requests:
-	var sb strings.Builder
-	for j, read := range reads {
 		size := read.Size
 		if size <= 0 {
 			continue
 		}
+		rsp := mrsp[j]
 
-		addr := mrsp[j].DeviceAddress.Address
+		offs := uint32(0)
 		for size > maxReadSize {
-			_, _ = c.readCommand(&sb)
-			sb.WriteString(fmt.Sprintf("%06x %d\n", addr, maxReadSize))
-			addr += maxReadSize
+			// maxReadSize chunk:
+			outgoing = append(outgoing, &rwRequest{
+				index:    j,
+				deadline: deadline,
+				isWrite:  false,
+				Read: readOperation{
+					RequestAddress: snes.AddressTuple{
+						Address:       read.RequestAddress.Address + offs,
+						AddressSpace:  read.RequestAddress.AddressSpace,
+						MemoryMapping: read.RequestAddress.MemoryMapping,
+					},
+					DeviceAddress: snes.AddressTuple{
+						Address:       rsp.DeviceAddress.Address + offs,
+						AddressSpace:  rsp.DeviceAddress.AddressSpace,
+						MemoryMapping: rsp.DeviceAddress.MemoryMapping,
+					},
+					RequestSize:  maxReadSize,
+					ResponseData: rsp.Data,
+				},
+			})
+			offs += maxReadSize
 			size -= maxReadSize
 		}
+
+		// remainder:
 		if size > 0 {
-			_, _ = c.readCommand(&sb)
-			sb.WriteString(fmt.Sprintf("%06x %d\n", addr, size))
+			outgoing = append(outgoing, &rwRequest{
+				index:    j,
+				deadline: deadline,
+				isWrite:  false,
+				Read: readOperation{
+					RequestAddress: snes.AddressTuple{
+						Address:       read.RequestAddress.Address + offs,
+						AddressSpace:  read.RequestAddress.AddressSpace,
+						MemoryMapping: read.RequestAddress.MemoryMapping,
+					},
+					DeviceAddress: snes.AddressTuple{
+						Address:       rsp.DeviceAddress.Address + offs,
+						AddressSpace:  rsp.DeviceAddress.AddressSpace,
+						MemoryMapping: rsp.DeviceAddress.MemoryMapping,
+					},
+					RequestSize:  size,
+					ResponseData: rsp.Data,
+				},
+			})
 		}
 	}
 
-	reqStr := sb.String()
-	var rsp []byte
+	// make a channel to receive response errors:
+	responses := make(chan error, len(outgoing))
+	defer close(responses)
 
-	deadline, ok := context.Deadline()
-	if !ok {
-		deadline = time.Now().Add(readWriteTimeout)
+	// fire off all commands:
+	for _, rwreq := range outgoing {
+		rwreq.R = responses
+		c.outgoing <- rwreq
 	}
 
-	// send all commands up front in one packet:
-	err = c.WriteWithDeadline([]byte(reqStr), deadline)
-	if err != nil {
-		if isCloseWorthy(err) {
-			_ = c.Close()
-		}
-		return
-	}
-
-	// responses come in multiple packets:
-	for j, read := range reads {
-		size := read.Size
-		if size <= 0 {
-			continue
-		}
-
-		rrsp := &mrsp[j]
-
-		// read chunks until complete:
-		addr := mrsp[j].DeviceAddress.Address
-		for size > 0 {
-			// parse ASCII response:
-			rsp, err = c.ReadWithDeadline(deadline)
-			if err != nil {
-				if isCloseWorthy(err) {
-					_ = c.Close()
-				}
-				return
+	// await all responses:
+	for _, rwreq := range outgoing {
+		err = <-responses
+		if err != nil {
+			if isCloseWorthy(err) {
+				_ = c.Close()
 			}
-			var data []byte
-			data, err = c.parseReadMemoryResponse(rsp, addr, maxReadSize)
-			if err != nil {
-				if isCloseWorthy(err) {
-					_ = c.Close()
-				}
-				return
-			}
-
-			// append response data:
-			rrsp.Data = append(rrsp.Data, data...)
-
-			addr += uint32(len(data))
-			size -= len(data)
+			return
 		}
+
+		mrsp[rwreq.index].Data = rwreq.Read.ResponseData
 	}
 
 	err = nil
 	return
 }
 
-func (c *RAClient) readCommand(sb *strings.Builder) (int, error) {
-	if c.useRCR {
-		return sb.WriteString("READ_CORE_RAM ")
-	} else {
-		return sb.WriteString("READ_CORE_MEMORY ")
+func (c *RAClient) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWriteRequest) (mrsp []snes.MemoryWriteResponse, err error) {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(readWriteTimeout)
+	}
+
+	outgoing := make([]*rwRequest, 0, len(writes)*2)
+
+	// translate addresses:
+	mrsp = make([]snes.MemoryWriteResponse, len(writes))
+	for j, write := range writes {
+		mrsp[j] = snes.MemoryWriteResponse{
+			RequestAddress: write.RequestAddress,
+			DeviceAddress: snes.AddressTuple{
+				Address:       0,
+				AddressSpace:  sni.AddressSpace_SnesABus,
+				MemoryMapping: write.RequestAddress.MemoryMapping,
+			},
+			Size: 0,
+		}
+
+		mrsp[j].DeviceAddress.Address, err = mapping.TranslateAddress(
+			write.RequestAddress,
+			sni.AddressSpace_SnesABus,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		data := write.Data
+		size := len(data)
+		if size <= 0 {
+			continue
+		}
+		rsp := &mrsp[j]
+
+		offs := uint32(0)
+		for size > maxReadSize {
+			// maxReadSize chunk:
+			outgoing = append(outgoing, &rwRequest{
+				index:    j,
+				deadline: deadline,
+				isWrite:  true,
+				Write: writeOperation{
+					RequestAddress: snes.AddressTuple{
+						Address:       write.RequestAddress.Address + offs,
+						AddressSpace:  write.RequestAddress.AddressSpace,
+						MemoryMapping: write.RequestAddress.MemoryMapping,
+					},
+					DeviceAddress: snes.AddressTuple{
+						Address:       rsp.DeviceAddress.Address + offs,
+						AddressSpace:  rsp.DeviceAddress.AddressSpace,
+						MemoryMapping: rsp.DeviceAddress.MemoryMapping,
+					},
+					RequestData:  data[:maxReadSize],
+					ResponseSize: maxReadSize,
+				},
+			})
+
+			offs += maxReadSize
+			size -= maxReadSize
+			data = data[maxReadSize:]
+		}
+
+		// remainder:
+		if size > 0 {
+			outgoing = append(outgoing, &rwRequest{
+				index:    j,
+				deadline: deadline,
+				isWrite:  true,
+				Write: writeOperation{
+					RequestAddress: snes.AddressTuple{
+						Address:       write.RequestAddress.Address + offs,
+						AddressSpace:  write.RequestAddress.AddressSpace,
+						MemoryMapping: write.RequestAddress.MemoryMapping,
+					},
+					DeviceAddress: snes.AddressTuple{
+						Address:       rsp.DeviceAddress.Address + offs,
+						AddressSpace:  rsp.DeviceAddress.AddressSpace,
+						MemoryMapping: rsp.DeviceAddress.MemoryMapping,
+					},
+					RequestData:  data[:size],
+					ResponseSize: size,
+				},
+			})
+		}
+	}
+
+	// make a channel to receive response errors:
+	responses := make(chan error, len(outgoing))
+	defer close(responses)
+
+	// fire off all commands:
+	for _, rwreq := range outgoing {
+		rwreq.R = responses
+		c.outgoing <- rwreq
+	}
+
+	// await all responses:
+	for _, rwreq := range outgoing {
+		err = <-responses
+		if err != nil {
+			if isCloseWorthy(err) {
+				_ = c.Close()
+			}
+			return
+		}
+
+		mrsp[rwreq.index].Size += rwreq.Write.ResponseSize
+	}
+
+	return
+}
+
+func (c *RAClient) handleOutgoing() {
+	for rwreq := range c.outgoing {
+		var sb strings.Builder
+
+		// build the proper command to send:
+		if rwreq.isWrite {
+			// write:
+			rwreq.command = c.writeCommand()
+			rwreq.address = rwreq.Write.DeviceAddress.Address
+			_, _ = fmt.Fprintf(&sb, "%s %06x", rwreq.command, rwreq.address)
+
+			// emit hex data to write:
+			for _, v := range rwreq.Write.RequestData {
+				sb.WriteByte(' ')
+				sb.WriteByte(hextable[(v>>4)&0xF])
+				sb.WriteByte(hextable[v&0xF])
+			}
+			sb.WriteByte('\n')
+		} else {
+			// read:
+			rwreq.command = c.readCommand()
+			rwreq.address = rwreq.Read.DeviceAddress.Address
+			_, _ = fmt.Fprintf(&sb, "%s %06x %d\n", rwreq.command, rwreq.address, rwreq.Read.RequestSize)
+		}
+
+		// lock around sending the command and sending the expectation to read its response:
+		c.expectationLock.Lock()
+		{
+			reqStr := sb.String()
+			//log.Printf("retroarch: > %s", reqStr)
+
+			err := c.WriteWithDeadline([]byte(reqStr), rwreq.deadline)
+			if err != nil {
+				c.expectationLock.Unlock()
+				rwreq.R <- err
+				return
+			}
+
+			if c.useRCR && rwreq.isWrite {
+				// fake a response since we don't get any from WRITE_CORE_RAM:
+				rwreq.R <- nil
+			} else {
+				// we're now expecting an incoming response:
+				c.expectedIncoming <- rwreq
+			}
+		}
+		c.expectationLock.Unlock()
 	}
 }
 
-func (c *RAClient) writeCommand(sb *strings.Builder) (int, error) {
-	if c.useRCR {
-		return sb.WriteString("WRITE_CORE_RAM ")
-	} else {
-		return sb.WriteString("WRITE_CORE_MEMORY ")
+func (c *RAClient) handleIncoming() {
+	for rwreq := range c.expectedIncoming {
+		rsp, err := c.ReadWithDeadline(rwreq.deadline)
+		if err != nil {
+			rwreq.R <- err
+			continue
+		}
+
+		//log.Printf("retroarch: < %s\n", string(rsp))
+
+		err = c.parseCommandResponse(rsp, rwreq)
+		rwreq.R <- err
 	}
 }
 
-func (c *RAClient) parseReadMemoryResponse(rsp []byte, expectedAddr uint32, size int) (data []byte, err error) {
+func (c *RAClient) parseCommandResponse(rsp []byte, rwreq *rwRequest) (err error) {
 	r := bytes.NewReader(rsp)
 
-	var n int
+	var cmd string
 	var addr uint32
-	if c.useRCR {
-		n, err = fmt.Fscanf(r, "READ_CORE_RAM %x", &addr)
-	} else {
-		n, err = fmt.Fscanf(r, "READ_CORE_MEMORY %x", &addr)
-	}
-	if err != nil {
+	var n int
+	n, err = fmt.Fscanf(r, "%s %x", &cmd, &addr)
+	if n != 2 || cmd != rwreq.command || addr != rwreq.address {
+		err = fmt.Errorf("expected response starting with `%s %x` but got: `%s`", rwreq.command, rwreq.address, string(rsp))
 		return
 	}
+	err = nil
 
+	// handle `-1` and subsequent error text:
 	{
 		t := bytes.NewReader(rsp[r.Size()-int64(r.Len()):])
 		var test int
@@ -256,7 +492,7 @@ func (c *RAClient) parseReadMemoryResponse(rsp []byte, expectedAddr uint32, size
 		if n == 1 && test < 0 {
 			// read a -1:
 			if c.useRCR {
-				err = snes.WithCode(codes.FailedPrecondition, fmt.Errorf("retroarch: unknown error"))
+				err = snes.WithCode(codes.FailedPrecondition, fmt.Errorf("%s responded with error", cmd))
 				return
 			} else {
 				// READ_CORE_MEMORY returns an error description after -1
@@ -264,13 +500,13 @@ func (c *RAClient) parseReadMemoryResponse(rsp []byte, expectedAddr uint32, size
 				var txt string
 				txt, err = bufio.NewReader(t).ReadString('\n')
 				if err != nil {
-					log.Printf("retroarch: error attempting to read RA error text from response: %v; `%s`", err, string(rsp))
+					log.Printf("could not read error text from %s response: %v; `%s`", cmd, err, string(rsp))
 					err = snes.WithCode(codes.FailedPrecondition, fmt.Errorf("retroarch: unknown error"))
 					return
 				}
 
 				txt = strings.TrimSpace(txt)
-				err = fmt.Errorf("retroarch: READ_CORE_MEMORY error '%s'", txt)
+				err = fmt.Errorf("%s error '%s'", cmd, txt)
 				if txt == "no data for descriptor" {
 					err = snes.WithCode(codes.InvalidArgument, err)
 				} else {
@@ -280,119 +516,49 @@ func (c *RAClient) parseReadMemoryResponse(rsp []byte, expectedAddr uint32, size
 				return
 			}
 		}
+		// not a -1:
 		err = nil
 	}
 
-	if addr != expectedAddr {
-		err = fmt.Errorf("retroarch: read response for wrong request %06x != %06x", addr, expectedAddr)
-		return
-	}
-
-	data = make([]byte, 0, size)
-	for {
-		var v byte
-		n, err = fmt.Fscanf(r, " %02x", &v)
-		if err != nil || n == 0 {
-			break
-		}
-		data = append(data, v)
-	}
-
-	err = nil
-	return
-}
-
-func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.MemoryWriteRequest) (mrsps []snes.MemoryWriteResponse, err error) {
-	deadline, ok := context.Deadline()
-	if !ok {
-		deadline = time.Now().Add(readWriteTimeout)
-	}
-
-	// translate addresses:
-	mrsps = make([]snes.MemoryWriteResponse, len(writes))
-	for i, write := range writes {
-		mrsps[i] = snes.MemoryWriteResponse{
-			RequestAddress: write.RequestAddress,
-			DeviceAddress: snes.AddressTuple{
-				Address:       0,
-				AddressSpace:  sni.AddressSpace_SnesABus,
-				MemoryMapping: write.RequestAddress.MemoryMapping,
-			},
-			Size: len(write.Data),
-		}
-
-		mrsps[i].DeviceAddress.Address, err = mapping.TranslateAddress(
-			write.RequestAddress,
-			sni.AddressSpace_SnesABus,
-		)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	for j, write := range writes {
-		var sb strings.Builder
-
-		_, _ = c.writeCommand(&sb)
-		sb.WriteString(fmt.Sprintf("%06x", mrsps[j].DeviceAddress.Address))
-
-		// emit hex data:
-		for _, v := range write.Data {
-			sb.WriteByte(' ')
-			sb.WriteByte(hextable[(v>>4)&0xF])
-			sb.WriteByte(hextable[v&0xF])
-		}
-		sb.WriteByte('\n')
-		reqStr := sb.String()
-
-		//log.Printf("retroarch: > %s", reqStr)
-		err = c.WriteWithDeadline([]byte(reqStr), deadline)
-		if err != nil {
-			if isCloseWorthy(err) {
-				_ = c.Close()
-			}
-			return
-		}
-	}
-
-	if c.useRCR {
-		// don't read any responses for READ_CORE_RAM
-		return
-	}
-
-	for j, write := range writes {
-		// expect a response from WRITE_CORE_MEMORY
-		var rsp []byte
-		rsp, err = c.ReadWithDeadline(deadline)
-		if err != nil {
-			_ = c.Close()
-			return
-		}
-		//log.Printf("retroarch: < %s", rsp)
-
-		writeAddress := mrsps[j].DeviceAddress.Address
-
-		var addr uint32
+	if rwreq.isWrite {
+		// write:
 		var wlen int
-		var n int
-		r := bytes.NewReader(rsp)
-		n, err = fmt.Fscanf(r, "WRITE_CORE_MEMORY %x %v\n", &addr, &wlen)
-		if n != 2 {
+		n, err = fmt.Fscanf(r, " %v\n", &wlen)
+		if n != 1 {
 			return
 		}
-		if addr != writeAddress {
-			err = fmt.Errorf("retroarch: write_core_memory returned unexpected address %06x; expected %06x; response:\n%s", addr, writeAddress, string(rsp))
-			_ = c.Close()
-			return
-		}
-		if wlen != len(write.Data) {
-			err = fmt.Errorf("retroarch: write_core_memory returned unexpected length %d; expected %d; response:\n%s", wlen, len(write.Data), string(rsp))
-			_ = c.Close()
-			return
-		}
-	}
 
-	return
+		if wlen != len(rwreq.Write.RequestData) {
+			err = fmt.Errorf(
+				"%s responded with unexpected length %d; expected %d; `%s`",
+				cmd,
+				wlen,
+				len(rwreq.Write.RequestData),
+				string(rsp),
+			)
+			return
+		}
+
+		rwreq.Write.ResponseSize = wlen
+		err = nil
+		return
+	} else {
+		// read:
+		data := make([]byte, 0, maxReadSize)
+		for {
+			var v byte
+			n, err = fmt.Fscanf(r, " %02x", &v)
+			if err != nil || n == 0 {
+				break
+			}
+			data = append(data, v)
+		}
+
+		rwreq.Read.ResponseData = append(rwreq.Read.ResponseData, data...)
+
+		err = nil
+		return
+	}
 }
 
 func (c *RAClient) ResetSystem(ctx context.Context) (err error) {

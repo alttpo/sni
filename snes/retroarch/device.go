@@ -30,8 +30,8 @@ func (d *Device) UseMemory(ctx context.Context, requiredCapabilities []sni.Devic
 		return err
 	}
 
-	defer d.lock.Unlock()
-	d.lock.Lock()
+	//defer d.lock.Unlock()
+	//d.lock.Lock()
 
 	return user(ctx, d.c)
 }
