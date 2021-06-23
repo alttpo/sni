@@ -334,7 +334,7 @@ func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.Memo
 		var sb strings.Builder
 
 		_, _ = c.writeCommand(&sb)
-		sb.WriteString(fmt.Sprintf("%06x", mrsps[j].DeviceAddress))
+		sb.WriteString(fmt.Sprintf("%06x", mrsps[j].DeviceAddress.Address))
 
 		// emit hex data:
 		for _, v := range write.Data {
@@ -381,12 +381,12 @@ func (c *RAClient) MultiWriteMemory(context context.Context, writes ...snes.Memo
 			return
 		}
 		if addr != writeAddress {
-			err = fmt.Errorf("retroarch: write_core_memory returned unexpected address %06x; expected %06x", addr, writeAddress)
+			err = fmt.Errorf("retroarch: write_core_memory returned unexpected address %06x; expected %06x; response:\n%s", addr, writeAddress, string(rsp))
 			_ = c.Close()
 			return
 		}
 		if wlen != len(write.Data) {
-			err = fmt.Errorf("retroarch: write_core_memory returned unexpected length %d; expected %d", wlen, len(write.Data))
+			err = fmt.Errorf("retroarch: write_core_memory returned unexpected length %d; expected %d; response:\n%s", wlen, len(write.Data), string(rsp))
 			_ = c.Close()
 			return
 		}
