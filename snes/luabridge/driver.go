@@ -18,6 +18,18 @@ type Driver struct {
 	devicesMap map[string]*Device
 }
 
+func (d *Driver) DisplayName() string {
+	return "Lua Bridge"
+}
+
+func (d *Driver) DisplayDescription() string {
+	return "Snes9x-rr / BizHawk"
+}
+
+func (d *Driver) DisplayOrder() int {
+	return 2
+}
+
 var driver *Driver
 
 func (d *Driver) Kind() string {
@@ -58,20 +70,40 @@ func (d *Driver) Device(uri *url.URL) snes.AutoCloseableDevice {
 		d,
 		uri,
 		d.DeviceKey(uri),
-		// TODO: opener is not used by OpenDevice below
-		nil,
 	)
+}
+
+func (d *Driver) GetOrOpenDevice(deviceKey string, uri *url.URL) (device snes.Device, err error) {
+	var ok bool
+
+	d.devicesRw.RLock()
+	device, ok = d.devicesMap[deviceKey]
+	d.devicesRw.RUnlock()
+
+	if !ok {
+		return nil, fmt.Errorf("no device found")
+	}
+
+	return
+}
+
+func (d *Driver) OpenDevice(deviceKey string, uri *url.URL) (device snes.Device, err error) {
+	// since we are a server we cannot arbitrarily open connections to clients; we must wait for clients to connect:
+	return nil, fmt.Errorf("no device found")
 }
 
 func (d *Driver) GetDevice(deviceKey string) (snes.Device, bool) {
 	d.devicesRw.RLock()
 	device, ok := d.devicesMap[deviceKey]
 	d.devicesRw.RUnlock()
+
 	return device, ok
 }
 
 func (d *Driver) PutDevice(deviceKey string, device snes.Device) {
-	panic("implement me")
+	d.devicesRw.Lock()
+	d.devicesMap[deviceKey] = device.(*Device)
+	d.devicesRw.Unlock()
 }
 
 func (d *Driver) DeleteDevice(deviceKey string) {
@@ -82,11 +114,6 @@ func (d *Driver) DeleteDevice(deviceKey string) {
 
 func (d *Driver) deleteUnderLock(deviceKey string) {
 	delete(d.devicesMap, deviceKey)
-}
-
-func (d *Driver) OpenDevice(deviceKey string, uri *url.URL, opener snes.DeviceOpener) (device snes.Device, err error) {
-	// since we are a server we cannot arbitrarily open connections to clients; we must wait for clients to connect:
-	return nil, fmt.Errorf("no device found")
 }
 
 func (d *Driver) StartServer() (err error) {
@@ -127,9 +154,7 @@ func (d *Driver) runServer(listener *net.TCPListener) {
 		device := NewDevice(conn, deviceKey)
 
 		// store the Device for reference:
-		d.devicesRw.Lock()
-		d.devicesMap[deviceKey] = device
-		d.devicesRw.Unlock()
+		d.PutDevice(deviceKey, device)
 
 		// initialize the Device:
 		device.Init()

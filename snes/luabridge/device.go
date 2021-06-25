@@ -1,12 +1,9 @@
 package luabridge
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net"
-	"sni/protos/sni"
-	"sni/snes"
 	"strings"
 	"sync"
 	"time"
@@ -169,27 +166,9 @@ func (d *Device) Close() (err error) {
 	err = d.c.Close()
 
 	// remove device from driver:
-	driver.devicesRw.Lock()
-	delete(driver.devicesMap, d.deviceKey)
-	driver.devicesRw.Unlock()
+	driver.DeleteDevice(d.deviceKey)
 
 	return
 }
 
 func (d *Device) IsClosed() bool { return d.isClosed }
-
-func (d *Device) UseMemory(ctx context.Context, requiredCapabilities []sni.DeviceCapability, user snes.DeviceMemoryUser) error {
-	if ok, err := driver.HasCapabilities(requiredCapabilities...); !ok {
-		return err
-	}
-
-	return user(ctx, d)
-}
-
-func (d *Device) UseControl(ctx context.Context, requiredCapabilities []sni.DeviceCapability, user snes.DeviceControlUser) error {
-	if ok, err := driver.HasCapabilities(requiredCapabilities...); !ok {
-		return err
-	}
-
-	return user(ctx, d)
-}

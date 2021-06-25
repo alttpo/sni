@@ -12,7 +12,7 @@ import (
 const driverName = "mock"
 
 type Driver struct {
-	base snes.BaseDeviceDriver
+	container snes.DeviceContainer
 }
 
 var driver *Driver
@@ -53,7 +53,7 @@ func (d *Driver) Detect() ([]snes.DeviceDescriptor, error) {
 }
 
 func (d *Driver) openDevice(uri *url.URL) (snes.Device, error) {
-	dev, ok := d.base.GetDevice(d.DeviceKey(uri))
+	dev, ok := d.container.GetDevice(d.DeviceKey(uri))
 	if ok {
 		return dev, nil
 	}
@@ -66,12 +66,7 @@ func (d *Driver) openDevice(uri *url.URL) (snes.Device, error) {
 }
 
 func (d *Driver) Device(uri *url.URL) snes.AutoCloseableDevice {
-	return snes.NewAutoCloseableDevice(
-		&d.base,
-		uri,
-		d.DeviceKey(uri),
-		d.openDevice,
-	)
+	return snes.NewAutoCloseableDevice(d.container, uri, d.DeviceKey(uri))
 }
 
 func (d *Driver) DeviceKey(uri *url.URL) string { return uri.Opaque }
@@ -80,6 +75,7 @@ func init() {
 	if util.IsTruthy(env.GetOrDefault("SNI_MOCK_ENABLE", "0")) {
 		log.Printf("enabling mock snes driver\n")
 		driver = &Driver{}
+		driver.container = snes.NewDeviceDriverContainer(driver.openDevice)
 		snes.Register(driverName, driver)
 	}
 }

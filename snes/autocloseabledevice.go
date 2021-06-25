@@ -13,16 +13,13 @@ type AutoCloseableDevice interface {
 	DeviceMemory
 }
 
-type DeviceOpener func(uri *url.URL) (Device, error)
-
 type autoCloseableDevice struct {
-	container DeviceDriverContainer
+	container DeviceContainer
 	uri       *url.URL
 	deviceKey string
-	opener    DeviceOpener
 }
 
-func NewAutoCloseableDevice(container DeviceDriverContainer, uri *url.URL, deviceKey string, opener DeviceOpener) AutoCloseableDevice {
+func NewAutoCloseableDevice(container DeviceContainer, uri *url.URL, deviceKey string) AutoCloseableDevice {
 	if container == nil {
 		panic(fmt.Errorf("container cannot be nil"))
 	}
@@ -34,25 +31,19 @@ func NewAutoCloseableDevice(container DeviceDriverContainer, uri *url.URL, devic
 		container: container,
 		uri:       uri,
 		deviceKey: deviceKey,
-		opener:    opener,
 	}
 }
 
 type deviceUser func(ctx context.Context, device Device) error
 
 func (a *autoCloseableDevice) ensureOpened(ctx context.Context, use deviceUser) (err error) {
-	var device Device
-	var ok bool
-
 	b := a.container
 	deviceKey := a.deviceKey
 
-	device, ok = b.GetDevice(deviceKey)
-	if !ok {
-		device, err = b.OpenDevice(deviceKey, a.uri, a.opener)
-		if err != nil {
-			return
-		}
+	var device Device
+	device, err = b.GetOrOpenDevice(deviceKey, a.uri)
+	if err != nil {
+		return
 	}
 
 	err = use(ctx, device)

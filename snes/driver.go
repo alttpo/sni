@@ -89,12 +89,14 @@ func Drivers() []NamedDriver {
 	sort.Slice(list, func(i, j int) bool {
 		li := list[i].Driver
 		lj := list[j].Driver
+		// use DisplayOrder iff both are available:
 		if di, ok := li.(DriverDescriptor); ok {
 			if dj, ok := lj.(DriverDescriptor); ok {
 				return di.DisplayOrder() < dj.DisplayOrder()
 			}
 		}
-		return false
+		// fall back on Kind order:
+		return li.Kind() < lj.Kind()
 	})
 	return list
 }

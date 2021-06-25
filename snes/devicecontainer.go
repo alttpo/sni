@@ -7,20 +7,45 @@ import (
 	"sync"
 )
 
-type DeviceDriverContainer interface {
+type DeviceContainer interface {
+	OpenDevice(deviceKey string, uri *url.URL) (device Device, err error)
 	GetDevice(deviceKey string) (Device, bool)
+	GetOrOpenDevice(deviceKey string, uri *url.URL) (device Device, err error)
 	PutDevice(deviceKey string, device Device)
 	DeleteDevice(deviceKey string)
-	OpenDevice(deviceKey string, uri *url.URL, opener DeviceOpener) (device Device, err error)
 }
 
-type BaseDeviceDriver struct {
+type DeviceOpener func(uri *url.URL) (Device, error)
+
+type deviceContainer struct {
+	opener DeviceOpener
+
 	// track opened devices by URI
 	devicesRw  sync.RWMutex
 	devicesMap map[string]Device
 }
 
-func (b *BaseDeviceDriver) GetDevice(deviceKey string) (Device, bool) {
+func NewDeviceDriverContainer(opener DeviceOpener) DeviceContainer {
+	return &deviceContainer{
+		opener:     opener,
+		devicesRw:  sync.RWMutex{},
+		devicesMap: make(map[string]Device),
+	}
+}
+
+func (b *deviceContainer) GetOrOpenDevice(deviceKey string, uri *url.URL) (device Device, err error) {
+	var ok bool
+	device, ok = b.GetDevice(deviceKey)
+	if !ok {
+		device, err = b.OpenDevice(deviceKey, uri)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
+func (b *deviceContainer) GetDevice(deviceKey string) (Device, bool) {
 	b.devicesRw.RLock()
 	device, ok := b.devicesMap[deviceKey]
 	b.devicesRw.RUnlock()
@@ -28,37 +53,34 @@ func (b *BaseDeviceDriver) GetDevice(deviceKey string) (Device, bool) {
 	return device, ok
 }
 
-func (b *BaseDeviceDriver) PutDevice(deviceKey string, device Device) {
+func (b *deviceContainer) PutDevice(deviceKey string, device Device) {
 	b.devicesRw.Lock()
 	b.devicesMap[deviceKey] = device
 	b.devicesRw.Unlock()
 }
 
-func (b *BaseDeviceDriver) DeleteDevice(deviceKey string) {
+func (b *deviceContainer) DeleteDevice(deviceKey string) {
 	b.devicesRw.Lock()
 	b.deleteUnderLock(deviceKey)
 	b.devicesRw.Unlock()
 }
 
-func (b *BaseDeviceDriver) deleteUnderLock(deviceKey string) {
+func (b *deviceContainer) deleteUnderLock(deviceKey string) {
 	if b.devicesMap == nil {
 		b.devicesMap = make(map[string]Device)
 	}
 	delete(b.devicesMap, deviceKey)
 }
 
-func (b *BaseDeviceDriver) OpenDevice(deviceKey string, uri *url.URL, opener DeviceOpener) (device Device, err error) {
+func (b *deviceContainer) OpenDevice(deviceKey string, uri *url.URL) (device Device, err error) {
 	b.devicesRw.Lock()
-	device, err = opener(uri)
+	device, err = b.opener(uri)
 	if err != nil {
 		b.deleteUnderLock(deviceKey)
 		b.devicesRw.Unlock()
 		return
 	}
 
-	if b.devicesMap == nil {
-		b.devicesMap = make(map[string]Device)
-	}
 	b.devicesMap[deviceKey] = device
 	b.devicesRw.Unlock()
 	return

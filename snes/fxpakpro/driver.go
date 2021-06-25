@@ -41,7 +41,7 @@ var (
 )
 
 type Driver struct {
-	base snes.BaseDeviceDriver
+	container snes.DeviceContainer
 }
 
 func (d *Driver) DisplayOrder() int {
@@ -164,10 +164,9 @@ func (d *Driver) openDevice(uri *url.URL) (device snes.Device, err error) {
 
 func (d *Driver) Device(uri *url.URL) snes.AutoCloseableDevice {
 	return snes.NewAutoCloseableDevice(
-		&d.base,
+		d.container,
 		uri,
 		d.DeviceKey(uri),
-		d.openDevice,
 	)
 }
 
@@ -177,5 +176,6 @@ func init() {
 		return
 	}
 	driver = &Driver{}
+	driver.container = snes.NewDeviceDriverContainer(driver.openDevice)
 	snes.Register(driverName, driver)
 }

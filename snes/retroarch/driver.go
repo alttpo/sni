@@ -18,7 +18,7 @@ var logDetector = false
 var driver *Driver
 
 type Driver struct {
-	base snes.BaseDeviceDriver
+	container snes.DeviceContainer
 
 	detectors []*RAClient
 }
@@ -27,6 +27,7 @@ func NewDriver(addresses []*net.UDPAddr) *Driver {
 	d := &Driver{
 		detectors: make([]*RAClient, len(addresses)),
 	}
+	d.container = snes.NewDeviceDriverContainer(d.openDevice)
 
 	for i, addr := range addresses {
 		c := NewRAClient(addr, fmt.Sprintf("retroarch[%d]", i))
@@ -137,12 +138,7 @@ func (d *Driver) DeviceKey(uri *url.URL) string {
 }
 
 func (d *Driver) Device(uri *url.URL) snes.AutoCloseableDevice {
-	return snes.NewAutoCloseableDevice(
-		&d.base,
-		uri,
-		d.DeviceKey(uri),
-		d.openDevice,
-	)
+	return snes.NewAutoCloseableDevice(d.container, uri, d.DeviceKey(uri))
 }
 
 func init() {
