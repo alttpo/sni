@@ -20,8 +20,6 @@ const (
 var driver *Driver
 
 var (
-	ErrNoFXPakProFound = fmt.Errorf("%s: no device found among serial ports", driverName)
-
 	baudRates = []int{
 		921600, // first rate that works on Windows
 		460800,
