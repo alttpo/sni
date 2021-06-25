@@ -1,7 +1,6 @@
 package mock
 
 import (
-	"context"
 	"log"
 	"net/url"
 	"sni/protos/sni"
@@ -54,7 +53,7 @@ func (d *Driver) Detect() ([]snes.DeviceDescriptor, error) {
 }
 
 func (d *Driver) openDevice(uri *url.URL) (snes.Device, error) {
-	dev, ok := d.base.Get(d.DeviceKey(uri))
+	dev, ok := d.base.GetDevice(d.DeviceKey(uri))
 	if ok {
 		return dev, nil
 	}
@@ -66,13 +65,12 @@ func (d *Driver) openDevice(uri *url.URL) (snes.Device, error) {
 	return mock, nil
 }
 
-func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user snes.DeviceUser) error {
-	return d.base.UseDevice(
-		ctx,
+func (d *Driver) Device(uri *url.URL) snes.AutoCloseableDevice {
+	return snes.NewAutoCloseableDevice(
+		&d.base,
+		uri,
 		d.DeviceKey(uri),
-		requiredCapabilities,
-		func() (snes.Device, error) { return d.openDevice(uri) },
-		user,
+		d.openDevice,
 	)
 }
 

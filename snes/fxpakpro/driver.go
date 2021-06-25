@@ -1,7 +1,6 @@
 package fxpakpro
 
 import (
-	"context"
 	"fmt"
 	"go.bug.st/serial"
 	"go.bug.st/serial/enumerator"
@@ -101,31 +100,6 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 	return
 }
 
-func (d *Driver) OpenQueue(dd snes.DeviceDescriptor) (q snes.Queue, err error) {
-	portName := dd.Uri.Path
-
-	baudRequest := baudRates[0]
-	if baudStr := dd.Uri.Query().Get("baud"); baudStr != "" {
-		baudRequest, _ = strconv.Atoi(baudStr)
-	}
-
-	var f serial.Port
-	f, err = d.openPort(portName, baudRequest)
-	if err != nil {
-		return
-	}
-
-	c := &Queue{
-		f:      f,
-		closed: make(chan struct{}),
-	}
-	c.BaseInit(driverName, c)
-
-	q = c
-
-	return
-}
-
 func (d *Driver) openPort(portName string, baudRequest int) (f serial.Port, err error) {
 	f = serial.Port(nil)
 
@@ -167,7 +141,7 @@ func (d *Driver) DeviceKey(uri *url.URL) string {
 	return uri.Path
 }
 
-func (d *Driver) openAsDevice(uri *url.URL) (device snes.Device, err error) {
+func (d *Driver) openDevice(uri *url.URL) (device snes.Device, err error) {
 	portName := uri.Path
 
 	baudRequest := baudRates[0]
@@ -188,13 +162,12 @@ func (d *Driver) openAsDevice(uri *url.URL) (device snes.Device, err error) {
 	return
 }
 
-func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user snes.DeviceUser) error {
-	return d.base.UseDevice(
-		ctx,
+func (d *Driver) Device(uri *url.URL) snes.AutoCloseableDevice {
+	return snes.NewAutoCloseableDevice(
+		&d.base,
+		uri,
 		d.DeviceKey(uri),
-		requiredCapabilities,
-		func() (snes.Device, error) { return d.openAsDevice(uri) },
-		user,
+		d.openDevice,
 	)
 }
 
@@ -204,6 +177,5 @@ func init() {
 		return
 	}
 	driver = &Driver{}
-	driver.base.DeviceDriver = driver
 	snes.Register(driverName, driver)
 }

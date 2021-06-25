@@ -1,7 +1,6 @@
 package retroarch
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net"
@@ -28,7 +27,6 @@ func NewDriver(addresses []*net.UDPAddr) *Driver {
 	d := &Driver{
 		detectors: make([]*RAClient, len(addresses)),
 	}
-	d.base.DeviceDriver = d
 
 	for i, addr := range addresses {
 		c := NewRAClient(addr, fmt.Sprintf("retroarch[%d]", i))
@@ -81,14 +79,13 @@ func (d *Driver) openDevice(uri *url.URL) (q snes.Device, err error) {
 
 	c.MuteLog(false)
 
-	qu := &Device{c: c}
-	err = qu.Init()
+	err = c.DetermineVersion()
 	if err != nil {
 		_ = c.Close()
 		return
 	}
 
-	q = qu
+	q = c
 	return
 }
 
@@ -139,13 +136,12 @@ func (d *Driver) DeviceKey(uri *url.URL) string {
 	return uri.Host
 }
 
-func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user snes.DeviceUser) error {
-	return d.base.UseDevice(
-		ctx,
+func (d *Driver) Device(uri *url.URL) snes.AutoCloseableDevice {
+	return snes.NewAutoCloseableDevice(
+		&d.base,
+		uri,
 		d.DeviceKey(uri),
-		requiredCapabilities,
-		func() (snes.Device, error) { return d.openDevice(uri) },
-		user,
+		d.openDevice,
 	)
 }
 

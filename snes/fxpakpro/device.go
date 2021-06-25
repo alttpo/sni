@@ -25,34 +25,10 @@ func (d *Device) IsClosed() bool {
 	return d.isClosed
 }
 
-func (d *Device) UseMemory(ctx context.Context, requiredCapabilities []sni.DeviceCapability, user snes.DeviceMemoryUser) error {
-	if user == nil {
-		return nil
-	}
-
-	if ok, err := driver.HasCapabilities(requiredCapabilities...); !ok {
-		return err
-	}
-
-	defer d.lock.Unlock()
-	d.lock.Lock()
-
-	return user(ctx, d)
-}
-
-func (d *Device) UseControl(ctx context.Context, requiredCapabilities []sni.DeviceCapability, user snes.DeviceControlUser) error {
-	if user == nil {
-		return nil
-	}
-
-	if ok, err := driver.HasCapabilities(requiredCapabilities...); !ok {
-		return err
-	}
-
-	defer d.lock.Unlock()
-	d.lock.Lock()
-
-	return user(ctx, d)
+func (d *Device) Close() (err error) {
+	err = d.f.Close()
+	d.isClosed = true
+	return
 }
 
 func (d *Device) MultiReadMemory(
@@ -188,12 +164,6 @@ func (d *Device) MultiReadMemory(
 		sendChunks()
 	}
 
-	return
-}
-
-func (d *Device) Close() (err error) {
-	err = d.f.Close()
-	d.isClosed = true
 	return
 }
 

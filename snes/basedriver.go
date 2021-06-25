@@ -1,67 +1,26 @@
 package snes
 
 import (
-	"context"
 	"fmt"
+	"net/url"
 	"sni/protos/sni"
 	"sync"
 )
 
-type BaseDeviceDriver struct {
-	DeviceDriver
+type DeviceDriverContainer interface {
+	GetDevice(deviceKey string) (Device, bool)
+	PutDevice(deviceKey string, device Device)
+	DeleteDevice(deviceKey string)
+	OpenDevice(deviceKey string, uri *url.URL, opener DeviceOpener) (device Device, err error)
+}
 
+type BaseDeviceDriver struct {
 	// track opened devices by URI
 	devicesRw  sync.RWMutex
 	devicesMap map[string]Device
 }
 
-func (b *BaseDeviceDriver) UseDevice(ctx context.Context, deviceKey string, requiredCapabilities []sni.DeviceCapability, openDevice func() (Device, error), use DeviceUser, ) (err error) {
-	var device Device
-	var ok bool
-
-	if ok, err = b.DeviceDriver.HasCapabilities(requiredCapabilities...); !ok {
-		return
-	}
-
-	b.devicesRw.RLock()
-	device, ok = b.devicesMap[deviceKey]
-	b.devicesRw.RUnlock()
-
-	closed := false
-	defer func() {
-		if closed {
-			b.devicesRw.Lock()
-			if b.devicesMap == nil {
-				b.devicesMap = make(map[string]Device)
-			}
-			delete(b.devicesMap, deviceKey)
-			b.devicesRw.Unlock()
-		}
-	}()
-
-	if !ok {
-		b.devicesRw.Lock()
-		device, err = openDevice()
-		if err != nil {
-			b.devicesRw.Unlock()
-			closed = true
-			return
-		}
-
-		if b.devicesMap == nil {
-			b.devicesMap = make(map[string]Device)
-		}
-		b.devicesMap[deviceKey] = device
-		b.devicesRw.Unlock()
-	}
-
-	err = use(ctx, device)
-
-	closed = device.IsClosed()
-	return
-}
-
-func (b *BaseDeviceDriver) Get(deviceKey string) (Device, bool) {
+func (b *BaseDeviceDriver) GetDevice(deviceKey string) (Device, bool) {
 	b.devicesRw.RLock()
 	device, ok := b.devicesMap[deviceKey]
 	b.devicesRw.RUnlock()
@@ -69,10 +28,40 @@ func (b *BaseDeviceDriver) Get(deviceKey string) (Device, bool) {
 	return device, ok
 }
 
-func (b *BaseDeviceDriver) Put(deviceKey string, device Device) {
+func (b *BaseDeviceDriver) PutDevice(deviceKey string, device Device) {
 	b.devicesRw.Lock()
 	b.devicesMap[deviceKey] = device
 	b.devicesRw.Unlock()
+}
+
+func (b *BaseDeviceDriver) DeleteDevice(deviceKey string) {
+	b.devicesRw.Lock()
+	b.deleteUnderLock(deviceKey)
+	b.devicesRw.Unlock()
+}
+
+func (b *BaseDeviceDriver) deleteUnderLock(deviceKey string) {
+	if b.devicesMap == nil {
+		b.devicesMap = make(map[string]Device)
+	}
+	delete(b.devicesMap, deviceKey)
+}
+
+func (b *BaseDeviceDriver) OpenDevice(deviceKey string, uri *url.URL, opener DeviceOpener) (device Device, err error) {
+	b.devicesRw.Lock()
+	device, err = opener(uri)
+	if err != nil {
+		b.deleteUnderLock(deviceKey)
+		b.devicesRw.Unlock()
+		return
+	}
+
+	if b.devicesMap == nil {
+		b.devicesMap = make(map[string]Device)
+	}
+	b.devicesMap[deviceKey] = device
+	b.devicesRw.Unlock()
+	return
 }
 
 func CheckCapabilities(expectedCapabilities []sni.DeviceCapability, actualCapabilities []sni.DeviceCapability) (bool, error) {

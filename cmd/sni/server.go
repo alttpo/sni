@@ -55,6 +55,14 @@ func (s *devicesService) ListDevices(ctx context.Context, request *sni.DevicesRe
 	return &sni.DevicesResponse{Devices: devices}, nil
 }
 
+func grpcError(err error) error {
+	var coded *snes.CodedError
+	if errors.As(err, &coded) {
+		return status.Error(coded.Code, coded.Error())
+	}
+	return err
+}
+
 type deviceMemoryService struct {
 	sni.UnimplementedDeviceMemoryServer
 }
@@ -70,176 +78,161 @@ func (s *deviceMemoryService) MappingDetect(gctx context.Context, request *sni.D
 		return
 	}
 
-	gerr = snes.WithDevice(
-		gctx,
-		uri,
-		nil,
-		func(mctx context.Context, device snes.Device) (err error) {
-			var memoryMapping sni.MemoryMapping
-			var confidence bool
-			var outHeaderBytes []byte
-			memoryMapping, confidence, outHeaderBytes, err = mapping.Detect(
-				mctx,
-				device,
-				request.FallbackMemoryMapping,
-				request.RomHeader00FFB0,
-			)
-
-			grsp = &sni.DetectMemoryMappingResponse{
-				Uri:             request.GetUri(),
-				MemoryMapping:   memoryMapping,
-				Confidence:      confidence,
-				RomHeader00FFB0: outHeaderBytes,
-			}
-			return
-		},
-	)
-
+	var driver snes.DeviceDriver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
 	if gerr != nil {
-		var coded *snes.CodedError
-		if errors.As(gerr, &coded) {
-			gerr = status.Error(coded.Code, coded.Error())
-		} else {
-			grsp = nil
-		}
-		return
+		return nil, grpcError(gerr)
 	}
+
+	// require ReadMemory capability if ROM header data is not provided:
+	if request.RomHeader00FFB0 == nil {
+		if _, err := driver.HasCapabilities(sni.DeviceCapability_ReadMemory); err != nil {
+			return nil, status.Error(codes.Unimplemented, err.Error())
+		}
+	}
+
+	var memoryMapping sni.MemoryMapping
+	var confidence bool
+	var outHeaderBytes []byte
+	memoryMapping, confidence, outHeaderBytes, gerr = mapping.Detect(
+		gctx,
+		device,
+		request.FallbackMemoryMapping,
+		request.RomHeader00FFB0,
+	)
+	if gerr != nil {
+		return nil, grpcError(gerr)
+	}
+
+	grsp = &sni.DetectMemoryMappingResponse{
+		Uri:             request.GetUri(),
+		MemoryMapping:   memoryMapping,
+		Confidence:      confidence,
+		RomHeader00FFB0: outHeaderBytes,
+	}
+
 	return
 }
 
 func (s *deviceMemoryService) SingleRead(
-	rctx context.Context,
+	gctx context.Context,
 	request *sni.SingleReadMemoryRequest,
 ) (grsp *sni.SingleReadMemoryResponse, gerr error) {
 	uri, err := url.Parse(request.GetUri())
 	if err != nil {
-		gerr = status.Error(codes.InvalidArgument, err.Error())
-		return
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	gerr = snes.WithDeviceMemory(
-		rctx,
-		uri,
-		[]sni.DeviceCapability{sni.DeviceCapability_ReadMemory},
-		func(mctx context.Context, memory snes.DeviceMemory) (err error) {
-			var mrsp []snes.MemoryReadResponse
-			mrsp, err = memory.MultiReadMemory(mctx, snes.MemoryReadRequest{
-				RequestAddress: snes.AddressTuple{
-					Address:       request.Request.GetRequestAddress(),
-					AddressSpace:  request.Request.GetRequestAddressSpace(),
-					MemoryMapping: request.Request.GetRequestMemoryMapping(),
-				},
-				Size: int(request.Request.GetSize()),
-			})
-			if err != nil {
-				return
-			}
-			if len(mrsp) != 1 {
-				err = status.Error(codes.Internal, "internal bug: single read must have a single response")
-				return
-			}
-			if actual, expected := uint32(len(mrsp[0].Data)), request.Request.GetSize(); actual != expected {
-				err = status.Errorf(
-					codes.Internal,
-					"internal bug: single read must return data of the requested size; actual $%x expected $%x",
-					actual,
-					expected,
-				)
-				return
-			}
-
-			grsp = &sni.SingleReadMemoryResponse{
-				Uri: request.Uri,
-				Response: &sni.ReadMemoryResponse{
-					RequestAddress:       mrsp[0].RequestAddress.Address,
-					RequestAddressSpace:  mrsp[0].RequestAddress.AddressSpace,
-					RequestMemoryMapping: mrsp[0].RequestAddress.MemoryMapping,
-					DeviceAddress:        mrsp[0].DeviceAddress.Address,
-					DeviceAddressSpace:   mrsp[0].DeviceAddress.AddressSpace,
-					Data:                 mrsp[0].Data,
-				},
-			}
-			return
-		},
-	)
-
+	var driver snes.DeviceDriver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
 	if gerr != nil {
-		var coded *snes.CodedError
-		if errors.As(gerr, &coded) {
-			gerr = status.Error(coded.Code, coded.Error())
-		} else {
-			grsp = nil
-		}
+		return nil, grpcError(gerr)
+	}
+
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_ReadMemory); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
+	}
+
+	var mrsp []snes.MemoryReadResponse
+	mrsp, gerr = device.MultiReadMemory(gctx, snes.MemoryReadRequest{
+		RequestAddress: snes.AddressTuple{
+			Address:       request.Request.GetRequestAddress(),
+			AddressSpace:  request.Request.GetRequestAddressSpace(),
+			MemoryMapping: request.Request.GetRequestMemoryMapping(),
+		},
+		Size: int(request.Request.GetSize()),
+	})
+	if gerr != nil {
+		return nil, grpcError(gerr)
+	}
+	if len(mrsp) != 1 {
+		err = status.Error(codes.Internal, "single read must have a single response")
 		return
 	}
+	if actual, expected := uint32(len(mrsp[0].Data)), request.Request.GetSize(); actual != expected {
+		gerr = status.Errorf(
+			codes.Internal,
+			"single read must return data of the requested size; actual $%x expected $%x",
+			actual,
+			expected,
+		)
+		return
+	}
+
+	grsp = &sni.SingleReadMemoryResponse{
+		Uri: request.Uri,
+		Response: &sni.ReadMemoryResponse{
+			RequestAddress:       mrsp[0].RequestAddress.Address,
+			RequestAddressSpace:  mrsp[0].RequestAddress.AddressSpace,
+			RequestMemoryMapping: mrsp[0].RequestAddress.MemoryMapping,
+			DeviceAddress:        mrsp[0].DeviceAddress.Address,
+			DeviceAddressSpace:   mrsp[0].DeviceAddress.AddressSpace,
+			Data:                 mrsp[0].Data,
+		},
+	}
+
 	return
 }
 
 func (s *deviceMemoryService) SingleWrite(
-	rctx context.Context,
+	gctx context.Context,
 	request *sni.SingleWriteMemoryRequest,
 ) (grsp *sni.SingleWriteMemoryResponse, gerr error) {
 	uri, err := url.Parse(request.GetUri())
 	if err != nil {
-		gerr = status.Error(codes.InvalidArgument, err.Error())
-		return
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	gerr = snes.WithDeviceMemory(
-		rctx,
-		uri,
-		[]sni.DeviceCapability{sni.DeviceCapability_WriteMemory},
-		func(mctx context.Context, memory snes.DeviceMemory) (err error) {
-			var mrsp []snes.MemoryWriteResponse
-			mrsp, err = memory.MultiWriteMemory(mctx, snes.MemoryWriteRequest{
-				RequestAddress: snes.AddressTuple{
-					Address:       request.Request.GetRequestAddress(),
-					AddressSpace:  request.Request.GetRequestAddressSpace(),
-					MemoryMapping: request.Request.GetRequestMemoryMapping(),
-				},
-				Data: request.Request.GetData(),
-			})
-			if err != nil {
-				return
-			}
-			if len(mrsp) != 1 {
-				err = status.Error(codes.Internal, "internal bug: single write must have a single response")
-				return
-			}
-			if actual, expected := mrsp[0].Size, len(request.Request.GetData()); actual != expected {
-				err = status.Errorf(
-					codes.Internal,
-					"internal bug: single write must return size of the written data; actual $%x expected $%x",
-					actual,
-					expected,
-				)
-				return
-			}
-
-			grsp = &sni.SingleWriteMemoryResponse{
-				Uri: request.Uri,
-				Response: &sni.WriteMemoryResponse{
-					RequestAddress:       mrsp[0].RequestAddress.Address,
-					RequestAddressSpace:  mrsp[0].RequestAddress.AddressSpace,
-					RequestMemoryMapping: mrsp[0].RequestAddress.MemoryMapping,
-					DeviceAddress:        mrsp[0].DeviceAddress.Address,
-					DeviceAddressSpace:   mrsp[0].DeviceAddress.AddressSpace,
-					Size:                 uint32(mrsp[0].Size),
-				},
-			}
-			return
-		},
-	)
-
+	var driver snes.DeviceDriver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
 	if gerr != nil {
-		var coded *snes.CodedError
-		if errors.As(gerr, &coded) {
-			gerr = status.Error(coded.Code, coded.Error())
-		} else {
-			grsp = nil
-		}
+		return nil, grpcError(gerr)
+	}
+
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_WriteMemory); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
+	}
+
+	var mrsp []snes.MemoryWriteResponse
+	mrsp, gerr = device.MultiWriteMemory(gctx, snes.MemoryWriteRequest{
+		RequestAddress: snes.AddressTuple{
+			Address:       request.Request.GetRequestAddress(),
+			AddressSpace:  request.Request.GetRequestAddressSpace(),
+			MemoryMapping: request.Request.GetRequestMemoryMapping(),
+		},
+		Data: request.Request.GetData(),
+	})
+	if gerr != nil {
+		return nil, grpcError(gerr)
+	}
+	if len(mrsp) != 1 {
+		return nil, status.Error(codes.Internal, "single write must have a single response")
+	}
+	if actual, expected := mrsp[0].Size, len(request.Request.GetData()); actual != expected {
+		gerr = status.Errorf(
+			codes.Internal,
+			"single write must return size of the written data; actual $%x expected $%x",
+			actual,
+			expected,
+		)
 		return
 	}
+
+	grsp = &sni.SingleWriteMemoryResponse{
+		Uri: request.Uri,
+		Response: &sni.WriteMemoryResponse{
+			RequestAddress:       mrsp[0].RequestAddress.Address,
+			RequestAddressSpace:  mrsp[0].RequestAddress.AddressSpace,
+			RequestMemoryMapping: mrsp[0].RequestAddress.MemoryMapping,
+			DeviceAddress:        mrsp[0].DeviceAddress.Address,
+			DeviceAddressSpace:   mrsp[0].DeviceAddress.AddressSpace,
+			Size:                 uint32(mrsp[0].Size),
+		},
+	}
+
 	return
 }
 
@@ -247,84 +240,78 @@ func (s *deviceMemoryService) MultiRead(
 	gctx context.Context,
 	request *sni.MultiReadMemoryRequest,
 ) (grsp *sni.MultiReadMemoryResponse, gerr error) {
-	uri, err := url.Parse(request.Uri)
+	uri, err := url.Parse(request.GetUri())
 	if err != nil {
-		gerr = status.Error(codes.InvalidArgument, err.Error())
-		return
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	var driver snes.DeviceDriver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
+	if gerr != nil {
+		return nil, grpcError(gerr)
+	}
+
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_ReadMemory); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
 	}
 
 	var grsps []*sni.ReadMemoryResponse
-	gerr = snes.WithDeviceMemory(
-		gctx,
-		uri,
-		[]sni.DeviceCapability{sni.DeviceCapability_ReadMemory},
-		func(mctx context.Context, memory snes.DeviceMemory) (err error) {
-			reads := make([]snes.MemoryReadRequest, 0, len(request.Requests))
-			for _, req := range request.Requests {
-				reads = append(reads, snes.MemoryReadRequest{
-					RequestAddress: snes.AddressTuple{
-						Address:       req.GetRequestAddress(),
-						AddressSpace:  req.GetRequestAddressSpace(),
-						MemoryMapping: req.GetRequestMemoryMapping(),
-					},
-					Size: int(req.GetSize()),
-				})
-			}
+	reads := make([]snes.MemoryReadRequest, 0, len(request.Requests))
+	for _, req := range request.Requests {
+		reads = append(reads, snes.MemoryReadRequest{
+			RequestAddress: snes.AddressTuple{
+				Address:       req.GetRequestAddress(),
+				AddressSpace:  req.GetRequestAddressSpace(),
+				MemoryMapping: req.GetRequestMemoryMapping(),
+			},
+			Size: int(req.GetSize()),
+		})
+	}
 
-			var mrsps []snes.MemoryReadResponse
-			mrsps, err = memory.MultiReadMemory(mctx, reads...)
-			if err != nil {
-				return
-			}
-			if actual, expected := len(mrsps), len(reads); actual != expected {
-				err = status.Errorf(
-					codes.Internal,
-					"internal bug: multi read must have equal number of responses and requests; actual %d expected %d",
-					actual,
-					expected,
-				)
-				return
-			}
-
-			grsps = make([]*sni.ReadMemoryResponse, 0, len(mrsps))
-			for j, mrsp := range mrsps {
-				if actual, expected := len(mrsp.Data), reads[j].Size; actual != expected {
-					err = status.Errorf(
-						codes.Internal,
-						"internal bug: read[%d] must return data of the requested size; actual $%x expected $%x",
-						j,
-						actual,
-						expected,
-					)
-					return
-				}
-
-				grsps = append(grsps, &sni.ReadMemoryResponse{
-					RequestAddress:       mrsp.RequestAddress.Address,
-					RequestAddressSpace:  mrsp.RequestAddress.AddressSpace,
-					RequestMemoryMapping: mrsp.RequestAddress.MemoryMapping,
-					DeviceAddress:        mrsp.DeviceAddress.Address,
-					DeviceAddressSpace:   mrsp.DeviceAddress.AddressSpace,
-					Data:                 mrsp.Data,
-				})
-			}
-			return
-		},
-	)
+	var mrsps []snes.MemoryReadResponse
+	mrsps, gerr = device.MultiReadMemory(gctx, reads...)
 	if gerr != nil {
-		var coded *snes.CodedError
-		if errors.As(gerr, &coded) {
-			gerr = status.Error(coded.Code, coded.Error())
-		} else {
-			grsp = nil
-		}
+		return nil, grpcError(gerr)
+	}
+	if actual, expected := len(mrsps), len(reads); actual != expected {
+		gerr = status.Errorf(
+			codes.Internal,
+			"multi read must have equal number of responses and requests; actual %d expected %d",
+			actual,
+			expected,
+		)
 		return
+	}
+
+	grsps = make([]*sni.ReadMemoryResponse, 0, len(mrsps))
+	for j, mrsp := range mrsps {
+		if actual, expected := len(mrsp.Data), reads[j].Size; actual != expected {
+			gerr = status.Errorf(
+				codes.Internal,
+				"read[%d] must return data of the requested size; actual $%x expected $%x",
+				j,
+				actual,
+				expected,
+			)
+			return
+		}
+
+		grsps = append(grsps, &sni.ReadMemoryResponse{
+			RequestAddress:       mrsp.RequestAddress.Address,
+			RequestAddressSpace:  mrsp.RequestAddress.AddressSpace,
+			RequestMemoryMapping: mrsp.RequestAddress.MemoryMapping,
+			DeviceAddress:        mrsp.DeviceAddress.Address,
+			DeviceAddressSpace:   mrsp.DeviceAddress.AddressSpace,
+			Data:                 mrsp.Data,
+		})
 	}
 
 	grsp = &sni.MultiReadMemoryResponse{
 		Uri:       request.Uri,
 		Responses: grsps,
 	}
+
 	return
 }
 
@@ -332,78 +319,70 @@ func (s *deviceMemoryService) MultiWrite(
 	gctx context.Context,
 	request *sni.MultiWriteMemoryRequest,
 ) (grsp *sni.MultiWriteMemoryResponse, gerr error) {
-	uri, err := url.Parse(request.Uri)
+	uri, err := url.Parse(request.GetUri())
 	if err != nil {
-		gerr = status.Error(codes.InvalidArgument, err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	var driver snes.DeviceDriver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
+	if gerr != nil {
+		return nil, grpcError(gerr)
+	}
+
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_WriteMemory); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
+	}
+
+	writes := make([]snes.MemoryWriteRequest, 0, len(request.Requests))
+	for _, req := range request.Requests {
+		writes = append(writes, snes.MemoryWriteRequest{
+			RequestAddress: snes.AddressTuple{
+				Address:       req.GetRequestAddress(),
+				AddressSpace:  req.GetRequestAddressSpace(),
+				MemoryMapping: req.GetRequestMemoryMapping(),
+			},
+			Data: req.Data,
+		})
+	}
+
+	var mrsps []snes.MemoryWriteResponse
+	mrsps, gerr = device.MultiWriteMemory(gctx, writes...)
+	if gerr != nil {
+		return nil, grpcError(gerr)
+	}
+	if actual, expected := len(mrsps), len(writes); actual != expected {
+		gerr = status.Errorf(
+			codes.Internal,
+			"multi write must have equal number of responses and requests; actual %d expected %d",
+			actual,
+			expected,
+		)
 		return
 	}
 
-	var grsps []*sni.WriteMemoryResponse
-	gerr = snes.WithDeviceMemory(
-		gctx,
-		uri,
-		[]sni.DeviceCapability{sni.DeviceCapability_WriteMemory},
-		func(mctx context.Context, memory snes.DeviceMemory) (err error) {
-			writes := make([]snes.MemoryWriteRequest, 0, len(request.Requests))
-			for _, req := range request.Requests {
-				writes = append(writes, snes.MemoryWriteRequest{
-					RequestAddress: snes.AddressTuple{
-						Address:       req.GetRequestAddress(),
-						AddressSpace:  req.GetRequestAddressSpace(),
-						MemoryMapping: req.GetRequestMemoryMapping(),
-					},
-					Data: req.Data,
-				})
-			}
-
-			var mrsps []snes.MemoryWriteResponse
-			mrsps, err = memory.MultiWriteMemory(mctx, writes...)
-			if err != nil {
-				return
-			}
-			if actual, expected := len(mrsps), len(writes); actual != expected {
-				err = status.Errorf(
-					codes.Internal,
-					"internal bug: multi write must have equal number of responses and requests; actual %d expected %d",
-					actual,
-					expected,
-				)
-				return
-			}
-
-			grsps = make([]*sni.WriteMemoryResponse, 0, len(mrsps))
-			for j, mrsp := range mrsps {
-				if actual, expected := mrsp.Size, len(writes[j].Data); actual != expected {
-					err = status.Errorf(
-						codes.Internal,
-						"internal bug: write[%d] must return size of the written data; actual $%x expected $%x",
-						j,
-						actual,
-						expected,
-					)
-					return
-				}
-
-				grsps = append(grsps, &sni.WriteMemoryResponse{
-					RequestAddress:       mrsp.RequestAddress.Address,
-					RequestAddressSpace:  mrsp.RequestAddress.AddressSpace,
-					RequestMemoryMapping: mrsp.RequestAddress.MemoryMapping,
-					DeviceAddress:        mrsp.DeviceAddress.Address,
-					DeviceAddressSpace:   mrsp.DeviceAddress.AddressSpace,
-					Size:                 uint32(mrsp.Size),
-				})
-			}
+	grsps := make([]*sni.WriteMemoryResponse, 0, len(mrsps))
+	for j, mrsp := range mrsps {
+		if actual, expected := mrsp.Size, len(writes[j].Data); actual != expected {
+			gerr = status.Errorf(
+				codes.Internal,
+				"write[%d] must return size of the written data; actual $%x expected $%x",
+				j,
+				actual,
+				expected,
+			)
 			return
-		},
-	)
-	if gerr != nil {
-		var coded *snes.CodedError
-		if errors.As(gerr, &coded) {
-			gerr = status.Error(coded.Code, coded.Error())
-		} else {
-			grsp = nil
 		}
-		return
+
+		grsps = append(grsps, &sni.WriteMemoryResponse{
+			RequestAddress:       mrsp.RequestAddress.Address,
+			RequestAddressSpace:  mrsp.RequestAddress.AddressSpace,
+			RequestMemoryMapping: mrsp.RequestAddress.MemoryMapping,
+			DeviceAddress:        mrsp.DeviceAddress.Address,
+			DeviceAddressSpace:   mrsp.DeviceAddress.AddressSpace,
+			Size:                 uint32(mrsp.Size),
+		})
 	}
 
 	grsp = &sni.MultiWriteMemoryResponse{
@@ -460,97 +439,90 @@ type deviceControlService struct {
 }
 
 func (d *deviceControlService) ResetSystem(gctx context.Context, request *sni.ResetSystemRequest) (grsp *sni.ResetSystemResponse, gerr error) {
-	uri, err := url.Parse(request.Uri)
+	uri, err := url.Parse(request.GetUri())
 	if err != nil {
-		gerr = status.Error(codes.InvalidArgument, err.Error())
-		return
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	gerr = snes.WithDeviceControl(
-		gctx,
-		uri,
-		[]sni.DeviceCapability{sni.DeviceCapability_ResetSystem},
-		func(mctx context.Context, control snes.DeviceControl) (err error) {
-			return control.ResetSystem(mctx)
-		},
-	)
+	var driver snes.DeviceDriver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
 	if gerr != nil {
-		var coded *snes.CodedError
-		if errors.As(gerr, &coded) {
-			gerr = status.Error(coded.Code, coded.Error())
-		} else {
-			grsp = nil
-		}
-		return
+		return nil, grpcError(gerr)
+	}
+
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_ResetSystem); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
+	}
+
+	gerr = device.ResetSystem(gctx)
+	if gerr != nil {
+		return nil, grpcError(gerr)
 	}
 
 	grsp = &sni.ResetSystemResponse{
 		Uri: request.Uri,
 	}
+
 	return
 }
 
 func (d *deviceControlService) PauseUnpauseEmulation(gctx context.Context, request *sni.PauseEmulationRequest) (grsp *sni.PauseEmulationResponse, gerr error) {
-	uri, err := url.Parse(request.Uri)
+	uri, err := url.Parse(request.GetUri())
 	if err != nil {
-		gerr = status.Error(codes.InvalidArgument, err.Error())
-		return
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	paused := false
-	gerr = snes.WithDeviceControl(
-		gctx,
-		uri,
-		[]sni.DeviceCapability{sni.DeviceCapability_PauseUnpauseEmulation},
-		func(mctx context.Context, control snes.DeviceControl) (err error) {
-			paused, err = control.PauseUnpause(mctx, request.Paused)
-			return
-		},
-	)
+	var driver snes.DeviceDriver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
 	if gerr != nil {
-		var coded *snes.CodedError
-		if errors.As(gerr, &coded) {
-			gerr = status.Error(coded.Code, coded.Error())
-		} else {
-			grsp = nil
-		}
-		return
+		return nil, grpcError(gerr)
+	}
+
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_PauseUnpauseEmulation); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
+	}
+
+	var paused bool
+	paused, gerr = device.PauseUnpause(gctx, request.Paused)
+	if gerr != nil {
+		return nil, grpcError(gerr)
 	}
 
 	grsp = &sni.PauseEmulationResponse{
 		Uri:    request.Uri,
 		Paused: paused,
 	}
+
 	return
 }
 
 func (d *deviceControlService) PauseToggleEmulation(gctx context.Context, request *sni.PauseToggleEmulationRequest) (grsp *sni.PauseToggleEmulationResponse, gerr error) {
-	uri, err := url.Parse(request.Uri)
+	uri, err := url.Parse(request.GetUri())
 	if err != nil {
-		gerr = status.Error(codes.InvalidArgument, err.Error())
-		return
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	gerr = snes.WithDeviceControl(
-		gctx,
-		uri,
-		[]sni.DeviceCapability{sni.DeviceCapability_PauseToggleEmulation},
-		func(mctx context.Context, control snes.DeviceControl) (err error) {
-			return control.PauseToggle(mctx)
-		},
-	)
+	var driver snes.DeviceDriver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
 	if gerr != nil {
-		var coded *snes.CodedError
-		if errors.As(gerr, &coded) {
-			gerr = status.Error(coded.Code, coded.Error())
-		} else {
-			grsp = nil
-		}
-		return
+		return nil, grpcError(gerr)
+	}
+
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_PauseToggleEmulation); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
+	}
+
+	gerr = device.PauseToggle(gctx)
+	if gerr != nil {
+		return nil, grpcError(gerr)
 	}
 
 	grsp = &sni.PauseToggleEmulationResponse{
 		Uri: request.Uri,
 	}
+
 	return
 }

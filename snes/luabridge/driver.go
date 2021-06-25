@@ -1,7 +1,6 @@
 package luabridge
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net"
@@ -54,24 +53,40 @@ func (d *Driver) DeviceKey(uri *url.URL) string {
 	return uri.Host
 }
 
-func (d *Driver) UseDevice(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user snes.DeviceUser) (err error) {
-	if ok, err := driver.HasCapabilities(requiredCapabilities...); !ok {
-		return err
-	}
+func (d *Driver) Device(uri *url.URL) snes.AutoCloseableDevice {
+	return snes.NewAutoCloseableDevice(
+		d,
+		uri,
+		d.DeviceKey(uri),
+		// TODO: opener is not used by OpenDevice below
+		nil,
+	)
+}
 
-	deviceKey := d.DeviceKey(uri)
-
+func (d *Driver) GetDevice(deviceKey string) (snes.Device, bool) {
 	d.devicesRw.RLock()
 	device, ok := d.devicesMap[deviceKey]
 	d.devicesRw.RUnlock()
+	return device, ok
+}
 
-	if !ok {
-		return fmt.Errorf("no device found")
-	}
+func (d *Driver) PutDevice(deviceKey string, device snes.Device) {
+	panic("implement me")
+}
 
-	err = user(ctx, device)
+func (d *Driver) DeleteDevice(deviceKey string) {
+	d.devicesRw.Lock()
+	d.deleteUnderLock(deviceKey)
+	d.devicesRw.Unlock()
+}
 
-	return
+func (d *Driver) deleteUnderLock(deviceKey string) {
+	delete(d.devicesMap, deviceKey)
+}
+
+func (d *Driver) OpenDevice(deviceKey string, uri *url.URL, opener snes.DeviceOpener) (device snes.Device, err error) {
+	// since we are a server we cannot arbitrarily open connections to clients; we must wait for clients to connect:
+	return nil, fmt.Errorf("no device found")
 }
 
 func (d *Driver) StartServer() (err error) {

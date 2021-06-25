@@ -14,7 +14,7 @@ import (
 
 func Detect(
 	ctx context.Context,
-	useMemory snes.UseMemory,
+	memory snes.DeviceMemory,
 	fallbackMapping *sni.MemoryMapping,
 	inHeaderBytes []byte,
 ) (mapping sni.MemoryMapping, confidence bool, outHeaderBytes []byte, err error) {
@@ -38,43 +38,36 @@ func Detect(
 		headerAddresses := []uint32{0x00FFB0, 0x40FFB0, 0x80FFB0, 0xC0FFB0}
 		errors := make([]string, len(headerAddresses))
 
-		_ = useMemory.UseMemory(
-			ctx,
-			[]sni.DeviceCapability{sni.DeviceCapability_ReadMemory},
-			func(mctx context.Context, memory snes.DeviceMemory) error {
-				for j, headerAddress := range headerAddresses {
-					// read the ROM header:
-					var responses []snes.MemoryReadResponse
-					tuple := snes.AddressTuple{
-						Address:       headerAddress,
-						AddressSpace:  sni.AddressSpace_SnesABus,
-						MemoryMapping: guessMapping,
-					}
-					readRequest := snes.MemoryReadRequest{
-						RequestAddress: tuple,
-						Size:           0x50,
-					}
-					log.Printf(
-						"detect: read {address:%s,size:$%x}\n",
-						&tuple,
-						readRequest.Size,
-					)
-					responses, err = memory.MultiReadMemory(mctx, readRequest)
-					if err != nil {
-						err = fmt.Errorf("%w: %s", err, &tuple)
-						errors[j] = err.Error()
-						log.Printf("detect: %v\n", errors[j])
-						continue
-					}
+		for j, headerAddress := range headerAddresses {
+			// read the ROM header:
+			var responses []snes.MemoryReadResponse
+			tuple := snes.AddressTuple{
+				Address:       headerAddress,
+				AddressSpace:  sni.AddressSpace_SnesABus,
+				MemoryMapping: guessMapping,
+			}
+			readRequest := snes.MemoryReadRequest{
+				RequestAddress: tuple,
+				Size:           0x50,
+			}
+			log.Printf(
+				"detect: read {address:%s,size:$%x}\n",
+				&tuple,
+				readRequest.Size,
+			)
+			responses, err = memory.MultiReadMemory(ctx, readRequest)
+			if err != nil {
+				err = fmt.Errorf("%w: %s", err, &tuple)
+				errors[j] = err.Error()
+				log.Printf("detect: %v\n", errors[j])
+				continue
+			}
 
-					outHeaderBytes = responses[0].Data
-					deviceAddress = responses[0].DeviceAddress
-					deviceAddress.MemoryMapping = tuple.MemoryMapping
-					break
-				}
-				return nil
-			},
-		)
+			outHeaderBytes = responses[0].Data
+			deviceAddress = responses[0].DeviceAddress
+			deviceAddress.MemoryMapping = tuple.MemoryMapping
+			break
+		}
 
 		if outHeaderBytes == nil {
 			err = snes.WithCode(codes.FailedPrecondition, fmt.Errorf(

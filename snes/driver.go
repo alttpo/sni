@@ -1,7 +1,6 @@
 package snes
 
 import (
-	"context"
 	"fmt"
 	"net/url"
 	"sni/protos/sni"
@@ -24,16 +23,9 @@ type Driver interface {
 	Detect() ([]DeviceDescriptor, error)
 }
 
-type DeviceUser func(context.Context, Device) error
-
-type UseDevice interface {
-	// UseDevice grants non-exclusive access for DeviceUser to a Device uniquely identified by its uri
-	UseDevice(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user DeviceUser) error
-}
-
 // DeviceDriver extends Driver
 type DeviceDriver interface {
-	UseDevice
+	Device(uri *url.URL) AutoCloseableDevice
 
 	DeviceKey(uri *url.URL) string
 
@@ -142,36 +134,12 @@ func DeviceDriverByUri(uri *url.URL) (drv DeviceDriver, err error) {
 	return
 }
 
-func WithDevice(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user DeviceUser) (err error) {
-	var drv DeviceDriver
-	drv, err = DeviceDriverByUri(uri)
+func DeviceByUri(uri *url.URL) (driver DeviceDriver, device AutoCloseableDevice, err error) {
+	driver, err = DeviceDriverByUri(uri)
 	if err != nil {
 		return
 	}
 
-	return drv.UseDevice(ctx, uri, requiredCapabilities, user)
-}
-
-func WithDeviceMemory(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user DeviceMemoryUser) (err error) {
-	var drv DeviceDriver
-	drv, err = DeviceDriverByUri(uri)
-	if err != nil {
-		return
-	}
-
-	return drv.UseDevice(ctx, uri, requiredCapabilities, func(ctx context.Context, device Device) error {
-		return device.UseMemory(ctx, nil, user)
-	})
-}
-
-func WithDeviceControl(ctx context.Context, uri *url.URL, requiredCapabilities []sni.DeviceCapability, user DeviceControlUser) (err error) {
-	var drv DeviceDriver
-	drv, err = DeviceDriverByUri(uri)
-	if err != nil {
-		return
-	}
-
-	return drv.UseDevice(ctx, uri, requiredCapabilities, func(ctx context.Context, device Device) error {
-		return device.UseControl(ctx, nil, user)
-	})
+	device = driver.Device(uri)
+	return
 }
