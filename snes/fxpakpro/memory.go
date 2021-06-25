@@ -66,9 +66,11 @@ func (d *Device) MultiReadMemory(
 			total += int(chunk.vget[0])
 		}
 
+		d.lock.Lock()
 		err = sendSerial(d.f, sb)
 		if err != nil {
 			_ = d.Close()
+			d.lock.Unlock()
 			return
 		}
 
@@ -85,8 +87,10 @@ func (d *Device) MultiReadMemory(
 		err = recvSerial(d.f, rsp, expected)
 		if err != nil {
 			_ = d.Close()
+			d.lock.Unlock()
 			return
 		}
+		d.lock.Unlock()
 
 		// shrink down to exact size:
 		rsp = rsp[0:total]
@@ -200,9 +204,11 @@ func (d *Device) MultiWriteMemory(
 			total += int(chunk.vput[0])
 		}
 
+		d.lock.Lock()
 		err = sendSerial(d.f, sb)
 		if err != nil {
 			_ = d.Close()
+			d.lock.Unlock()
 			return
 		}
 
@@ -226,8 +232,10 @@ func (d *Device) MultiWriteMemory(
 		err = sendSerial(d.f, whole)
 		if err != nil {
 			_ = d.Close()
+			d.lock.Unlock()
 			return
 		}
+		d.lock.Unlock()
 	}
 
 	for j, request := range writes {

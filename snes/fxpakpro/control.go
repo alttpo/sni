@@ -12,18 +12,22 @@ func (d *Device) ResetSystem(ctx context.Context) (err error) {
 	sb[5] = byte(SpaceFILE)
 	sb[6] = byte(FlagNONE)
 
+	d.lock.Lock()
 	err = sendSerial(d.f, sb)
 	if err != nil {
 		_ = d.Close()
+		d.lock.Unlock()
 		return
 	}
 
 	err = recvSerial(d.f, sb, 512)
 	if err != nil {
 		_ = d.Close()
+		d.lock.Unlock()
 		return
 	}
 
+	d.lock.Unlock()
 	return
 }
 
