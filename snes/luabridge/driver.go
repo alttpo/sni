@@ -7,10 +7,19 @@ import (
 	"net/url"
 	"sni/protos/sni"
 	"sni/snes"
+	"sni/util/env"
 	"sync"
+	"time"
 )
 
 const driverName = "luabridge"
+
+var (
+	bindHost     string
+	bindPort     string
+	bindHostPort string
+)
+var driver *Driver
 
 type Driver struct {
 	// track opened devices by URI
@@ -29,8 +38,6 @@ func (d *Driver) DisplayDescription() string {
 func (d *Driver) DisplayOrder() int {
 	return 2
 }
-
-var driver *Driver
 
 func (d *Driver) Kind() string {
 	return "luabridge"
@@ -117,19 +124,19 @@ func (d *Driver) deleteUnderLock(deviceKey string) {
 }
 
 func (d *Driver) StartServer() (err error) {
-	d.devicesMap = make(map[string]*Device)
-
 	var addr *net.TCPAddr
-	addr, err = net.ResolveTCPAddr("tcp4", "127.0.0.1:65398")
+	addr, err = net.ResolveTCPAddr("tcp", bindHostPort)
 	if err != nil {
 		return
 	}
 
 	var listener *net.TCPListener
-	listener, err = net.ListenTCP("tcp4", addr)
+	listener, err = net.ListenTCP(addr.Network(), addr)
 	if err != nil {
 		return
 	}
+
+	log.Printf("luabridge: listening on %s", bindHostPort)
 
 	go d.runServer(listener)
 
@@ -162,13 +169,36 @@ func (d *Driver) runServer(listener *net.TCPListener) {
 }
 
 func init() {
-	// attempt to start the luabridge server:
-	driver = &Driver{}
-	err := driver.StartServer()
-	if err != nil {
-		log.Printf("luabridge: could not start server: %v\n", err)
-		return
-	}
+	bindHost = env.GetOrDefault("SNI_LUABRIDGE_LISTEN_HOST", "127.0.0.1")
+	bindPort = env.GetOrDefault("SNI_LUABRIDGE_LISTEN_PORT", "65398")
+	bindHostPort = net.JoinHostPort(bindHost, bindPort)
 
-	snes.Register(driverName, driver)
+	driver = &Driver{}
+	driver.devicesMap = make(map[string]*Device)
+
+	go func() {
+		count := 0
+
+		// attempt to start the luabridge server:
+		for {
+			err := driver.StartServer()
+			if err == nil {
+				break
+			}
+
+			if count == 0 {
+				log.Printf("luabridge: could not start server on %s, are you running QUsb2Snes? error: %v\n", bindHostPort, err)
+			}
+			count++
+			if count >= 30 {
+				count = 0
+			}
+
+			time.Sleep(time.Second)
+		}
+
+		// finally register the driver:
+		snes.Register(driverName, driver)
+	}()
+
 }
