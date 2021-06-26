@@ -6,23 +6,73 @@ on:
     - v*
 
 jobs:
-  release:
-    #runs-on: ubuntu-latest
-    runs-on: macos-latest
+  release-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            exesuffix: .exe
+          - os: windows-latest
+            goos: windows
+            goarch: "386"
+            exesuffix: .exe
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: "386"
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+    runs-on: ${{ matrix.os }}
+
     steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@v3.x
 
-    - name: Set up Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: 1.16
+      - name: Set up linux dependencies
+        if: ${{ matrix.goos == 'linux' }}
+        run: sudo apt-get update && sudo apt-get install -y gcc libgtk-3-dev libappindicator3-dev
 
-    - name: Run GoReleaser
-      uses: goreleaser/goreleaser-action@master
-      with:
-        version: latest
-        args: release --rm-dist
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+
+      - run: go test ./...
+
+      - run: mkdir sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}
+      - run: cp README.md sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}
+      - run: cp LICENSE sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}
+      - run: cp protos/sni/sni.proto sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}
+
+      - run: go build -o ./sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}/sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}${{matrix.exesuffix}} ./cmd/sni
+
+      - uses: papeloto/action-zip@v1
+        with:
+          files: sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}/
+          recursive: false
+          dest: sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}.zip
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ env.GITHUB_REF_SLUG }}
+          overwrite: true
+          asset_name: sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}.zip
+          file: ${{ github.workspace }}/sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}.zip
