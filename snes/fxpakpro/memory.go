@@ -176,70 +176,11 @@ func (d *Device) MultiWriteMemory(
 		}
 	}
 
-	// Break up larger writes (> 255 bytes) into 255-byte chunks:
-	type chunk struct {
-		vput [4]byte
-		data []byte
-	}
-	chunks := make([]chunk, 0, 8)
-
-	sendChunks := func() {
-		if len(chunks) > 8 {
-			panic(fmt.Errorf("VPUT cannot use more than 8 chunks"))
-		}
-
-		sb := make([]byte, 64)
-		sb[0] = byte('U')
-		sb[1] = byte('S')
-		sb[2] = byte('B')
-		sb[3] = byte('A')
-		sb[4] = byte(OpVPUT)
-		sb[5] = byte(SpaceSNES)
-		sb[6] = byte(FlagDATA64B | FlagNORESP)
-
-		total := 0
-		sp := sb[32:]
-		for _, chunk := range chunks {
-			copy(sp, chunk.vput[:])
-			sp = sp[4:]
-			total += int(chunk.vput[0])
-		}
-
-		d.lock.Lock()
-		err = sendSerial(d.f, sb)
-		if err != nil {
-			_ = d.Close()
-			d.lock.Unlock()
-			return
-		}
-
-		// calculate expected number of packets:
-		packets := total / 64
-		remainder := total & 63
-		if remainder > 0 {
-			packets++
-		}
-
-		// concatenate all accompanying data together in one large slice:
-		expected := packets * 64
-		whole := make([]byte, expected)
-		o := 0
-		for _, chunk := range chunks {
-			copy(whole[o:], chunk.data)
-			o += len(chunk.data)
-		}
-
-		// send the expected number of 64-byte packets:
-		err = sendSerial(d.f, whole)
-		if err != nil {
-			_ = d.Close()
-			d.lock.Unlock()
-			return
-		}
-		d.lock.Unlock()
-	}
-
+	// pick out WRAM writes:
 	wramWrites := make([]snes.MemoryWriteRequest, 0, len(writes))
+
+	// Break up larger writes (> 255 bytes) into 255-byte chunks:
+	chunks := make([]vputChunk, 0, 8)
 	for j, request := range writes {
 		startAddr := mrsp[j].DeviceAddress.Address
 
@@ -262,19 +203,17 @@ func (d *Device) MultiWriteMemory(
 			}
 
 			// 4-byte struct: 1 byte size, 3 byte address
-			chunks = append(chunks, chunk{
-				vput: [4]byte{
-					byte(chunkSize),
-					byte((addr >> 16) & 0xFF),
-					byte((addr >> 8) & 0xFF),
-					byte((addr >> 0) & 0xFF),
-				},
+			chunks = append(chunks, vputChunk{
+				addr: addr,
 				// target offset to write to in Data[] for MemoryWriteResponse:
 				data: request.Data[int(addr-startAddr) : int(addr-startAddr)+chunkSize],
 			})
 
 			if len(chunks) == 8 {
-				sendChunks()
+				err = d.vput(SpaceSNES, chunks)
+				if err != nil {
+					return
+				}
 				// reset chunks:
 				chunks = chunks[0:0]
 			}
@@ -285,7 +224,10 @@ func (d *Device) MultiWriteMemory(
 	}
 
 	if len(chunks) > 0 {
-		sendChunks()
+		err = d.vput(SpaceSNES, chunks)
+		if err != nil {
+			return
+		}
 	}
 
 	// handle WRAM writes using NMI EXE feature of fxpakpro:
@@ -306,7 +248,7 @@ func (d *Device) MultiWriteMemory(
 		}
 
 		// enable the NMI EXE:
-		err = d.put(0x2C00, SpaceCMD, []byte{1})
+		err = d.vput(SpaceCMD, []vputChunk{{addr: 0x2C00, data: []byte{1}}})
 		if err != nil {
 			return
 		}
