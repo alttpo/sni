@@ -1,10 +1,12 @@
 package fxpakpro
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"sni/protos/sni"
 	"sni/snes"
+	"sni/snes/asm"
 	"sni/snes/mapping"
 )
 
@@ -176,9 +178,8 @@ func (d *Device) MultiWriteMemory(
 
 	// Break up larger writes (> 255 bytes) into 255-byte chunks:
 	type chunk struct {
-		request int
-		vput    [4]byte
-		data    []byte
+		vput [4]byte
+		data []byte
 	}
 	chunks := make([]chunk, 0, 8)
 
@@ -238,8 +239,19 @@ func (d *Device) MultiWriteMemory(
 		d.lock.Unlock()
 	}
 
+	wramWrites := make([]snes.MemoryWriteRequest, 0, len(writes))
 	for j, request := range writes {
 		startAddr := mrsp[j].DeviceAddress.Address
+
+		// separate out WRAM writes to be handled specially:
+		if startAddr >= 0xF50000 && startAddr < 0xF70000 {
+			wramWrites = append(wramWrites, snes.MemoryWriteRequest{
+				RequestAddress: mrsp[j].DeviceAddress,
+				Data:           request.Data,
+			})
+			continue
+		}
+
 		addr := startAddr
 		size := len(request.Data)
 
@@ -251,7 +263,6 @@ func (d *Device) MultiWriteMemory(
 
 			// 4-byte struct: 1 byte size, 3 byte address
 			chunks = append(chunks, chunk{
-				request: j,
 				vput: [4]byte{
 					byte(chunkSize),
 					byte((addr >> 16) & 0xFF),
@@ -277,5 +288,79 @@ func (d *Device) MultiWriteMemory(
 		sendChunks()
 	}
 
+	// handle WRAM writes using NMI EXE feature of fxpakpro:
+	for _, write := range wramWrites {
+		var a asm.Emitter
+		a.Code = &bytes.Buffer{}
+
+		// write $00 to $2C00 disables NMI vector:
+		a.Code.WriteByte(0)
+
+		// generate a copy routine to write data into WRAM:
+		GenerateCopyAsm(&a, write.RequestAddress.Address, write.Data)
+
+		// send PUT command to CMD space:
+		err = d.put(0x2C00, SpaceCMD, a.Code.Bytes())
+		if err != nil {
+			return
+		}
+
+		// enable the NMI EXE:
+		err = d.put(0x2C00, SpaceCMD, []byte{1})
+		if err != nil {
+			return
+		}
+	}
+
 	return
+}
+
+func GenerateCopyAsm(a *asm.Emitter, targetFXPakProAddress uint32, data []byte) {
+	size := uint16(len(data))
+
+	// codeSize represents the total size of ASM code below:
+	const codeSize = 0x21
+
+	srcOffset := uint16(0x2C01 + codeSize)
+	destOffs := uint16(targetFXPakProAddress & 0xFFFF)
+	// FX Pak Pro WRAM addresses are either bank $F5 or $F6:
+	destBank := uint8(0x7E + (targetFXPakProAddress-0xF5_0000)>>16)
+
+	a.SetBase(0x002C01)
+	a.Comment("preserve registers:")
+	a.REP(0x30)
+	a.PHA()
+	a.PHX()
+	a.PHY()
+
+	a.Comment(fmt.Sprintf("transfer $%04x bytes from $00:%04x to $%02x:%04x", size, srcOffset, destBank, destOffs))
+	// A - Specifies the amount of bytes to transfer, minus 1
+	a.LDA_imm16_w(size - 1)
+	// X - Specifies the high and low bytes of the data source memory address
+	a.LDX_imm16_w(srcOffset)
+	// Y - Specifies the high and low bytes of the destination memory address
+	a.LDY_imm16_w(destOffs)
+	a.MVN(0x00, destBank)
+
+	a.Comment("disable NMI vector override:")
+	a.SEP(0x30)
+	a.LDA_imm8_b(0x00)
+	a.STA_long(0x002C00)
+	a.REP(0x30)
+
+	a.Comment("restore registers:")
+	a.PLY()
+	a.PLX()
+	a.PLA()
+
+	a.Comment("jump to original NMI:")
+	a.JMP_indirect(0xFFEA)
+
+	// bug check: make sure emitted code is the expected size
+	if actual, expected := a.Code.Len(), codeSize; actual != expected {
+		panic(fmt.Errorf("bug check: emitted code size %d != %d", actual, expected))
+	}
+
+	// copy in the data to be written to WRAM:
+	a.EmitBytes(data)
 }
