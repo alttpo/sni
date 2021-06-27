@@ -136,7 +136,8 @@ func (a *Emitter) EmitBytes(b []byte) {
 				s.Write([]byte{',', ' '})
 			}
 		}
-		_, _ = a.Text.WriteString(fmt.Sprintf("    %-5s %s\n", "db", s.String()))
+		_, _ = fmt.Fprintf(a.Text, "; $%06x\n", a.address)
+		_, _ = fmt.Fprintf(a.Text, "    %-5s %s\n", "db", s.String())
 	}
 	if a.Code != nil {
 		_, _ = a.Code.Write(b)
@@ -409,4 +410,70 @@ func (a *Emitter) AND_imm8_b(m uint8) {
 	d[0] = 0x29
 	d[1] = m
 	a.emit2("and.b", "#$%02x", d)
+}
+
+func (a *Emitter) PHB() {
+	a.emit1("phb", [1]byte{0x8B})
+}
+
+func (a *Emitter) PHA() {
+	a.emit1("pha", [1]byte{0x48})
+}
+
+func (a *Emitter) PHX() {
+	a.emit1("phx", [1]byte{0xDA})
+}
+
+func (a *Emitter) PHY() {
+	a.emit1("phy", [1]byte{0x5A})
+}
+
+func (a *Emitter) PLY() {
+	a.emit1("ply", [1]byte{0x7A})
+}
+
+func (a *Emitter) PLX() {
+	a.emit1("plx", [1]byte{0xFA})
+}
+
+func (a *Emitter) PLA() {
+	a.emit1("pla", [1]byte{0x68})
+}
+
+func (a *Emitter) PLB() {
+	a.emit1("plb", [1]byte{0xAB})
+}
+
+func (a *Emitter) LDX_imm16_w(m uint16) {
+	if !a.IsX16bit() {
+		panic(fmt.Errorf("asm: LDA_imm16_w called but 'x' flag is 8-bit; call REP(0x10) or AssumeREP(0x10) first"))
+	}
+	var d [3]byte
+	d[0] = 0xA2
+	d[1], d[2] = imm16(m)
+	a.emit3("ldx.w", "#$%02[2]x%02[1]x", d)
+}
+
+func (a *Emitter) LDY_imm16_w(m uint16) {
+	if !a.IsX16bit() {
+		panic(fmt.Errorf("asm: LDA_imm16_w called but 'x' flag is 8-bit; call REP(0x10) or AssumeREP(0x10) first"))
+	}
+	var d [3]byte
+	d[0] = 0xA0
+	d[1], d[2] = imm16(m)
+	a.emit3("ldy.w", "#$%02[2]x%02[1]x", d)
+}
+
+func (a *Emitter) MVN(sourceBank uint8, destinationBank uint8) {
+	var d [3]byte
+	d[0] = 0x54
+	d[1], d[2] = sourceBank, destinationBank
+	a.emit3("mvn", "$%02[1]x,$%02[2]x", d)
+}
+
+func (a *Emitter) JMP_indirect(addr uint16) {
+	var d [3]byte
+	d[0] = 0x6C
+	d[1], d[2] = imm16(addr)
+	a.emit3("jmp", "($%02[2]x%02[1]x)", d)
 }
