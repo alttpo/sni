@@ -17,10 +17,10 @@ func (d *Device) put(space space, address uint32, data []byte) (err error) {
 
 	// put the data size in:
 	size := uint32(len(data))
-	binary.LittleEndian.PutUint32(sb[252:], size)
+	binary.BigEndian.PutUint32(sb[252:], size)
 
 	// put the address in:
-	binary.LittleEndian.PutUint32(sb[256:], address)
+	binary.BigEndian.PutUint32(sb[256:], address)
 
 	// send the data to the USB port:
 	defer d.lock.Unlock()
@@ -86,6 +86,7 @@ func (d *Device) vput(space space, chunks []vputChunk) (err error) {
 
 		args := [4]byte{
 			byte(len(chunk.data)),
+			// big endian:
 			byte((chunk.addr >> 16) & 0xFF),
 			byte((chunk.addr >> 8) & 0xFF),
 			byte((chunk.addr >> 0) & 0xFF),
