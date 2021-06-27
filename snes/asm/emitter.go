@@ -428,6 +428,14 @@ func (a *Emitter) PHY() {
 	a.emit1("phy", [1]byte{0x5A})
 }
 
+func (a *Emitter) PHP() {
+	a.emit1("php", [1]byte{0x08})
+}
+
+func (a *Emitter) PLP() {
+	a.emit1("plp", [1]byte{0x28})
+}
+
 func (a *Emitter) PLY() {
 	a.emit1("ply", [1]byte{0x7A})
 }
@@ -476,4 +484,8 @@ func (a *Emitter) JMP_indirect(addr uint16) {
 	d[0] = 0x6C
 	d[1], d[2] = imm16(addr)
 	a.emit3("jmp", "($%02[2]x%02[1]x)", d)
+}
+
+func (a *Emitter) XBA() {
+	a.emit1("xba", [1]byte{0xEB})
 }
