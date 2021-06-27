@@ -136,7 +136,7 @@ func (a *Emitter) EmitBytes(b []byte) {
 				s.Write([]byte{',', ' '})
 			}
 		}
-		_, _ = fmt.Fprintf(a.Text, "; $%06x\n", a.address)
+		_, _ = fmt.Fprintf(a.Text, "    ; $%06x\n", a.address)
 		_, _ = fmt.Fprintf(a.Text, "    %-5s %s\n", "db", s.String())
 	}
 	if a.Code != nil {
@@ -432,6 +432,14 @@ func (a *Emitter) PHP() {
 	a.emit1("php", [1]byte{0x08})
 }
 
+func (a *Emitter) PHD() {
+	a.emit1("phd", [1]byte{0x0B})
+}
+
+func (a *Emitter) PLD() {
+	a.emit1("pld", [1]byte{0x2B})
+}
+
 func (a *Emitter) PLP() {
 	a.emit1("plp", [1]byte{0x28})
 }
@@ -472,10 +480,10 @@ func (a *Emitter) LDY_imm16_w(m uint16) {
 	a.emit3("ldy.w", "#$%02[2]x%02[1]x", d)
 }
 
-func (a *Emitter) MVN(sourceBank uint8, destinationBank uint8) {
+func (a *Emitter) MVN(destBank uint8, srcBank uint8) {
 	var d [3]byte
 	d[0] = 0x54
-	d[1], d[2] = sourceBank, destinationBank
+	d[1], d[2] = destBank, srcBank
 	a.emit3("mvn", "$%02[1]x,$%02[2]x", d)
 }
 
@@ -488,4 +496,8 @@ func (a *Emitter) JMP_indirect(addr uint16) {
 
 func (a *Emitter) XBA() {
 	a.emit1("xba", [1]byte{0xEB})
+}
+
+func (a *Emitter) SEI() {
+	a.emit1("sei", [1]byte{0x78})
 }
