@@ -8,10 +8,18 @@ import (
 )
 
 func (s *devicesService) MethodRequestString(method string, req interface{}) string {
+	if req == nil {
+		return "nil"
+	}
+
 	return fmt.Sprintf("%+v", req)
 }
 
 func (s *devicesService) MethodResponseString(method string, rsp interface{}) string {
+	if rsp == nil {
+		return "nil"
+	}
+
 	return fmt.Sprintf("%+v", rsp)
 }
 
@@ -64,6 +72,10 @@ func WriteMemoryResponseString(m *sni.WriteMemoryResponse) string {
 }
 
 func (s *deviceMemoryService) MethodRequestString(method string, req interface{}) string {
+	if req == nil {
+		return "nil"
+	}
+
 	switch method {
 	case "/DeviceMemory/SingleRead":
 		srReq := req.(*sni.SingleReadMemoryRequest)
@@ -101,6 +113,10 @@ func (s *deviceMemoryService) MethodRequestString(method string, req interface{}
 }
 
 func (s *deviceMemoryService) MethodResponseString(method string, rsp interface{}) string {
+	if rsp == nil {
+		return "nil"
+	}
+
 	switch method {
 	case "/DeviceMemory/SingleRead":
 		srReq := rsp.(*sni.SingleReadMemoryResponse)
