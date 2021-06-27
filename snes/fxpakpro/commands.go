@@ -2,12 +2,10 @@ package fxpakpro
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
-	"log"
 )
 
-func (d *Device) put(address uint32, space space, data []byte) (err error) {
+func (d *Device) put(space space, address uint32, data []byte) (err error) {
 	sb := make([]byte, 512)
 	sb[0] = byte('U')
 	sb[1] = byte('S')
@@ -56,8 +54,6 @@ func (d *Device) put(address uint32, space space, data []byte) (err error) {
 		_ = d.Close()
 		return
 	}
-
-	log.Println(hex.Dump(sb))
 
 	return
 }

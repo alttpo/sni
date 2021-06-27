@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"sni/protos/sni"
 	"sni/snes"
 	"sni/snes/asm"
 	"sni/snes/mapping"
+	"strings"
 )
 
 func (d *Device) MultiReadMemory(
@@ -234,21 +236,22 @@ func (d *Device) MultiWriteMemory(
 	for _, write := range wramWrites {
 		var a asm.Emitter
 		a.Code = &bytes.Buffer{}
-
-		// write $00 to $2C00 disables NMI vector:
-		a.Code.WriteByte(0)
+		a.Text = &strings.Builder{}
 
 		// generate a copy routine to write data into WRAM:
 		GenerateCopyAsm(&a, write.RequestAddress.Address, write.Data)
 
+		log.Print("\n" + a.Text.String())
+
 		// send PUT command to CMD space:
-		err = d.put(0x2C00, SpaceCMD, a.Code.Bytes())
+		err = d.put(SpaceCMD, 0x2C00, a.Code.Bytes())
 		if err != nil {
 			return
 		}
 
 		// enable the NMI EXE:
-		err = d.vput(SpaceCMD, []vputChunk{{addr: 0x2C00, data: []byte{1}}})
+		err = d.put(SpaceCMD, 0x2C00, []byte{1})
+		//err = d.vput(SpaceCMD, []vputChunk{{addr: 0x2C00, data: []byte{1}}})
 		if err != nil {
 			return
 		}
@@ -261,15 +264,20 @@ func GenerateCopyAsm(a *asm.Emitter, targetFXPakProAddress uint32, data []byte) 
 	size := uint16(len(data))
 
 	// codeSize represents the total size of ASM code below:
-	const codeSize = 0x21
+	const codeSize = 0x26
 
-	srcOffset := uint16(0x2C01 + codeSize)
+	srcOffset := uint16(0x2C00 + codeSize)
 	destOffs := uint16(targetFXPakProAddress & 0xFFFF)
 	// FX Pak Pro WRAM addresses are either bank $F5 or $F6:
 	destBank := uint8(0x7E + (targetFXPakProAddress-0xF5_0000)>>16)
 
-	a.SetBase(0x002C01)
+	a.SetBase(0x002C00)
+
+	a.Comment("write $00 to $2C00 disables NMI vector:")
+	a.EmitBytes([]byte{0})
+
 	a.Comment("preserve registers:")
+	a.PHB()
 	a.REP(0x30)
 	a.PHA()
 	a.PHX()
@@ -294,6 +302,8 @@ func GenerateCopyAsm(a *asm.Emitter, targetFXPakProAddress uint32, data []byte) 
 	a.PLY()
 	a.PLX()
 	a.PLA()
+	a.SEP(0x30)
+	a.PLB()
 
 	a.Comment("jump to original NMI:")
 	a.JMP_indirect(0xFFEA)
