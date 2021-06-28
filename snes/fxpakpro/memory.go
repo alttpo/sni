@@ -212,8 +212,8 @@ func (d *Device) MultiWriteMemory(
 			)
 		}
 
-		// await 4 frames max for NMI EXE: (17ms = 1 frame, rounded up from 16.6ms)
-		const timeout = time.Millisecond * 17 * 4
+		// await 10 frames max for NMI EXE: (17ms = 1 frame, rounded up from 16.6ms)
+		const timeout = time.Millisecond * 17 * 10
 
 		// lock the device for this entire sequence to avoid interruptions:
 		defer d.lock.Unlock()
