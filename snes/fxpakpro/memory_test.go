@@ -2,25 +2,36 @@ package fxpakpro
 
 import (
 	"bytes"
+	"sni/protos/sni"
+	"sni/snes"
 	"sni/snes/asm"
 	"strings"
 	"testing"
 )
 
 func TestGenerateCopyAsm(t *testing.T) {
-	type args struct {
-		targetFXPakProAddress uint32
-		data                  []byte
-	}
 	tests := []struct {
 		name string
-		args args
+		args []snes.MemoryWriteRequest
 	}{
 		{
 			name: "Check code_size",
-			args: args{
-				targetFXPakProAddress: 0xF50010,
-				data:                  []byte{0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+			args: []snes.MemoryWriteRequest{
+				{
+					RequestAddress: snes.AddressTuple{
+						Address:       0xF50010,
+						AddressSpace:  sni.AddressSpace_FxPakPro,
+						MemoryMapping: sni.MemoryMapping_LoROM,
+					},
+					Data: []byte{0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+				}, {
+					RequestAddress: snes.AddressTuple{
+						Address:       0xF50010,
+						AddressSpace:  sni.AddressSpace_FxPakPro,
+						MemoryMapping: sni.MemoryMapping_LoROM,
+					},
+					Data: []byte{0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F},
+				},
 			},
 		},
 	}
@@ -29,8 +40,7 @@ func TestGenerateCopyAsm(t *testing.T) {
 			var a asm.Emitter
 			a.Code = &bytes.Buffer{}
 			a.Text = &strings.Builder{}
-			a.SetBase(0x002C01)
-			GenerateCopyAsm(&a, tt.args.targetFXPakProAddress, tt.args.data)
+			GenerateCopyAsm(&a, tt.args...)
 			t.Log("\n" + a.Text.String())
 		})
 	}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"sni/protos/sni"
 	"sni/snes"
 	"sni/snes/asm"
@@ -233,49 +232,73 @@ func (d *Device) MultiWriteMemory(
 	}
 
 	// handle WRAM writes using NMI EXE feature of fxpakpro:
-	for _, write := range wramWrites {
+	if len(wramWrites) > 0 {
 		var a asm.Emitter
 		a.Code = &bytes.Buffer{}
 		a.Text = &strings.Builder{}
 
 		// generate a copy routine to write data into WRAM:
-		GenerateCopyAsm(&a, write.RequestAddress.Address, write.Data)
+		GenerateCopyAsm(&a, wramWrites...)
 
-		log.Print("\n" + a.Text.String())
+		//log.Print("\n" + a.Text.String())
+
+		if actual, expected := a.Code.Len(), 1024; actual > expected {
+			return nil, fmt.Errorf(
+				"fxpakpro: too much WRAM data for the snescmd buffer; %d > %d",
+				actual,
+				expected,
+			)
+		}
+
+		chunks := make([]vputChunk, 0, 8)
+		startAddr := uint32(0x2C00)
+		addr := startAddr
+		data := a.Code.Bytes()
+		size := len(data)
+		for size > 0 {
+			chunkSize := 255
+			if size < chunkSize {
+				chunkSize = size
+			}
+
+			// 4-byte struct: 1 byte size, 3 byte address
+			chunks = append(chunks, vputChunk{
+				addr: addr,
+				// target offset to write to in Data[] for MemoryWriteResponse:
+				data: data[int(addr-startAddr) : int(addr-startAddr)+chunkSize],
+			})
+
+			size -= 255
+			addr += 255
+		}
+
+		// enable the NMI EXE feature by writing 1:
+		//chunks = append(chunks, vputChunk{0x2C00, []byte{1}})
+
+		if actual, expected := len(chunks), 8; actual > expected {
+			return nil, fmt.Errorf(
+				"fxpakpro: too many VPUT chunks to write WRAM data with; %d > %d",
+				actual,
+				expected,
+			)
+		}
 
 		// VPUT command to CMD space:
 		err = d.vput(
 			SpaceCMD,
-			[]vputChunk{
-				{0x2C00, a.Code.Bytes()},
-				{0x2C00, []byte{1}},
-			},
+			chunks,
 		)
 		if err != nil {
 			return
 		}
-
-		//// enable the NMI EXE:
-		////err = d.put(SpaceCMD, 0x2C00, []byte{1})
-		//err = d.vput(SpaceCMD, []vputChunk{{addr: 0x2C00, data: []byte{1}}})
-		//if err != nil {
-		//	return
-		//}
 	}
 
 	return
 }
 
-func GenerateCopyAsm(a *asm.Emitter, targetFXPakProAddress uint32, data []byte) {
-	size := uint16(len(data))
-
-	// codeSize represents the total size of ASM code below:
-	const codeSize = 0x29
-
-	srcOffs := uint16(0x2C00 + codeSize)
-	destOffs := uint16(targetFXPakProAddress & 0xFFFF)
-	// FX Pak Pro WRAM addresses are either bank $F5 or $F6:
-	destBank := uint8(0x7E + (targetFXPakProAddress-0xF5_0000)>>16)
+func GenerateCopyAsm(a *asm.Emitter, writes ...snes.MemoryWriteRequest) {
+	// codeSize represents the total size of ASM code below without MVN blocks:
+	const codeSize = 0x1B
 
 	a.SetBase(0x002C00)
 
@@ -291,19 +314,31 @@ func GenerateCopyAsm(a *asm.Emitter, targetFXPakProAddress uint32, data []byte) 
 	a.PHY()
 	a.PHD()
 
-	//_, _, _, _ = size, srcOffs, destOffs, destBank
-	a.Comment(fmt.Sprintf("transfer $%04x bytes from $00:%04x to $%02x:%04x", size, srcOffs, destBank, destOffs))
+	// MVN affects B register:
 	a.PHB()
-	// A - Specifies the amount of bytes to transfer, minus 1
-	a.LDA_imm16_w(size - 1)
-	// X - Specifies the high and low bytes of the data source memory address
-	a.LDX_imm16_w(srcOffs)
-	// Y - Specifies the high and low bytes of the destination memory address
-	a.LDY_imm16_w(destOffs)
-	a.MVN(destBank, 0x00)
+	expectedCodeSize := codeSize + (12 * len(writes))
+	srcOffs := uint16(0x2C00 + expectedCodeSize)
+	for _, write := range writes {
+		data := write.Data
+		size := uint16(len(data))
+		targetFXPakProAddress := write.RequestAddress.Address
+		destBank := uint8(0x7E + (targetFXPakProAddress-0xF5_0000)>>16)
+		destOffs := uint16(targetFXPakProAddress & 0xFFFF)
+
+		a.Comment(fmt.Sprintf("transfer $%04x bytes from $00:%04x to $%02x:%04x", size, srcOffs, destBank, destOffs))
+		// A - Specifies the amount of bytes to transfer, minus 1
+		a.LDA_imm16_w(size - 1)
+		// X - Specifies the high and low bytes of the data source memory address
+		a.LDX_imm16_w(srcOffs)
+		// Y - Specifies the high and low bytes of the destination memory address
+		a.LDY_imm16_w(destOffs)
+		a.MVN(destBank, 0x00)
+
+		srcOffs += size
+	}
 	a.PLB()
 
-	//a.Comment("disable NMI vector override:")
+	a.Comment("disable NMI vector override:")
 	a.SEP(0x30)
 	a.LDA_imm8_b(0x00)
 	a.STA_long(0x002C00)
@@ -316,14 +351,15 @@ func GenerateCopyAsm(a *asm.Emitter, targetFXPakProAddress uint32, data []byte) 
 	a.PLA()
 
 	a.Comment("jump to original NMI:")
-	a.REP(0x30)
 	a.JMP_indirect(0xFFEA)
 
 	// bug check: make sure emitted code is the expected size
-	if actual, expected := a.Code.Len(), codeSize; actual != expected {
+	if actual, expected := a.Code.Len(), expectedCodeSize; actual != expected {
 		panic(fmt.Errorf("bug check: emitted code size %d != %d", actual, expected))
 	}
 
 	// copy in the data to be written to WRAM:
-	a.EmitBytes(data)
+	for _, write := range writes {
+		a.EmitBytes(write.Data)
+	}
 }
