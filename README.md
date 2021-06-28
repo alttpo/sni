@@ -522,44 +522,34 @@ returned from a read operation.
 
 #### WRAM writes
 
-WRAM cannot be **written** to directly by the FX Pak Pro due to design
-limitations of the SNES. SNES carts cannot issue their own read or write
-requests to the main bus. The FX Pak Pro **can**, however, write to SRAM and
-to ROM since those are kept in its own static RAM onboard the cart.
+SNI uses a custom feature of the pak to handle writes to the WRAM region
+`$F5:0000-F6:FFFF` in the FX Pak Pro address space.
 
-In order to *effectively* perform WRAM writes to affect game state, a few
-strategies come to mind:
+The pak cannot normally write to WRAM at arbitrary points in time due to
+design limitations of the SNES itself. WRAM is located in the SNES and is
+not accessible by the cartridge; only the CPU can write to WRAM.
 
-1. The application writes the data intended for WRAM into an unused portion of
-   SRAM. Patch the ROM (statically or dynamically) to transfer the contents
-   from the unused portion of SRAM into its final WRAM destination. It would
-   be best to perform this transfer at a well-known point in the frame
-   lifecycle, such as before NMI starts or right before the main game logic
-   subroutine is jumped to.
+To get around this limitation, the pak offers a feature we'll call NMI EXE.
 
-2. For more control, the application can *generate* SNES ASM code that performs
-   the WRAM writes. Write that code into SRAM and patch the ROM to regularly
-   `JSL` to the generated SRAM code which would self-modify after execution
-   to disable itself (replace its first instruction byte with `RTL`).
-   Advantages of this method are that the generated code can perform its own
-   consistency checks to make sure the current state is as expected and that
-   the writes can be safely performed.
+The pak maps a writable 1024 byte RAM buffer into the SNES A-bus at
+`$00-3F:2C00-2FFF`. When this region is written to, the NMI EXE feature is
+enabled. When the SNES reads the NMI vector (at `$FFEA`) to jump to, the pak
+overrides the vector to point to its own code buffer mapped at `$2C00`.
+The SNES then jumps to that code which should itself end in a `JMP ($FFEA)`
+so that the original NMI vector is executed as well.
 
-3. The FX Pak Pro offers its own custom solution to this problem that lets
-   applications submit custom ASM code to be executed on the next NMI. This
-   feature is not currently exposed by SNI, but it is being considered.
-   When a request is made to execute custom ASM, the code is placed in the
-   cart's static RAM. When the SNES reads the NMI vector, the cart intercepts
-   that request and redirects it to point to the custom ASM and then jumps
-   to the actual NMI vector. The downside to this custom solution is that
-   it is custom to the FX Pak Pro and is not offered by emulators. Emulators
-   generally allow you to write directly into WRAM at any time.
+That's great, but how does that enable WRAM writes?
 
-If you want your application to be compatible across physical hardware and
-emulators, this problem should be given special attention. Even if an emulator
-allows writes to WRAM at arbitrary times, this practice should be discouraged
-because WRAM is generally quite volatile. It would be far too easy to corrupt
-game state by writing to WRAM at the wrong time.
+In this 1024 byte buffer, we can place any arbitrary code we want, including
+**code that writes to WRAM**. SNI does exactly that using `MVN` instructions.
+
+There are a few caveats:
+
+* The NMI EXE feature can only be used once per frame.
+* The buffer available for custom ASM is only 1024 bytes in size.
+* The current implementation has a fixed overhead of `0x1B` bytes of setup
+  ASM code plus `0x0C` bytes of ASM code per transfer; these overheads
+  shorten the amount of WRAM data available to write per frame.
 
 ### RetroArch
 
