@@ -64,6 +64,10 @@ type vputChunk struct {
 }
 
 func (d *Device) vput(space space, chunks ...vputChunk) (err error) {
+	return d.vputImpl(true, space, chunks...)
+}
+
+func (d *Device) vputImpl(doLock bool, space space, chunks ...vputChunk) (err error) {
 	if len(chunks) > 8 {
 		return fmt.Errorf("VPUT cannot accept more than 8 chunks")
 	}
@@ -96,8 +100,10 @@ func (d *Device) vput(space space, chunks ...vputChunk) (err error) {
 		total += int(args[0])
 	}
 
-	defer d.lock.Unlock()
-	d.lock.Lock()
+	if doLock {
+		defer d.lock.Unlock()
+		d.lock.Lock()
+	}
 
 	err = sendSerial(d.f, sb)
 	if err != nil {
@@ -138,6 +144,10 @@ type vgetChunk struct {
 }
 
 func (d *Device) vget(space space, chunks ...vgetChunk) (err error) {
+	return d.vgetImpl(true, space, chunks...)
+}
+
+func (d *Device) vgetImpl(doLock bool, space space, chunks ...vgetChunk) (err error) {
 	if len(chunks) > 8 {
 		return fmt.Errorf("VGET cannot accept more than 8 chunks")
 	}
@@ -164,8 +174,10 @@ func (d *Device) vget(space space, chunks ...vgetChunk) (err error) {
 		total += int(chunk.size)
 	}
 
-	defer d.lock.Unlock()
-	d.lock.Lock()
+	if doLock {
+		defer d.lock.Unlock()
+		d.lock.Lock()
+	}
 
 	err = sendSerial(d.f, sb)
 	if err != nil {

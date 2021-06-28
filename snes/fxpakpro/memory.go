@@ -215,43 +215,52 @@ func (d *Device) MultiWriteMemory(
 		// await 4 frames max for NMI EXE: (17ms = 1 frame, rounded up from 16.6ms)
 		const timeout = time.Millisecond * 17 * 4
 
+		// lock the device for this entire sequence to avoid interruptions:
+		defer d.lock.Unlock()
+		d.lock.Lock()
+
 		// VGET to await NMI EXE availability:
-		var ok bool
-		deadline := time.Now().Add(timeout)
-		ok, err = d.awaitNMIEXE(deadline)
-		if err != nil {
-			return
-		}
-		if !ok {
-			err = fmt.Errorf("fxpakpro: could not acquire NMI EXE")
-			return
+		{
+			var ok bool
+			deadline := time.Now().Add(timeout)
+			ok, err = d.awaitNMIEXE(false, deadline)
+			if err != nil {
+				return
+			}
+			if !ok {
+				err = fmt.Errorf("fxpakpro: could not acquire NMI EXE")
+				return
+			}
 		}
 
 		// VPUT command to CMD space:
-		err = d.vput(SpaceCMD, chunks...)
+		err = d.vputImpl(false, SpaceCMD, chunks...)
 		if err != nil {
 			return
 		}
 
 		// await NMI EXE availability to validate the write was completed:
-		deadline = time.Now().Add(timeout)
-		ok, err = d.awaitNMIEXE(deadline)
-		if err != nil {
-			return
-		}
-		if !ok {
-			err = fmt.Errorf("fxpakpro: could not acquire NMI EXE")
-			return
+		{
+			var ok bool
+			deadline := time.Now().Add(timeout)
+			ok, err = d.awaitNMIEXE(false, deadline)
+			if err != nil {
+				return
+			}
+			if !ok {
+				err = fmt.Errorf("fxpakpro: could not acquire NMI EXE")
+				return
+			}
 		}
 	}
 
 	return
 }
 
-func (d *Device) awaitNMIEXE(deadline time.Time) (ok bool, err error) {
+func (d *Device) awaitNMIEXE(doLock bool, deadline time.Time) (ok bool, err error) {
 	check := make([]byte, 1)
 	for ; time.Now().Before(deadline); {
-		err = d.vget(SpaceCMD, vgetChunk{addr: 0x2C00, size: 1, target: check})
+		err = d.vgetImpl(doLock, SpaceCMD, vgetChunk{addr: 0x2C00, size: 1, target: check})
 		if err != nil {
 			return
 		}
