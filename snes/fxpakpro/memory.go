@@ -38,71 +38,7 @@ func (d *Device) MultiReadMemory(
 	}
 
 	// Break up larger reads (> 255 bytes) into 255-byte chunks:
-	type chunk struct {
-		request  int
-		vget     [4]byte
-		offset   int
-		rspStart int
-		rspEnd   int
-	}
-	chunks := make([]chunk, 0, 8)
-
-	sendChunks := func() {
-		if len(chunks) > 8 {
-			panic(fmt.Errorf("VGET cannot use more than 8 chunks"))
-		}
-
-		sb := make([]byte, 64)
-		sb[0] = byte('U')
-		sb[1] = byte('S')
-		sb[2] = byte('B')
-		sb[3] = byte('A')
-		sb[4] = byte(OpVGET)
-		sb[5] = byte(SpaceSNES)
-		sb[6] = byte(FlagDATA64B | FlagNORESP)
-
-		total := 0
-		sp := sb[32:]
-		for _, chunk := range chunks {
-			copy(sp, chunk.vget[:])
-			sp = sp[4:]
-			total += int(chunk.vget[0])
-		}
-
-		d.lock.Lock()
-		err = sendSerial(d.f, sb)
-		if err != nil {
-			_ = d.Close()
-			d.lock.Unlock()
-			return
-		}
-
-		// calculate expected number of packets:
-		packets := total / 64
-		remainder := total & 63
-		if remainder > 0 {
-			packets++
-		}
-
-		// read the expected number of 64-byte packets:
-		expected := packets * 64
-		rsp := make([]byte, expected)
-		err = recvSerial(d.f, rsp, expected)
-		if err != nil {
-			_ = d.Close()
-			d.lock.Unlock()
-			return
-		}
-		d.lock.Unlock()
-
-		// shrink down to exact size:
-		rsp = rsp[0:total]
-		for _, chunk := range chunks {
-			// copy response data:
-			copy(mrsp[chunk.request].Data[chunk.offset:], rsp[chunk.rspStart:chunk.rspEnd])
-		}
-	}
-
+	chunks := make([]vgetChunk, 0, 8)
 	rspStart := 0
 	for j, request := range reads {
 		startAddr := mrsp[j].DeviceAddress.Address
@@ -116,16 +52,10 @@ func (d *Device) MultiReadMemory(
 			}
 
 			// 4-byte struct: 1 byte size, 3 byte address
-			chunks = append(chunks, chunk{
-				request: j,
-				vget: [4]byte{
-					byte(chunkSize),
-					byte((addr >> 16) & 0xFF),
-					byte((addr >> 8) & 0xFF),
-					byte((addr >> 0) & 0xFF),
-				},
-				// target offset to write to in Data[] for MemoryReadResponse:
-				offset: int(addr - startAddr),
+			chunks = append(chunks, vgetChunk{
+				target: mrsp[j].Data[int(addr - startAddr):],
+				size: byte(chunkSize),
+				addr: addr,
 				// source offset to read from in VGET response:
 				rspStart: rspStart,
 				rspEnd:   rspStart + chunkSize,
@@ -133,7 +63,11 @@ func (d *Device) MultiReadMemory(
 			rspStart += chunkSize
 
 			if len(chunks) == 8 {
-				sendChunks()
+				err = d.vget(SpaceSNES, chunks)
+				if err != nil {
+					return
+				}
+
 				// reset chunks:
 				chunks = chunks[0:0]
 				rspStart = 0
@@ -145,7 +79,10 @@ func (d *Device) MultiReadMemory(
 	}
 
 	if len(chunks) > 0 {
-		sendChunks()
+		err = d.vget(SpaceSNES, chunks)
+		if err != nil {
+			return
+		}
 	}
 
 	return
@@ -284,10 +221,7 @@ func (d *Device) MultiWriteMemory(
 		}
 
 		// VPUT command to CMD space:
-		err = d.vput(
-			SpaceCMD,
-			chunks,
-		)
+		err = d.vput(SpaceCMD, chunks)
 		if err != nil {
 			return
 		}
