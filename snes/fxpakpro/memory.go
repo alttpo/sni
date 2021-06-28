@@ -270,56 +270,59 @@ func GenerateCopyAsm(a *asm.Emitter, targetFXPakProAddress uint32, data []byte) 
 	size := uint16(len(data))
 
 	// codeSize represents the total size of ASM code below:
-	const codeSize = 0x26
+	const codeSize = 0x29
 
-	srcOffset := uint16(0x2C00 + codeSize)
+	srcOffs := uint16(0x2C00 + codeSize)
 	destOffs := uint16(targetFXPakProAddress & 0xFFFF)
 	// FX Pak Pro WRAM addresses are either bank $F5 or $F6:
 	destBank := uint8(0x7E + (targetFXPakProAddress-0xF5_0000)>>16)
 
 	a.SetBase(0x002C00)
 
-	//a.Comment("write $00 to $2C00 disables NMI vector:")
-	//a.EmitBytes([]byte{0})
+	// this NOP slide is necessary to avoid the problematic $2C00 address itself.
+	a.NOP()
+	a.NOP()
 
-	_ = size
-	_ = srcOffset
-	_ = destOffs
-	_ = destBank
 	a.Comment("preserve registers:")
-	a.SEP(0x20)
+
+	a.REP(0x30)
 	a.PHA()
-	a.XBA()
-	a.PHA()
+	a.PHX()
+	a.PHY()
+	a.PHD()
 
-	//a.Comment(fmt.Sprintf("transfer $%04x bytes from $00:%04x to $%02x:%04x", size, srcOffset, destBank, destOffs))
-	//// A - Specifies the amount of bytes to transfer, minus 1
-	//a.LDA_imm16_w(size - 1)
-	//// X - Specifies the high and low bytes of the data source memory address
-	//a.LDX_imm16_w(srcOffset)
-	//// Y - Specifies the high and low bytes of the destination memory address
-	//a.LDY_imm16_w(destOffs)
-	//a.MVN(0x00, destBank)
+	//_, _, _, _ = size, srcOffs, destOffs, destBank
+	a.Comment(fmt.Sprintf("transfer $%04x bytes from $00:%04x to $%02x:%04x", size, srcOffs, destBank, destOffs))
+	a.PHB()
+	// A - Specifies the amount of bytes to transfer, minus 1
+	a.LDA_imm16_w(size - 1)
+	// X - Specifies the high and low bytes of the data source memory address
+	a.LDX_imm16_w(srcOffs)
+	// Y - Specifies the high and low bytes of the destination memory address
+	a.LDY_imm16_w(destOffs)
+	a.MVN(destBank, 0x00)
+	a.PLB()
 
-	//a.SEP(0x30)
-
-	a.Comment("disable NMI vector override:")
+	//a.Comment("disable NMI vector override:")
+	a.SEP(0x30)
 	a.LDA_imm8_b(0x00)
 	a.STA_long(0x002C00)
 
 	a.Comment("restore registers:")
-	a.PLA()
-	a.XBA()
+	a.REP(0x30)
+	a.PLD()
+	a.PLY()
+	a.PLX()
 	a.PLA()
 
 	a.Comment("jump to original NMI:")
 	a.REP(0x30)
 	a.JMP_indirect(0xFFEA)
 
-	//// bug check: make sure emitted code is the expected size
-	//if actual, expected := a.Code.Len(), codeSize; actual != expected {
-	//	panic(fmt.Errorf("bug check: emitted code size %d != %d", actual, expected))
-	//}
+	// bug check: make sure emitted code is the expected size
+	if actual, expected := a.Code.Len(), codeSize; actual != expected {
+		panic(fmt.Errorf("bug check: emitted code size %d != %d", actual, expected))
+	}
 
 	// copy in the data to be written to WRAM:
 	a.EmitBytes(data)
