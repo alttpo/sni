@@ -141,6 +141,17 @@ func (d *Driver) Device(uri *url.URL) snes.AutoCloseableDevice {
 	return snes.NewAutoCloseableDevice(d.container, uri, d.DeviceKey(uri))
 }
 
+func (d *Driver) DisconnectAll() {
+	for _, deviceKey := range d.container.AllDeviceKeys() {
+		device, ok := d.container.GetDevice(deviceKey)
+		if ok {
+			log.Printf("%s: disconnecting device '%s'\n", driverName, deviceKey)
+			_ = device.Close()
+			d.container.DeleteDevice(deviceKey)
+		}
+	}
+}
+
 func init() {
 	if util.IsTruthy(env.GetOrDefault("SNI_RETROARCH_DISABLE", "0")) {
 		log.Printf("disabling retroarch snes driver\n")

@@ -13,6 +13,7 @@ type DeviceContainer interface {
 	GetOrOpenDevice(deviceKey string, uri *url.URL) (device Device, err error)
 	PutDevice(deviceKey string, device Device)
 	DeleteDevice(deviceKey string)
+	AllDeviceKeys() []string
 }
 
 type DeviceOpener func(uri *url.URL) (Device, error)
@@ -84,6 +85,16 @@ func (b *deviceContainer) OpenDevice(deviceKey string, uri *url.URL) (device Dev
 	b.devicesMap[deviceKey] = device
 	b.devicesRw.Unlock()
 	return
+}
+
+func (b *deviceContainer) AllDeviceKeys() []string {
+	defer b.devicesRw.RUnlock()
+	b.devicesRw.RLock()
+	deviceKeys := make([]string, 0, len(b.devicesMap))
+	for deviceKey := range b.devicesMap {
+		deviceKeys = append(deviceKeys, deviceKey)
+	}
+	return deviceKeys
 }
 
 func CheckCapabilities(expectedCapabilities []sni.DeviceCapability, actualCapabilities []sni.DeviceCapability) (bool, error) {

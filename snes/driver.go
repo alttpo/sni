@@ -21,13 +21,12 @@ type Driver interface {
 
 	// Detect any present devices
 	Detect() ([]DeviceDescriptor, error)
-}
 
-// DeviceDriver extends Driver
-type DeviceDriver interface {
 	Device(uri *url.URL) AutoCloseableDevice
 
 	DeviceKey(uri *url.URL) string
+
+	DisconnectAll()
 
 	HasCapabilities(capabilities ...sni.DeviceCapability) (bool, error)
 }
@@ -118,7 +117,7 @@ func DriverByName(name string) (Driver, bool) {
 	return d, ok
 }
 
-func DeviceDriverByUri(uri *url.URL) (drv DeviceDriver, err error) {
+func DeviceDriverByUri(uri *url.URL) (drv Driver, err error) {
 	var ok bool
 	var gendrv Driver
 	gendrv, ok = DriverByName(uri.Scheme)
@@ -127,16 +126,16 @@ func DeviceDriverByUri(uri *url.URL) (drv DeviceDriver, err error) {
 		return
 	}
 
-	drv, ok = gendrv.(DeviceDriver)
+	drv, ok = gendrv.(Driver)
 	if !ok {
-		err = fmt.Errorf("driver named '%s' is not a DeviceDriver", uri.Scheme)
+		err = fmt.Errorf("driver named '%s' is not a Driver", uri.Scheme)
 		return
 	}
 
 	return
 }
 
-func DeviceByUri(uri *url.URL) (driver DeviceDriver, device AutoCloseableDevice, err error) {
+func DeviceByUri(uri *url.URL) (driver Driver, device AutoCloseableDevice, err error) {
 	driver, err = DeviceDriverByUri(uri)
 	if err != nil {
 		return

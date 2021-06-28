@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/getlantern/systray"
+	"log"
 	"sni/cmd/sni/icon"
 	"sni/snes"
 )
@@ -47,8 +48,8 @@ func trayStart() {
 				break
 			case <-disconnectAll.ClickedCh:
 				for _, named := range snes.Drivers() {
-					//named.Driver.
-					_ = named
+					log.Printf("%s: disconnecting all devices...\n", named.Name)
+					named.Driver.DisconnectAll()
 				}
 				break
 			}

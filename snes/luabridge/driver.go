@@ -80,6 +80,17 @@ func (d *Driver) Device(uri *url.URL) snes.AutoCloseableDevice {
 	)
 }
 
+func (d *Driver) DisconnectAll() {
+	for _, deviceKey := range d.AllDeviceKeys() {
+		device, ok := d.GetDevice(deviceKey)
+		if ok {
+			log.Printf("%s: disconnecting device '%s'\n", driverName, deviceKey)
+			// device.Close() calls d.DeleteDevice() to remove itself from the map:
+			_ = device.Close()
+		}
+	}
+}
+
 func (d *Driver) GetOrOpenDevice(deviceKey string, uri *url.URL) (device snes.Device, err error) {
 	var ok bool
 
@@ -121,6 +132,16 @@ func (d *Driver) DeleteDevice(deviceKey string) {
 
 func (d *Driver) deleteUnderLock(deviceKey string) {
 	delete(d.devicesMap, deviceKey)
+}
+
+func (d *Driver) AllDeviceKeys() []string {
+	defer d.devicesRw.RUnlock()
+	d.devicesRw.RLock()
+	deviceKeys := make([]string, 0, len(d.devicesMap))
+	for deviceKey := range d.devicesMap {
+		deviceKeys = append(deviceKeys, deviceKey)
+	}
+	return deviceKeys
 }
 
 func (d *Driver) StartServer() (err error) {

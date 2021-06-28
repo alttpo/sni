@@ -78,7 +78,7 @@ func (s *deviceMemoryService) MappingDetect(gctx context.Context, request *sni.D
 		return
 	}
 
-	var driver snes.DeviceDriver
+	var driver snes.Driver
 	var device snes.AutoCloseableDevice
 	driver, device, gerr = snes.DeviceByUri(uri)
 	if gerr != nil {
@@ -124,7 +124,7 @@ func (s *deviceMemoryService) SingleRead(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	var driver snes.DeviceDriver
+	var driver snes.Driver
 	var device snes.AutoCloseableDevice
 	driver, device, gerr = snes.DeviceByUri(uri)
 	if gerr != nil {
@@ -185,7 +185,7 @@ func (s *deviceMemoryService) SingleWrite(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	var driver snes.DeviceDriver
+	var driver snes.Driver
 	var device snes.AutoCloseableDevice
 	driver, device, gerr = snes.DeviceByUri(uri)
 	if gerr != nil {
@@ -245,7 +245,7 @@ func (s *deviceMemoryService) MultiRead(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	var driver snes.DeviceDriver
+	var driver snes.Driver
 	var device snes.AutoCloseableDevice
 	driver, device, gerr = snes.DeviceByUri(uri)
 	if gerr != nil {
@@ -324,7 +324,7 @@ func (s *deviceMemoryService) MultiWrite(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	var driver snes.DeviceDriver
+	var driver snes.Driver
 	var device snes.AutoCloseableDevice
 	driver, device, gerr = snes.DeviceByUri(uri)
 	if gerr != nil {
@@ -444,7 +444,7 @@ func (d *deviceControlService) ResetSystem(gctx context.Context, request *sni.Re
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	var driver snes.DeviceDriver
+	var driver snes.Driver
 	var device snes.AutoCloseableDevice
 	driver, device, gerr = snes.DeviceByUri(uri)
 	if gerr != nil {
@@ -473,7 +473,7 @@ func (d *deviceControlService) PauseUnpauseEmulation(gctx context.Context, reque
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	var driver snes.DeviceDriver
+	var driver snes.Driver
 	var device snes.AutoCloseableDevice
 	driver, device, gerr = snes.DeviceByUri(uri)
 	if gerr != nil {
@@ -504,7 +504,7 @@ func (d *deviceControlService) PauseToggleEmulation(gctx context.Context, reques
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	var driver snes.DeviceDriver
+	var driver snes.Driver
 	var device snes.AutoCloseableDevice
 	driver, device, gerr = snes.DeviceByUri(uri)
 	if gerr != nil {
