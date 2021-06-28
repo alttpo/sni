@@ -63,7 +63,7 @@ type vputChunk struct {
 	data []byte
 }
 
-func (d *Device) vput(space space, chunks []vputChunk) (err error) {
+func (d *Device) vput(space space, chunks ...vputChunk) (err error) {
 	if len(chunks) > 8 {
 		return fmt.Errorf("VPUT cannot accept more than 8 chunks")
 	}
@@ -132,15 +132,12 @@ func (d *Device) vput(space space, chunks []vputChunk) (err error) {
 }
 
 type vgetChunk struct {
-	size uint8
-	addr uint32
-
-	target   []byte
-	rspStart int
-	rspEnd   int
+	size   uint8
+	addr   uint32
+	target []byte
 }
 
-func (d *Device) vget(space space, chunks []vgetChunk) (err error) {
+func (d *Device) vget(space space, chunks ...vgetChunk) (err error) {
 	if len(chunks) > 8 {
 		return fmt.Errorf("VGET cannot accept more than 8 chunks")
 	}
@@ -194,9 +191,12 @@ func (d *Device) vget(space space, chunks []vgetChunk) (err error) {
 
 	// shrink down to exact size:
 	rsp = rsp[0:total]
+	start := 0
 	for _, chunk := range chunks {
+		end := start + int(chunk.size)
 		// copy response data:
-		copy(chunk.target, rsp[chunk.rspStart:chunk.rspEnd])
+		copy(chunk.target, rsp[start:end])
+		start = end
 	}
 
 	return

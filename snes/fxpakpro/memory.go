@@ -9,6 +9,7 @@ import (
 	"sni/snes/asm"
 	"sni/snes/mapping"
 	"strings"
+	"time"
 )
 
 func (d *Device) MultiReadMemory(
@@ -39,7 +40,6 @@ func (d *Device) MultiReadMemory(
 
 	// Break up larger reads (> 255 bytes) into 255-byte chunks:
 	chunks := make([]vgetChunk, 0, 8)
-	rspStart := 0
 	for j, request := range reads {
 		startAddr := mrsp[j].DeviceAddress.Address
 		addr := startAddr
@@ -53,24 +53,19 @@ func (d *Device) MultiReadMemory(
 
 			// 4-byte struct: 1 byte size, 3 byte address
 			chunks = append(chunks, vgetChunk{
-				target: mrsp[j].Data[int(addr - startAddr):],
-				size: byte(chunkSize),
-				addr: addr,
-				// source offset to read from in VGET response:
-				rspStart: rspStart,
-				rspEnd:   rspStart + chunkSize,
+				target: mrsp[j].Data[int(addr-startAddr):],
+				size:   byte(chunkSize),
+				addr:   addr,
 			})
-			rspStart += chunkSize
 
 			if len(chunks) == 8 {
-				err = d.vget(SpaceSNES, chunks)
+				err = d.vget(SpaceSNES, chunks...)
 				if err != nil {
 					return
 				}
 
 				// reset chunks:
 				chunks = chunks[0:0]
-				rspStart = 0
 			}
 
 			size -= 255
@@ -79,7 +74,7 @@ func (d *Device) MultiReadMemory(
 	}
 
 	if len(chunks) > 0 {
-		err = d.vget(SpaceSNES, chunks)
+		err = d.vget(SpaceSNES, chunks...)
 		if err != nil {
 			return
 		}
@@ -148,7 +143,7 @@ func (d *Device) MultiWriteMemory(
 			})
 
 			if len(chunks) == 8 {
-				err = d.vput(SpaceSNES, chunks)
+				err = d.vput(SpaceSNES, chunks...)
 				if err != nil {
 					return
 				}
@@ -162,7 +157,7 @@ func (d *Device) MultiWriteMemory(
 	}
 
 	if len(chunks) > 0 {
-		err = d.vput(SpaceSNES, chunks)
+		err = d.vput(SpaceSNES, chunks...)
 		if err != nil {
 			return
 		}
@@ -209,9 +204,6 @@ func (d *Device) MultiWriteMemory(
 			addr += 255
 		}
 
-		// enable the NMI EXE feature by writing 1:
-		//chunks = append(chunks, vputChunk{0x2C00, []byte{1}})
-
 		if actual, expected := len(chunks), 8; actual > expected {
 			return nil, fmt.Errorf(
 				"fxpakpro: too many VPUT chunks to write WRAM data with; %d > %d",
@@ -220,10 +212,52 @@ func (d *Device) MultiWriteMemory(
 			)
 		}
 
-		// VPUT command to CMD space:
-		err = d.vput(SpaceCMD, chunks)
+		// await 4 frames max for NMI EXE: (17ms = 1 frame, rounded up from 16.6ms)
+		const timeout = time.Millisecond * 17 * 4
+
+		// VGET to await NMI EXE availability:
+		var ok bool
+		deadline := time.Now().Add(timeout)
+		ok, err = d.awaitNMIEXE(deadline)
 		if err != nil {
 			return
+		}
+		if !ok {
+			err = fmt.Errorf("fxpakpro: could not acquire NMI EXE")
+			return
+		}
+
+		// VPUT command to CMD space:
+		err = d.vput(SpaceCMD, chunks...)
+		if err != nil {
+			return
+		}
+
+		// await NMI EXE availability to validate the write was completed:
+		deadline = time.Now().Add(timeout)
+		ok, err = d.awaitNMIEXE(deadline)
+		if err != nil {
+			return
+		}
+		if !ok {
+			err = fmt.Errorf("fxpakpro: could not acquire NMI EXE")
+			return
+		}
+	}
+
+	return
+}
+
+func (d *Device) awaitNMIEXE(deadline time.Time) (ok bool, err error) {
+	check := make([]byte, 1)
+	for ; time.Now().Before(deadline); {
+		err = d.vget(SpaceCMD, vgetChunk{addr: 0x2C00, size: 1, target: check})
+		if err != nil {
+			return
+		}
+		if check[0] == 0 {
+			ok = true
+			break
 		}
 	}
 
