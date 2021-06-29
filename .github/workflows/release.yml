@@ -60,7 +60,11 @@ jobs:
       - run: cp LICENSE sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}
       - run: cp protos/sni/sni.proto sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}
 
-      - run: go build -o ./sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}/sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}${{matrix.exesuffix}} ./cmd/sni
+      - run: >
+          go build
+          -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
+          -o ./sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}/sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}${{matrix.exesuffix}}
+          ./cmd/sni
 
       - uses: papeloto/action-zip@v1
         with:

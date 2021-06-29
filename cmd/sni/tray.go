@@ -26,15 +26,13 @@ func trayStart() {
 	systray.SetIcon(icon.Data)
 	//systray.SetTitle("SNI")
 
-	sniText := "SNI - Super Nintendo Interface"
-	systray.SetTooltip(sniText)
+	versionText := fmt.Sprintf("Super Nintendo Interface %s (%s)", version, commit)
+	systray.SetTooltip(versionText)
 
-	versionText := fmt.Sprintf("SNI %s", version)
-	versionTooltip := fmt.Sprintf("SNI %s %s built on %s", version, commit, date)
+	versionTooltip := fmt.Sprintf("SNI %s (%s) built on %s", version, commit, date)
 	systray.AddMenuItem(versionText, versionTooltip)
-	systray.AddMenuItem(sniText, sniText)
 	systray.AddSeparator()
-	disconnectAll := systray.AddMenuItem("Disconnect All Devices", "Disconnect from all SNES devices")
+	disconnectAll := systray.AddMenuItem("Disconnect SNES", "Disconnect from all connected SNES devices")
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit", "Quit")
 
