@@ -2,10 +2,49 @@ syntax = "proto3";
 
 option go_package = "github.com/alttpo/sni/protos/sni";
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// services
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
 service Devices {
   // detect and list devices currently connected to the system:
   rpc ListDevices(DevicesRequest) returns (DevicesResponse) {}
 }
+
+service DeviceControl {
+  // only available if DeviceCapability ResetSystem is present
+  rpc ResetSystem(ResetSystemRequest) returns (ResetSystemResponse) {}
+
+  // only available if DeviceCapability PauseUnpauseEmulation is present
+  rpc PauseUnpauseEmulation(PauseEmulationRequest) returns (PauseEmulationResponse) {}
+
+  // only available if DeviceCapability PauseToggleEmulation is present
+  rpc PauseToggleEmulation(PauseToggleEmulationRequest) returns (PauseToggleEmulationResponse) {}
+}
+
+service DeviceMemory {
+  // detect the current memory mapping for the given device by reading $00:FFB0 header:
+  rpc MappingDetect(DetectMemoryMappingRequest) returns (DetectMemoryMappingResponse) {}
+
+  // read a single memory segment with a given size from the given device:
+  rpc SingleRead(SingleReadMemoryRequest) returns (SingleReadMemoryResponse) {}
+  // write a single memory segment with given data to the given device:
+  rpc SingleWrite(SingleWriteMemoryRequest) returns (SingleWriteMemoryResponse) {}
+
+  // read multiple memory segments with given sizes from the given device:
+  rpc MultiRead(MultiReadMemoryRequest) returns (MultiReadMemoryResponse) {}
+  // write multiple memory segments with given data to the given device:
+  rpc MultiWrite(MultiWriteMemoryRequest) returns (MultiWriteMemoryResponse) {}
+
+  // stream read multiple memory segments with given sizes from the given device:
+  rpc StreamRead(stream MultiReadMemoryRequest) returns (stream MultiReadMemoryResponse) {}
+  // stream write multiple memory segments with given data to the given device:
+  rpc StreamWrite(stream MultiWriteMemoryRequest) returns (stream MultiWriteMemoryResponse) {}
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// enums
+//////////////////////////////////////////////////////////////////////////////////////////////////
 
 // address space used to interpret an address in:
 enum AddressSpace {
@@ -21,7 +60,7 @@ enum AddressSpace {
   // $F9_0500..$F9_06FF =         PPUREG, linearly mapped
   // $F9_0700..$F9_08FF =         CPUREG, linearly mapped
   // translated device address depends on device being talked to and its current MemoryMapping mode
-  FxPakPro = 0;
+  FxPakPro = 0; // SNES
   // The SNES's main A-bus; address depends on device's current MemoryMapping mode, e.g. LoROM, HiROM, ExHiROM, etc.
   SnesABus = 1;
   // Do not do any address translation; simply pass the raw address to the device as-is:
@@ -50,6 +89,10 @@ enum DeviceCapability {
   // TODO: capabilities for dealing with ROM files on filesystems: upload, download, mkdir, ls, boot, etc.
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// devices messages
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
 message DevicesRequest {
   // optional list of device kind filters
   repeated string kinds = 1;
@@ -76,14 +119,9 @@ message DevicesResponse {
   repeated Device devices = 1;
 }
 
-service DeviceControl {
-  // only available if DeviceCapability ResetSystem is present
-  rpc ResetSystem(ResetSystemRequest) returns (ResetSystemResponse) {}
-  // only available if DeviceCapability PauseUnpauseEmulation is present
-  rpc PauseUnpauseEmulation(PauseEmulationRequest) returns (PauseEmulationResponse) {}
-  // only available if DeviceCapability PauseToggleEmulation is present
-  rpc PauseToggleEmulation(PauseToggleEmulationRequest) returns (PauseToggleEmulationResponse) {}
-}
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// control messages
+//////////////////////////////////////////////////////////////////////////////////////////////////
 
 message ResetSystemRequest {
   string uri = 1;
@@ -109,24 +147,9 @@ message PauseToggleEmulationResponse {
   string uri = 1;
 }
 
-service DeviceMemory {
-  // detect the current memory mapping for the given device by reading $00:FFB0 header:
-  rpc MappingDetect(DetectMemoryMappingRequest) returns (DetectMemoryMappingResponse) {}
-
-  // read a single memory segment with a given size from the given device:
-  rpc SingleRead(SingleReadMemoryRequest) returns (SingleReadMemoryResponse) {}
-  // write a single memory segment with given data to the given device:
-  rpc SingleWrite(SingleWriteMemoryRequest) returns (SingleWriteMemoryResponse) {}
-  // read multiple memory segments with given sizes from the given device:
-  rpc MultiRead(MultiReadMemoryRequest) returns (MultiReadMemoryResponse) {}
-  // write multiple memory segments with given data to the given device:
-  rpc MultiWrite(MultiWriteMemoryRequest) returns (MultiWriteMemoryResponse) {}
-
-  // stream read multiple memory segments with given sizes from the given device:
-  rpc StreamRead(stream MultiReadMemoryRequest) returns (stream MultiReadMemoryResponse) {}
-  // stream write multiple memory segments with given data to the given device:
-  rpc StreamWrite(stream MultiWriteMemoryRequest) returns (stream MultiWriteMemoryResponse) {}
-}
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// memory messages
+//////////////////////////////////////////////////////////////////////////////////////////////////
 
 message DetectMemoryMappingRequest {
   string uri = 1;
