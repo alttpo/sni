@@ -3,3 +3,5 @@
 *.pdf
 dist/
 node_modules/
+content/
+video/
