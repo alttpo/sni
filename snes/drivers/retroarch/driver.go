@@ -152,7 +152,7 @@ func (d *Driver) DisconnectAll() {
 	}
 }
 
-func init() {
+func DriverInit() {
 	if util.IsTruthy(env.GetOrDefault("SNI_RETROARCH_DISABLE", "0")) {
 		log.Printf("disabling retroarch snes driver\n")
 		return

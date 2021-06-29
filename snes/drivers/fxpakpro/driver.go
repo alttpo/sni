@@ -179,7 +179,7 @@ func (d *Driver) Device(uri *url.URL) snes.AutoCloseableDevice {
 	)
 }
 
-func init() {
+func DriverInit() {
 	if util.IsTruthy(env.GetOrDefault("SNI_FXPAKPRO_DISABLE", "0")) {
 		log.Printf("disabling fxpakpro snes driver\n")
 		return

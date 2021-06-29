@@ -82,7 +82,7 @@ func (d *Driver) DisconnectAll() {
 	}
 }
 
-func init() {
+func DriverInit() {
 	if util.IsTruthy(env.GetOrDefault("SNI_MOCK_ENABLE", "0")) {
 		log.Printf("enabling mock snes driver\n")
 		driver = &Driver{}

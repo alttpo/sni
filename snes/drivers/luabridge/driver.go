@@ -189,7 +189,7 @@ func (d *Driver) runServer(listener *net.TCPListener) {
 	}
 }
 
-func init() {
+func DriverInit() {
 	bindHost = env.GetOrDefault("SNI_LUABRIDGE_LISTEN_HOST", "127.0.0.1")
 	bindPort = env.GetOrDefault("SNI_LUABRIDGE_LISTEN_PORT", "65398")
 	bindHostPort = net.JoinHostPort(bindHost, bindPort)
@@ -221,5 +221,4 @@ func init() {
 		// finally register the driver:
 		snes.Register(driverName, driver)
 	}()
-
 }

@@ -16,10 +16,10 @@ import _ "net/http/pprof"
 
 // include these SNES drivers:
 import (
-	_ "sni/snes/drivers/fxpakpro"
-	_ "sni/snes/drivers/luabridge"
-	_ "sni/snes/drivers/mock"
-	_ "sni/snes/drivers/retroarch"
+	"sni/snes/drivers/fxpakpro"
+	"sni/snes/drivers/luabridge"
+	"sni/snes/drivers/mock"
+	"sni/snes/drivers/retroarch"
 )
 
 // build variables set via ldflags by `go build -ldflags="-X 'main.version=v1.0.0'"`:
@@ -49,14 +49,13 @@ func init() {
 	ts = strings.ReplaceAll(ts, ".", "-")
 	logPath = filepath.Join(os.TempDir(), fmt.Sprintf("sni-%s.log", ts))
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err == nil {
-		log.Printf("logging to '%s'\n", logPath)
-		log.SetOutput(io.MultiWriter(os.Stderr, logFile))
-	} else {
+	if err != nil {
 		log.Printf("could not open log file '%s' for writing\n", logPath)
 	}
 
 	log.Printf("sni %s %s built on %s by %s", version, commit, date, builtBy)
+	log.Printf("logging to '%s'\n", logPath)
+	log.SetOutput(io.MultiWriter(os.Stderr, logFile))
 }
 
 func main() {
@@ -67,6 +66,12 @@ func main() {
 			log.Println(http.ListenAndServe(*cpuprofile, nil))
 		}()
 	}
+
+	// explicitly initialize all the drivers:
+	fxpakpro.DriverInit()
+	luabridge.DriverInit()
+	retroarch.DriverInit()
+	mock.DriverInit()
 
 	StartGrpcServer()
 	StartHttpServer()
