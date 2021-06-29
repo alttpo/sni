@@ -208,7 +208,7 @@ func init() {
 			}
 
 			if count == 0 {
-				log.Printf("luabridge: could not start server on %s, are you running QUsb2Snes? error: %v\n", bindHostPort, err)
+				log.Printf("luabridge: could not start server on %s; error: %v\n", bindHostPort, err)
 			}
 			count++
 			if count >= 30 {

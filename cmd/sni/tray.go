@@ -24,7 +24,6 @@ func trayExit() {
 func trayStart() {
 	// Set up the systray:
 	systray.SetIcon(icon.Data)
-	//systray.SetTitle("SNI")
 
 	versionText := fmt.Sprintf("Super Nintendo Interface %s (%s)", version, commit)
 	systray.SetTooltip(versionText)
@@ -33,6 +32,8 @@ func trayStart() {
 	systray.AddMenuItem(versionText, versionTooltip)
 	systray.AddSeparator()
 	disconnectAll := systray.AddMenuItem("Disconnect SNES", "Disconnect from all connected SNES devices")
+	systray.AddSeparator()
+	toggleVerbose := systray.AddMenuItemCheckbox("Verbose Logging", "Enable verbose logging for usb2snes server", wsVerbose)
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit", "Quit")
 
@@ -48,6 +49,14 @@ func trayStart() {
 				for _, named := range snes.Drivers() {
 					log.Printf("%s: disconnecting all devices...\n", named.Name)
 					named.Driver.DisconnectAll()
+				}
+				break
+			case <-toggleVerbose.ClickedCh:
+				wsVerbose = !wsVerbose
+				if wsVerbose {
+					toggleVerbose.Check()
+				} else {
+					toggleVerbose.Uncheck()
 				}
 				break
 			}

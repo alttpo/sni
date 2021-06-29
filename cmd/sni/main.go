@@ -69,6 +69,7 @@ func main() {
 	}
 
 	StartGrpcServer()
+	StartHttpServer()
 
 	// start up a systray handler if possible:
 	createSystray()
