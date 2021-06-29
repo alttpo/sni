@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-var wsVerbose bool = true
+var verboseLogging bool = false
 
 func StartHttpServer() {
 	var err error
@@ -144,7 +144,7 @@ serverLoop:
 		}
 		var results response
 
-		if wsVerbose {
+		if verboseLogging {
 			log.Printf("usb2snes: %s: %s %s [%s]\n", clientName, cmd.Opcode, cmd.Space, strings.Join(cmd.Operands, ","))
 		}
 

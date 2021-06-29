@@ -33,7 +33,7 @@ func trayStart() {
 	systray.AddSeparator()
 	disconnectAll := systray.AddMenuItem("Disconnect SNES", "Disconnect from all connected SNES devices")
 	systray.AddSeparator()
-	toggleVerbose := systray.AddMenuItemCheckbox("Verbose Logging", "Enable verbose logging for usb2snes server", wsVerbose)
+	toggleVerbose := systray.AddMenuItemCheckbox("Log all requests", "Enable logging of all incoming requests", verboseLogging)
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit", "Quit")
 
@@ -52,8 +52,8 @@ func trayStart() {
 				}
 				break
 			case <-toggleVerbose.ClickedCh:
-				wsVerbose = !wsVerbose
-				if wsVerbose {
+				verboseLogging = !verboseLogging
+				if verboseLogging {
 					toggleVerbose.Check()
 				} else {
 					toggleVerbose.Uncheck()

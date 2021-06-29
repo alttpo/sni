@@ -38,7 +38,6 @@ var (
 
 var (
 	cpuprofile = flag.String("cpuprofile", "", "start pprof profiler on addr:port")
-	logTiming  = flag.Bool("logtiming", false, "log gRPC method timings")
 )
 
 func init() {

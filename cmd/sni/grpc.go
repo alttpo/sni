@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+const fullMethodFormatter = "%32s"
+
 func StartGrpcServer() {
 	var err error
 
@@ -35,15 +37,10 @@ func StartGrpcServer() {
 	}
 
 	// start gRPC server:
-	var serverOptions []grpc.ServerOption
-	if *logTiming {
-		serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(logTimingInterceptor))
-	} else {
-		serverOptions = append(serverOptions, grpc.ChainUnaryInterceptor(reportErrorInterceptor))
-	}
-	serverOptions = append(serverOptions, grpc.ChainStreamInterceptor(reportErrorStreamInterceptor))
-
-	s := grpc.NewServer(serverOptions...)
+	s := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(logTimingInterceptor),
+		grpc.ChainStreamInterceptor(reportErrorStreamInterceptor),
+	)
 	sni.RegisterDevicesServer(s, &devicesService{})
 	sni.RegisterDeviceMemoryServer(s, &deviceMemoryService{})
 	sni.RegisterDeviceControlServer(s, &deviceControlService{})
@@ -73,60 +70,37 @@ func logTimingInterceptor(
 	// measure time taken for the call:
 	tStart := time.Now()
 
-	// report time taken:
-	defer func() {
-		// stop timer:
-		tEnd := time.Now()
+	// invoke the method handler:
+	rsp, err = handler(ctx, req)
 
+	// stop timer:
+	tEnd := time.Now()
+
+	var reqStr, rspStr string
+	if err != nil || verboseLogging {
 		// format request message as string:
-		var reqStr, rspStr string
 		if reqStringer, ok := info.Server.(methodRequestStringer); ok {
 			reqStr = reqStringer.MethodRequestString(info.FullMethod, req)
 		} else {
 			reqStr = fmt.Sprintf("%+v", req)
 		}
-
-		if err == nil {
-			// format response message as string:
-			if rspStringer, ok := info.Server.(methodResponseStringer); ok {
-				rspStr = rspStringer.MethodResponseString(info.FullMethod, rsp)
-			} else {
-				rspStr = fmt.Sprintf("%+v", rsp)
-			}
-
-			// log method, time taken, request, and response:
-			log.Printf("%26s: %10d ns: req=`%s`, rsp=`%s`\n", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), reqStr, rspStr)
-		} else {
-			// log method, time taken, request, and error:
-			log.Printf("%26s: %10d ns: req=`%s`, err=`%v`\n", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), reqStr, err)
-		}
-	}()
-
-	// invoke the method handler:
-	rsp, err = handler(ctx, req)
-	return
-}
-
-func reportErrorInterceptor(
-	ctx context.Context,
-	req interface{},
-	info *grpc.UnaryServerInfo,
-	handler grpc.UnaryHandler,
-) (rsp interface{}, err error) {
-	// invoke the method handler:
-	rsp, err = handler(ctx, req)
+	}
 
 	if err != nil {
-		// format request message as string:
-		var reqStr string
-		if reqStringer, ok := info.Server.(methodRequestStringer); ok {
-			reqStr = reqStringer.MethodRequestString(info.FullMethod, req)
+		// log method, time taken, request, and error:
+		log.Printf(fullMethodFormatter + ": %10d ns: req=`%s`, err=`%v`\n", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), reqStr, err)
+	} else if verboseLogging {
+		// only log normal requests+responses when verbose mode on:
+
+		// format response message as string:
+		if rspStringer, ok := info.Server.(methodResponseStringer); ok {
+			rspStr = rspStringer.MethodResponseString(info.FullMethod, rsp)
 		} else {
-			reqStr = fmt.Sprintf("%+v", req)
+			rspStr = fmt.Sprintf("%+v", rsp)
 		}
 
-		// log method, time taken, request, and error:
-		log.Printf("%26s: req=`%s`, err=`%v`\n", info.FullMethod, reqStr, err)
+		// log method, time taken, request, and response:
+		log.Printf(fullMethodFormatter + ": %10d ns: req=`%s`, rsp=`%s`\n", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), reqStr, rspStr)
 	}
 
 	return
@@ -143,12 +117,12 @@ func reportErrorStreamInterceptor(
 		streamSource = p.Addr.String()
 	}
 
-	log.Printf("%26s: start stream from %s\n", info.FullMethod, streamSource)
+	log.Printf(fullMethodFormatter + ": start stream from %s\n", info.FullMethod, streamSource)
 	err = handler(srv, ss)
 	if err != nil {
-		log.Printf("%26s: end stream from %s; err=`%v`\n", info.FullMethod, streamSource, err)
+		log.Printf(fullMethodFormatter + ": end stream from %s; err=`%v`\n", info.FullMethod, streamSource, err)
 	} else {
-		log.Printf("%26s: end stream from %s\n", info.FullMethod, streamSource)
+		log.Printf(fullMethodFormatter + ": end stream from %s\n", info.FullMethod, streamSource)
 	}
 
 	return
