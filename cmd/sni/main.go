@@ -24,10 +24,10 @@ import _ "net/http/pprof"
 
 // include these SNES drivers:
 import (
-	_ "sni/snes/fxpakpro"
-	_ "sni/snes/luabridge"
-	_ "sni/snes/mock"
-	_ "sni/snes/retroarch"
+	_ "sni/snes/drivers/fxpakpro"
+	_ "sni/snes/drivers/luabridge"
+	_ "sni/snes/drivers/mock"
+	_ "sni/snes/drivers/retroarch"
 )
 
 // build variables set via ldflags by goreleaser:
