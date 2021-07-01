@@ -65,6 +65,7 @@ func openExactDevice(tb testing.TB) *Device {
 func BenchmarkMemory(b *testing.B) {
 	var err error
 	d := openAutoCloseableDevice(b)
+	defer d.Close()
 
 	// open the device with a single read:
 	var rsp []snes.MemoryReadResponse

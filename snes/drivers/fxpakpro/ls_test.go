@@ -10,6 +10,7 @@ import (
 
 func TestDevice_listFiles(t *testing.T) {
 	d := openExactDevice(t)
+	defer d.Close()
 
 	type args struct {
 		path string

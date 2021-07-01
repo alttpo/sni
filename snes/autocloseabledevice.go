@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"google.golang.org/grpc/codes"
+	"io"
 	"net/url"
 )
 
 // AutoCloseableDevice is a Device wrapper that ensures that a valid Device instance is always used for every
 // interface method call. On severe errors the Device is closed and reopened when needed again.
 type AutoCloseableDevice interface {
+	io.Closer
 	DeviceControl
 	DeviceMemory
 	DeviceFilesystem
@@ -55,6 +57,16 @@ func (a *autoCloseableDevice) ensureOpened(ctx context.Context, use deviceUser) 
 		b.DeleteDevice(a.deviceKey)
 	}
 	return
+}
+
+func (a *autoCloseableDevice) Close() error {
+	d, ok := a.container.GetDevice(a.deviceKey)
+	if !ok {
+		return nil
+	}
+	err := d.Close()
+	a.container.DeleteDevice(a.deviceKey)
+	return err
 }
 
 func (a *autoCloseableDevice) ResetSystem(ctx context.Context) (err error) {

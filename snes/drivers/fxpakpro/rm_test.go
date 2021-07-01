@@ -7,6 +7,7 @@ import (
 
 func TestDevice_rm(t *testing.T) {
 	d := openExactDevice(t)
+	defer d.Close()
 
 	type args struct {
 		ctx  context.Context
