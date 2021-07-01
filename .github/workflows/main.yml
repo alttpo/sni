@@ -42,6 +42,12 @@ jobs:
       - name: Inject slug/short variables
         uses: rlespinasse/github-slug-action@v3.x
 
+      # stupid cross-platform nonsense:
+      - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}" >> $GITHUB_ENV
+        if: ${{ matrix.goos != 'windows' }}
+      - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        if: ${{ matrix.goos == 'windows' }}
+
       - name: Set up linux dependencies
         if: ${{ matrix.goos == 'linux' }}
         run: sudo apt-get update && sudo apt-get install -y gcc libgtk-3-dev libappindicator3-dev
@@ -57,24 +63,27 @@ jobs:
 
       - run: go test ./...
 
-      - run: mkdir sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}
-      - run: cp README.md sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}
-      - run: cp LICENSE sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}
-      - run: cp protos/sni/sni.proto sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}
+      - run: mkdir ${{env.basename}}
+      - run: cp README.md ${{env.basename}}
+      - run: cp LICENSE ${{env.basename}}
+      - run: cp protos/sni/sni.proto ${{env.basename}}
 
       - run: >
           go build
           -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
-          -o ./sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}/sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}${{matrix.exesuffix}}
+          -o ./${{env.basename}}/${{env.basename}}${{matrix.exesuffix}}
           ./cmd/sni
 
-      - uses: papeloto/action-zip@v1
-        with:
-          files: sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}/
-          recursive: false
-          dest: sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}.zip
+      # cross-platform tar.gz creator:
+      - run: go run .github/scripts/tar.go -z -o ${{env.basename}}.tar.gz -strip ${{env.basename}}/ ${{env.basename}}/
+
+      #- uses: papeloto/action-zip@v1
+      #  with:
+      #    files: sni-${{env.archname}}/
+      #    recursive: false
+      #    dest: sni-${{env.archname}}.zip
 
       - uses: actions/upload-artifact@v1
         with:
-          name: sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}.zip
-          path: ${{ github.workspace }}/sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}.zip
+          name: ${{env.basename}}.tar.gz
+          path: ${{ github.workspace }}/${{env.basename}}.tar.gz
