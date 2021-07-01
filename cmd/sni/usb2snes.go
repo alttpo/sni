@@ -255,9 +255,24 @@ serverLoop:
 				var size uint64
 				size, err = strconv.ParseUint(sizeHex, 16, 32)
 
+				var addr32 uint32
+				space := strings.TrimSpace(strings.ToUpper(cmd.Space))
+				switch space {
+				case "SNES":
+					addr32 = uint32(addr & 0x00_FFFFFF)
+					break
+				case "CMD":
+					// dirty dirty hack to put the CMD address space into the FxPakPro space as some sort of subspace:
+					addr32 = uint32(addr & 0x00_FFFFFF) | 0x01_000000
+					break
+				default:
+					log.Printf("usb2snes: %s: %s: unrecognized space '%s'\n", clientName, cmd.Opcode, space)
+					break serverLoop
+				}
+
 				reqs[i] = snes.MemoryReadRequest{
 					RequestAddress: snes.AddressTuple{
-						Address:       uint32(addr),
+						Address:       addr32,
 						AddressSpace:  sni.AddressSpace_FxPakPro,
 						MemoryMapping: deviceMemoryMapping,
 					},
@@ -311,9 +326,24 @@ serverLoop:
 				var size uint64
 				size, err = strconv.ParseUint(sizeHex, 16, 32)
 
+				var addr32 uint32
+				space := strings.TrimSpace(strings.ToUpper(cmd.Space))
+				switch space {
+				case "SNES":
+					addr32 = uint32(addr & 0x00_FFFFFF)
+					break
+				case "CMD":
+					// dirty dirty hack to put the CMD address space into the FxPakPro space as some sort of subspace:
+					addr32 = uint32(addr & 0x00_FFFFFF) | 0x01_000000
+					break
+				default:
+					log.Printf("usb2snes: %s: %s: unrecognized space '%s'\n", clientName, cmd.Opcode, space)
+					break serverLoop
+				}
+
 				reqs[i] = snes.MemoryWriteRequest{
 					RequestAddress: snes.AddressTuple{
-						Address:       uint32(addr),
+						Address:       addr32,
 						AddressSpace:  sni.AddressSpace_FxPakPro,
 						MemoryMapping: deviceMemoryMapping,
 					},

@@ -12,10 +12,24 @@ import (
 	"time"
 )
 
+type subspace int
+
+const (
+	spaceSNES subspace = 0
+	spaceCMD  subspace = 1
+)
+
 func (d *Device) MultiReadMemory(
 	ctx context.Context,
 	reads ...snes.MemoryReadRequest,
 ) (mrsp []snes.MemoryReadResponse, err error) {
+	// VGETs can only be submitted for one Space at a time so keep track of possibly two VGETs if the Spaces are mixed
+	// in the `reads` slice:
+	chunks := [2][]vgetChunk{
+		make([]vgetChunk, 0, 8), // spaceSNES
+		make([]vgetChunk, 0, 8), // spaceCMD
+	}
+
 	// make all the response structs and preallocate Data buffers:
 	mrsp = make([]snes.MemoryReadResponse, len(reads))
 	for j, read := range reads {
@@ -46,9 +60,18 @@ func (d *Device) MultiReadMemory(
 	}
 
 	// Break up larger reads (> 255 bytes) into 255-byte chunks:
-	chunks := make([]vgetChunk, 0, 8)
 	for j, request := range reads {
 		startAddr := mrsp[j].DeviceAddress.Address
+
+		// determine the pak Space to read from:
+		pakSpace := SpaceSNES
+		space := spaceSNES
+		if startAddr>>24 == 0x01 {
+			pakSpace = SpaceCMD
+			space = spaceCMD
+			startAddr &= 0x00_FFFFFF
+		}
+
 		addr := startAddr
 		size := request.Size
 
@@ -59,20 +82,20 @@ func (d *Device) MultiReadMemory(
 			}
 
 			// 4-byte struct: 1 byte size, 3 byte address
-			chunks = append(chunks, vgetChunk{
+			chunks[space] = append(chunks[space], vgetChunk{
 				target: mrsp[j].Data[int(addr-startAddr):],
 				size:   byte(chunkSize),
 				addr:   addr,
 			})
 
-			if len(chunks) == 8 {
-				err = d.vget(subctx, SpaceSNES, chunks...)
+			if len(chunks[space]) == 8 {
+				err = d.vget(subctx, pakSpace, chunks[space]...)
 				if err != nil {
 					return
 				}
 
 				// reset chunks:
-				chunks = chunks[0:0]
+				chunks[space] = chunks[space][0:0]
 			}
 
 			size -= 255
@@ -80,8 +103,15 @@ func (d *Device) MultiReadMemory(
 		}
 	}
 
-	if len(chunks) > 0 {
-		err = d.vget(subctx, SpaceSNES, chunks...)
+	if len(chunks[spaceSNES]) > 0 {
+		err = d.vget(subctx, SpaceSNES, chunks[spaceSNES]...)
+		if err != nil {
+			return
+		}
+	}
+
+	if len(chunks[spaceCMD]) > 0 {
+		err = d.vget(subctx, SpaceCMD, chunks[spaceCMD]...)
 		if err != nil {
 			return
 		}
@@ -94,6 +124,13 @@ func (d *Device) MultiWriteMemory(
 	ctx context.Context,
 	writes ...snes.MemoryWriteRequest,
 ) (mrsp []snes.MemoryWriteResponse, err error) {
+	// VPUTs can only be submitted for one Space at a time so keep track of possibly two VPUTs if the Spaces are mixed
+	// in the `reads` slice:
+	chunks := [2][]vputChunk{
+		make([]vputChunk, 0, 8), // spaceSNES
+		make([]vputChunk, 0, 8), // spaceCMD
+	}
+
 	// make all the response structs:
 	mrsp = make([]snes.MemoryWriteResponse, len(writes))
 	for j, write := range writes {
@@ -128,7 +165,6 @@ func (d *Device) MultiWriteMemory(
 	wramWrites := make([]snes.MemoryWriteRequest, 0, len(writes))
 
 	// Break up larger writes (> 255 bytes) into 255-byte chunks:
-	chunks := make([]vputChunk, 0, 8)
 	for j, request := range writes {
 		startAddr := mrsp[j].DeviceAddress.Address
 
@@ -141,6 +177,14 @@ func (d *Device) MultiWriteMemory(
 			continue
 		}
 
+		pakSpace := SpaceSNES
+		space := spaceSNES
+		if startAddr>>24 == 0x01 {
+			pakSpace = SpaceCMD
+			space = spaceCMD
+			startAddr &= 0x00_FFFFFF
+		}
+
 		addr := startAddr
 		size := len(request.Data)
 
@@ -151,19 +195,19 @@ func (d *Device) MultiWriteMemory(
 			}
 
 			// 4-byte struct: 1 byte size, 3 byte address
-			chunks = append(chunks, vputChunk{
+			chunks[space] = append(chunks[space], vputChunk{
 				addr: addr,
 				// target offset to write to in Data[] for MemoryWriteResponse:
 				data: request.Data[int(addr-startAddr) : int(addr-startAddr)+chunkSize],
 			})
 
-			if len(chunks) == 8 {
-				err = d.vput(subctx, SpaceSNES, chunks...)
+			if len(chunks[space]) == 8 {
+				err = d.vput(subctx, pakSpace, chunks[space]...)
 				if err != nil {
 					return
 				}
 				// reset chunks:
-				chunks = chunks[0:0]
+				chunks[space] = chunks[space][0:0]
 			}
 
 			size -= 255
@@ -171,8 +215,15 @@ func (d *Device) MultiWriteMemory(
 		}
 	}
 
-	if len(chunks) > 0 {
-		err = d.vput(subctx, SpaceSNES, chunks...)
+	if len(chunks[spaceSNES]) > 0 {
+		err = d.vput(subctx, SpaceSNES, chunks[spaceSNES]...)
+		if err != nil {
+			return
+		}
+	}
+
+	if len(chunks[spaceCMD]) > 0 {
+		err = d.vput(subctx, SpaceCMD, chunks[spaceCMD]...)
 		if err != nil {
 			return
 		}
