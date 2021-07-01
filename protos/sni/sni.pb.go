@@ -36,7 +36,7 @@ const (
 	// $F9_0500..$F9_06FF =         PPUREG, linearly mapped
 	// $F9_0700..$F9_08FF =         CPUREG, linearly mapped
 	// translated device address depends on device being talked to and its current MemoryMapping mode
-	AddressSpace_FxPakPro AddressSpace = 0
+	AddressSpace_FxPakPro AddressSpace = 0 // SNES
 	// The SNES's main A-bus; address depends on device's current MemoryMapping mode, e.g. LoROM, HiROM, ExHiROM, etc.
 	AddressSpace_SnesABus AddressSpace = 1
 	// Do not do any address translation; simply pass the raw address to the device as-is:
@@ -148,18 +148,31 @@ const (
 	DeviceCapability_ResetSystem           DeviceCapability = 4
 	DeviceCapability_PauseUnpauseEmulation DeviceCapability = 5
 	DeviceCapability_PauseToggleEmulation  DeviceCapability = 6
+	// TODO: query ROM name
+	DeviceCapability_ReadDirectory DeviceCapability = 10
+	DeviceCapability_MakeDirectory DeviceCapability = 11
+	DeviceCapability_RemoveFile    DeviceCapability = 12
+	DeviceCapability_PutFile       DeviceCapability = 13
+	DeviceCapability_GetFile       DeviceCapability = 14
+	DeviceCapability_BootFile      DeviceCapability = 15
 )
 
 // Enum value maps for DeviceCapability.
 var (
 	DeviceCapability_name = map[int32]string{
-		0: "None",
-		1: "ReadMemory",
-		2: "WriteMemory",
-		3: "ExecuteASM",
-		4: "ResetSystem",
-		5: "PauseUnpauseEmulation",
-		6: "PauseToggleEmulation",
+		0:  "None",
+		1:  "ReadMemory",
+		2:  "WriteMemory",
+		3:  "ExecuteASM",
+		4:  "ResetSystem",
+		5:  "PauseUnpauseEmulation",
+		6:  "PauseToggleEmulation",
+		10: "ReadDirectory",
+		11: "MakeDirectory",
+		12: "RemoveFile",
+		13: "PutFile",
+		14: "GetFile",
+		15: "BootFile",
 	}
 	DeviceCapability_value = map[string]int32{
 		"None":                  0,
@@ -169,6 +182,12 @@ var (
 		"ResetSystem":           4,
 		"PauseUnpauseEmulation": 5,
 		"PauseToggleEmulation":  6,
+		"ReadDirectory":         10,
+		"MakeDirectory":         11,
+		"RemoveFile":            12,
+		"PutFile":               13,
+		"GetFile":               14,
+		"BootFile":              15,
 	}
 )
 
@@ -197,6 +216,52 @@ func (x DeviceCapability) Number() protoreflect.EnumNumber {
 // Deprecated: Use DeviceCapability.Descriptor instead.
 func (DeviceCapability) EnumDescriptor() ([]byte, []int) {
 	return file_sni_proto_rawDescGZIP(), []int{2}
+}
+
+type DirEntryType int32
+
+const (
+	DirEntryType_Directory DirEntryType = 0
+	DirEntryType_File      DirEntryType = 1
+)
+
+// Enum value maps for DirEntryType.
+var (
+	DirEntryType_name = map[int32]string{
+		0: "Directory",
+		1: "File",
+	}
+	DirEntryType_value = map[string]int32{
+		"Directory": 0,
+		"File":      1,
+	}
+)
+
+func (x DirEntryType) Enum() *DirEntryType {
+	p := new(DirEntryType)
+	*p = x
+	return p
+}
+
+func (x DirEntryType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DirEntryType) Descriptor() protoreflect.EnumDescriptor {
+	return file_sni_proto_enumTypes[3].Descriptor()
+}
+
+func (DirEntryType) Type() protoreflect.EnumType {
+	return &file_sni_proto_enumTypes[3]
+}
+
+func (x DirEntryType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DirEntryType.Descriptor instead.
+func (DirEntryType) EnumDescriptor() ([]byte, []int) {
+	return file_sni_proto_rawDescGZIP(), []int{3}
 }
 
 type DevicesRequest struct {
@@ -1490,6 +1555,187 @@ func (x *MultiWriteMemoryResponse) GetResponses() []*WriteMemoryResponse {
 	return nil
 }
 
+type ReadDirectoryRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Uri  string `protobuf:"bytes,1,opt,name=uri,proto3" json:"uri,omitempty"`
+	Path string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+}
+
+func (x *ReadDirectoryRequest) Reset() {
+	*x = ReadDirectoryRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_sni_proto_msgTypes[22]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ReadDirectoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadDirectoryRequest) ProtoMessage() {}
+
+func (x *ReadDirectoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_sni_proto_msgTypes[22]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadDirectoryRequest.ProtoReflect.Descriptor instead.
+func (*ReadDirectoryRequest) Descriptor() ([]byte, []int) {
+	return file_sni_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ReadDirectoryRequest) GetUri() string {
+	if x != nil {
+		return x.Uri
+	}
+	return ""
+}
+
+func (x *ReadDirectoryRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type DirEntry struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Name string       `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Type DirEntryType `protobuf:"varint,2,opt,name=type,proto3,enum=DirEntryType" json:"type,omitempty"`
+	Size uint64       `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
+}
+
+func (x *DirEntry) Reset() {
+	*x = DirEntry{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_sni_proto_msgTypes[23]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DirEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DirEntry) ProtoMessage() {}
+
+func (x *DirEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_sni_proto_msgTypes[23]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DirEntry.ProtoReflect.Descriptor instead.
+func (*DirEntry) Descriptor() ([]byte, []int) {
+	return file_sni_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *DirEntry) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *DirEntry) GetType() DirEntryType {
+	if x != nil {
+		return x.Type
+	}
+	return DirEntryType_Directory
+}
+
+func (x *DirEntry) GetSize() uint64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+type ReadDirectoryResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Uri     string      `protobuf:"bytes,1,opt,name=uri,proto3" json:"uri,omitempty"`
+	Path    string      `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Entries []*DirEntry `protobuf:"bytes,3,rep,name=entries,proto3" json:"entries,omitempty"`
+}
+
+func (x *ReadDirectoryResponse) Reset() {
+	*x = ReadDirectoryResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_sni_proto_msgTypes[24]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ReadDirectoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadDirectoryResponse) ProtoMessage() {}
+
+func (x *ReadDirectoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_sni_proto_msgTypes[24]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadDirectoryResponse.ProtoReflect.Descriptor instead.
+func (*ReadDirectoryResponse) Descriptor() ([]byte, []int) {
+	return file_sni_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ReadDirectoryResponse) GetUri() string {
+	if x != nil {
+		return x.Uri
+	}
+	return ""
+}
+
+func (x *ReadDirectoryResponse) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ReadDirectoryResponse) GetEntries() []*DirEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
 type DevicesResponse_Device struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1497,7 +1743,7 @@ type DevicesResponse_Device struct {
 
 	// URI that describes exactly how to connect to the device, e.g.:
 	// RetroArch:  "ra://127.0.0.1:55355"
-	// FX Pak Pro: "fxpakpro:///dev/cu.usbmodemDEMO000000001" (MacOS)
+	// FX Pak Pro: "fxpakpro://./dev/cu.usbmodemDEMO000000001" (MacOS)
 	//             "fxpakpro://./COM4"                        (Windows)
 	// uri is used as the unique identifier of the device for clients to refer to
 	Uri string `protobuf:"bytes,1,opt,name=uri,proto3" json:"uri,omitempty"`
@@ -1514,7 +1760,7 @@ type DevicesResponse_Device struct {
 func (x *DevicesResponse_Device) Reset() {
 	*x = DevicesResponse_Device{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_sni_proto_msgTypes[22]
+		mi := &file_sni_proto_msgTypes[25]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1527,7 +1773,7 @@ func (x *DevicesResponse_Device) String() string {
 func (*DevicesResponse_Device) ProtoMessage() {}
 
 func (x *DevicesResponse_Device) ProtoReflect() protoreflect.Message {
-	mi := &file_sni_proto_msgTypes[22]
+	mi := &file_sni_proto_msgTypes[25]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1759,24 +2005,48 @@ var file_sni_proto_rawDesc = []byte{
 	0x52, 0x03, 0x75, 0x72, 0x69, 0x12, 0x32, 0x0a, 0x09, 0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
 	0x65, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x14, 0x2e, 0x57, 0x72, 0x69, 0x74, 0x65,
 	0x4d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x52, 0x09,
-	0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x73, 0x2a, 0x33, 0x0a, 0x0c, 0x41, 0x64, 0x64,
-	0x72, 0x65, 0x73, 0x73, 0x53, 0x70, 0x61, 0x63, 0x65, 0x12, 0x0c, 0x0a, 0x08, 0x46, 0x78, 0x50,
-	0x61, 0x6b, 0x50, 0x72, 0x6f, 0x10, 0x00, 0x12, 0x0c, 0x0a, 0x08, 0x53, 0x6e, 0x65, 0x73, 0x41,
-	0x42, 0x75, 0x73, 0x10, 0x01, 0x12, 0x07, 0x0a, 0x03, 0x52, 0x61, 0x77, 0x10, 0x02, 0x2a, 0x3f,
-	0x0a, 0x0d, 0x4d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x4d, 0x61, 0x70, 0x70, 0x69, 0x6e, 0x67, 0x12,
-	0x0b, 0x0a, 0x07, 0x55, 0x6e, 0x6b, 0x6e, 0x6f, 0x77, 0x6e, 0x10, 0x00, 0x12, 0x09, 0x0a, 0x05,
-	0x48, 0x69, 0x52, 0x4f, 0x4d, 0x10, 0x01, 0x12, 0x09, 0x0a, 0x05, 0x4c, 0x6f, 0x52, 0x4f, 0x4d,
-	0x10, 0x02, 0x12, 0x0b, 0x0a, 0x07, 0x45, 0x78, 0x48, 0x69, 0x52, 0x4f, 0x4d, 0x10, 0x03, 0x2a,
-	0x93, 0x01, 0x0a, 0x10, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x43, 0x61, 0x70, 0x61, 0x62, 0x69,
-	0x6c, 0x69, 0x74, 0x79, 0x12, 0x08, 0x0a, 0x04, 0x4e, 0x6f, 0x6e, 0x65, 0x10, 0x00, 0x12, 0x0e,
-	0x0a, 0x0a, 0x52, 0x65, 0x61, 0x64, 0x4d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x10, 0x01, 0x12, 0x0f,
-	0x0a, 0x0b, 0x57, 0x72, 0x69, 0x74, 0x65, 0x4d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x10, 0x02, 0x12,
-	0x0e, 0x0a, 0x0a, 0x45, 0x78, 0x65, 0x63, 0x75, 0x74, 0x65, 0x41, 0x53, 0x4d, 0x10, 0x03, 0x12,
-	0x0f, 0x0a, 0x0b, 0x52, 0x65, 0x73, 0x65, 0x74, 0x53, 0x79, 0x73, 0x74, 0x65, 0x6d, 0x10, 0x04,
-	0x12, 0x19, 0x0a, 0x15, 0x50, 0x61, 0x75, 0x73, 0x65, 0x55, 0x6e, 0x70, 0x61, 0x75, 0x73, 0x65,
-	0x45, 0x6d, 0x75, 0x6c, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x10, 0x05, 0x12, 0x18, 0x0a, 0x14, 0x50,
-	0x61, 0x75, 0x73, 0x65, 0x54, 0x6f, 0x67, 0x67, 0x6c, 0x65, 0x45, 0x6d, 0x75, 0x6c, 0x61, 0x74,
-	0x69, 0x6f, 0x6e, 0x10, 0x06, 0x32, 0x3d, 0x0a, 0x07, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x73,
+	0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x73, 0x22, 0x3c, 0x0a, 0x14, 0x52, 0x65, 0x61,
+	0x64, 0x44, 0x69, 0x72, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x12, 0x10, 0x0a, 0x03, 0x75, 0x72, 0x69, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03,
+	0x75, 0x72, 0x69, 0x12, 0x12, 0x0a, 0x04, 0x70, 0x61, 0x74, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x04, 0x70, 0x61, 0x74, 0x68, 0x22, 0x55, 0x0a, 0x08, 0x44, 0x69, 0x72, 0x45, 0x6e,
+	0x74, 0x72, 0x79, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x21, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x0d, 0x2e, 0x44, 0x69, 0x72, 0x45, 0x6e, 0x74, 0x72, 0x79,
+	0x54, 0x79, 0x70, 0x65, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x73, 0x69,
+	0x7a, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x04, 0x52, 0x04, 0x73, 0x69, 0x7a, 0x65, 0x22, 0x62,
+	0x0a, 0x15, 0x52, 0x65, 0x61, 0x64, 0x44, 0x69, 0x72, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x79, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x10, 0x0a, 0x03, 0x75, 0x72, 0x69, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x75, 0x72, 0x69, 0x12, 0x12, 0x0a, 0x04, 0x70, 0x61, 0x74,
+	0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x70, 0x61, 0x74, 0x68, 0x12, 0x23, 0x0a,
+	0x07, 0x65, 0x6e, 0x74, 0x72, 0x69, 0x65, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x09,
+	0x2e, 0x44, 0x69, 0x72, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x07, 0x65, 0x6e, 0x74, 0x72, 0x69,
+	0x65, 0x73, 0x2a, 0x33, 0x0a, 0x0c, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x53, 0x70, 0x61,
+	0x63, 0x65, 0x12, 0x0c, 0x0a, 0x08, 0x46, 0x78, 0x50, 0x61, 0x6b, 0x50, 0x72, 0x6f, 0x10, 0x00,
+	0x12, 0x0c, 0x0a, 0x08, 0x53, 0x6e, 0x65, 0x73, 0x41, 0x42, 0x75, 0x73, 0x10, 0x01, 0x12, 0x07,
+	0x0a, 0x03, 0x52, 0x61, 0x77, 0x10, 0x02, 0x2a, 0x3f, 0x0a, 0x0d, 0x4d, 0x65, 0x6d, 0x6f, 0x72,
+	0x79, 0x4d, 0x61, 0x70, 0x70, 0x69, 0x6e, 0x67, 0x12, 0x0b, 0x0a, 0x07, 0x55, 0x6e, 0x6b, 0x6e,
+	0x6f, 0x77, 0x6e, 0x10, 0x00, 0x12, 0x09, 0x0a, 0x05, 0x48, 0x69, 0x52, 0x4f, 0x4d, 0x10, 0x01,
+	0x12, 0x09, 0x0a, 0x05, 0x4c, 0x6f, 0x52, 0x4f, 0x4d, 0x10, 0x02, 0x12, 0x0b, 0x0a, 0x07, 0x45,
+	0x78, 0x48, 0x69, 0x52, 0x4f, 0x4d, 0x10, 0x03, 0x2a, 0xf1, 0x01, 0x0a, 0x10, 0x44, 0x65, 0x76,
+	0x69, 0x63, 0x65, 0x43, 0x61, 0x70, 0x61, 0x62, 0x69, 0x6c, 0x69, 0x74, 0x79, 0x12, 0x08, 0x0a,
+	0x04, 0x4e, 0x6f, 0x6e, 0x65, 0x10, 0x00, 0x12, 0x0e, 0x0a, 0x0a, 0x52, 0x65, 0x61, 0x64, 0x4d,
+	0x65, 0x6d, 0x6f, 0x72, 0x79, 0x10, 0x01, 0x12, 0x0f, 0x0a, 0x0b, 0x57, 0x72, 0x69, 0x74, 0x65,
+	0x4d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x10, 0x02, 0x12, 0x0e, 0x0a, 0x0a, 0x45, 0x78, 0x65, 0x63,
+	0x75, 0x74, 0x65, 0x41, 0x53, 0x4d, 0x10, 0x03, 0x12, 0x0f, 0x0a, 0x0b, 0x52, 0x65, 0x73, 0x65,
+	0x74, 0x53, 0x79, 0x73, 0x74, 0x65, 0x6d, 0x10, 0x04, 0x12, 0x19, 0x0a, 0x15, 0x50, 0x61, 0x75,
+	0x73, 0x65, 0x55, 0x6e, 0x70, 0x61, 0x75, 0x73, 0x65, 0x45, 0x6d, 0x75, 0x6c, 0x61, 0x74, 0x69,
+	0x6f, 0x6e, 0x10, 0x05, 0x12, 0x18, 0x0a, 0x14, 0x50, 0x61, 0x75, 0x73, 0x65, 0x54, 0x6f, 0x67,
+	0x67, 0x6c, 0x65, 0x45, 0x6d, 0x75, 0x6c, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x10, 0x06, 0x12, 0x11,
+	0x0a, 0x0d, 0x52, 0x65, 0x61, 0x64, 0x44, 0x69, 0x72, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x79, 0x10,
+	0x0a, 0x12, 0x11, 0x0a, 0x0d, 0x4d, 0x61, 0x6b, 0x65, 0x44, 0x69, 0x72, 0x65, 0x63, 0x74, 0x6f,
+	0x72, 0x79, 0x10, 0x0b, 0x12, 0x0e, 0x0a, 0x0a, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x46, 0x69,
+	0x6c, 0x65, 0x10, 0x0c, 0x12, 0x0b, 0x0a, 0x07, 0x50, 0x75, 0x74, 0x46, 0x69, 0x6c, 0x65, 0x10,
+	0x0d, 0x12, 0x0b, 0x0a, 0x07, 0x47, 0x65, 0x74, 0x46, 0x69, 0x6c, 0x65, 0x10, 0x0e, 0x12, 0x0c,
+	0x0a, 0x08, 0x42, 0x6f, 0x6f, 0x74, 0x46, 0x69, 0x6c, 0x65, 0x10, 0x0f, 0x2a, 0x27, 0x0a, 0x0c,
+	0x44, 0x69, 0x72, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x54, 0x79, 0x70, 0x65, 0x12, 0x0d, 0x0a, 0x09,
+	0x44, 0x69, 0x72, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x79, 0x10, 0x00, 0x12, 0x08, 0x0a, 0x04, 0x46,
+	0x69, 0x6c, 0x65, 0x10, 0x01, 0x32, 0x3d, 0x0a, 0x07, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x73,
 	0x12, 0x32, 0x0a, 0x0b, 0x4c, 0x69, 0x73, 0x74, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x73, 0x12,
 	0x0f, 0x2e, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
 	0x1a, 0x10, 0x2e, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
@@ -1827,10 +2097,15 @@ var file_sni_proto_rawDesc = []byte{
 	0x2e, 0x4d, 0x75, 0x6c, 0x74, 0x69, 0x57, 0x72, 0x69, 0x74, 0x65, 0x4d, 0x65, 0x6d, 0x6f, 0x72,
 	0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e, 0x4d, 0x75, 0x6c, 0x74, 0x69,
 	0x57, 0x72, 0x69, 0x74, 0x65, 0x4d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x22, 0x00, 0x28, 0x01, 0x30, 0x01, 0x42, 0x22, 0x5a, 0x20, 0x67, 0x69, 0x74,
-	0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x61, 0x6c, 0x74, 0x74, 0x70, 0x6f, 0x2f, 0x73,
-	0x6e, 0x69, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x73, 0x2f, 0x73, 0x6e, 0x69, 0x62, 0x06, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6e, 0x73, 0x65, 0x22, 0x00, 0x28, 0x01, 0x30, 0x01, 0x32, 0x54, 0x0a, 0x10, 0x44, 0x65, 0x76,
+	0x69, 0x63, 0x65, 0x46, 0x69, 0x6c, 0x65, 0x73, 0x79, 0x73, 0x74, 0x65, 0x6d, 0x12, 0x40, 0x0a,
+	0x0d, 0x52, 0x65, 0x61, 0x64, 0x44, 0x69, 0x72, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x79, 0x12, 0x15,
+	0x2e, 0x52, 0x65, 0x61, 0x64, 0x44, 0x69, 0x72, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x79, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x16, 0x2e, 0x52, 0x65, 0x61, 0x64, 0x44, 0x69, 0x72, 0x65,
+	0x63, 0x74, 0x6f, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42,
+	0x22, 0x5a, 0x20, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x61, 0x6c,
+	0x74, 0x74, 0x70, 0x6f, 0x2f, 0x73, 0x6e, 0x69, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x73, 0x2f,
+	0x73, 0x6e, 0x69, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1845,38 +2120,42 @@ func file_sni_proto_rawDescGZIP() []byte {
 	return file_sni_proto_rawDescData
 }
 
-var file_sni_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_sni_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_sni_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_sni_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_sni_proto_goTypes = []interface{}{
 	(AddressSpace)(0),                    // 0: AddressSpace
 	(MemoryMapping)(0),                   // 1: MemoryMapping
 	(DeviceCapability)(0),                // 2: DeviceCapability
-	(*DevicesRequest)(nil),               // 3: DevicesRequest
-	(*DevicesResponse)(nil),              // 4: DevicesResponse
-	(*ResetSystemRequest)(nil),           // 5: ResetSystemRequest
-	(*ResetSystemResponse)(nil),          // 6: ResetSystemResponse
-	(*PauseEmulationRequest)(nil),        // 7: PauseEmulationRequest
-	(*PauseEmulationResponse)(nil),       // 8: PauseEmulationResponse
-	(*PauseToggleEmulationRequest)(nil),  // 9: PauseToggleEmulationRequest
-	(*PauseToggleEmulationResponse)(nil), // 10: PauseToggleEmulationResponse
-	(*DetectMemoryMappingRequest)(nil),   // 11: DetectMemoryMappingRequest
-	(*DetectMemoryMappingResponse)(nil),  // 12: DetectMemoryMappingResponse
-	(*ReadMemoryRequest)(nil),            // 13: ReadMemoryRequest
-	(*ReadMemoryResponse)(nil),           // 14: ReadMemoryResponse
-	(*WriteMemoryRequest)(nil),           // 15: WriteMemoryRequest
-	(*WriteMemoryResponse)(nil),          // 16: WriteMemoryResponse
-	(*SingleReadMemoryRequest)(nil),      // 17: SingleReadMemoryRequest
-	(*SingleReadMemoryResponse)(nil),     // 18: SingleReadMemoryResponse
-	(*SingleWriteMemoryRequest)(nil),     // 19: SingleWriteMemoryRequest
-	(*SingleWriteMemoryResponse)(nil),    // 20: SingleWriteMemoryResponse
-	(*MultiReadMemoryRequest)(nil),       // 21: MultiReadMemoryRequest
-	(*MultiReadMemoryResponse)(nil),      // 22: MultiReadMemoryResponse
-	(*MultiWriteMemoryRequest)(nil),      // 23: MultiWriteMemoryRequest
-	(*MultiWriteMemoryResponse)(nil),     // 24: MultiWriteMemoryResponse
-	(*DevicesResponse_Device)(nil),       // 25: DevicesResponse.Device
+	(DirEntryType)(0),                    // 3: DirEntryType
+	(*DevicesRequest)(nil),               // 4: DevicesRequest
+	(*DevicesResponse)(nil),              // 5: DevicesResponse
+	(*ResetSystemRequest)(nil),           // 6: ResetSystemRequest
+	(*ResetSystemResponse)(nil),          // 7: ResetSystemResponse
+	(*PauseEmulationRequest)(nil),        // 8: PauseEmulationRequest
+	(*PauseEmulationResponse)(nil),       // 9: PauseEmulationResponse
+	(*PauseToggleEmulationRequest)(nil),  // 10: PauseToggleEmulationRequest
+	(*PauseToggleEmulationResponse)(nil), // 11: PauseToggleEmulationResponse
+	(*DetectMemoryMappingRequest)(nil),   // 12: DetectMemoryMappingRequest
+	(*DetectMemoryMappingResponse)(nil),  // 13: DetectMemoryMappingResponse
+	(*ReadMemoryRequest)(nil),            // 14: ReadMemoryRequest
+	(*ReadMemoryResponse)(nil),           // 15: ReadMemoryResponse
+	(*WriteMemoryRequest)(nil),           // 16: WriteMemoryRequest
+	(*WriteMemoryResponse)(nil),          // 17: WriteMemoryResponse
+	(*SingleReadMemoryRequest)(nil),      // 18: SingleReadMemoryRequest
+	(*SingleReadMemoryResponse)(nil),     // 19: SingleReadMemoryResponse
+	(*SingleWriteMemoryRequest)(nil),     // 20: SingleWriteMemoryRequest
+	(*SingleWriteMemoryResponse)(nil),    // 21: SingleWriteMemoryResponse
+	(*MultiReadMemoryRequest)(nil),       // 22: MultiReadMemoryRequest
+	(*MultiReadMemoryResponse)(nil),      // 23: MultiReadMemoryResponse
+	(*MultiWriteMemoryRequest)(nil),      // 24: MultiWriteMemoryRequest
+	(*MultiWriteMemoryResponse)(nil),     // 25: MultiWriteMemoryResponse
+	(*ReadDirectoryRequest)(nil),         // 26: ReadDirectoryRequest
+	(*DirEntry)(nil),                     // 27: DirEntry
+	(*ReadDirectoryResponse)(nil),        // 28: ReadDirectoryResponse
+	(*DevicesResponse_Device)(nil),       // 29: DevicesResponse.Device
 }
 var file_sni_proto_depIdxs = []int32{
-	25, // 0: DevicesResponse.devices:type_name -> DevicesResponse.Device
+	29, // 0: DevicesResponse.devices:type_name -> DevicesResponse.Device
 	1,  // 1: DetectMemoryMappingRequest.fallbackMemoryMapping:type_name -> MemoryMapping
 	1,  // 2: DetectMemoryMappingResponse.memoryMapping:type_name -> MemoryMapping
 	0,  // 3: ReadMemoryRequest.requestAddressSpace:type_name -> AddressSpace
@@ -1889,43 +2168,47 @@ var file_sni_proto_depIdxs = []int32{
 	0,  // 10: WriteMemoryResponse.requestAddressSpace:type_name -> AddressSpace
 	1,  // 11: WriteMemoryResponse.requestMemoryMapping:type_name -> MemoryMapping
 	0,  // 12: WriteMemoryResponse.deviceAddressSpace:type_name -> AddressSpace
-	13, // 13: SingleReadMemoryRequest.request:type_name -> ReadMemoryRequest
-	14, // 14: SingleReadMemoryResponse.response:type_name -> ReadMemoryResponse
-	15, // 15: SingleWriteMemoryRequest.request:type_name -> WriteMemoryRequest
-	16, // 16: SingleWriteMemoryResponse.response:type_name -> WriteMemoryResponse
-	13, // 17: MultiReadMemoryRequest.requests:type_name -> ReadMemoryRequest
-	14, // 18: MultiReadMemoryResponse.responses:type_name -> ReadMemoryResponse
-	15, // 19: MultiWriteMemoryRequest.requests:type_name -> WriteMemoryRequest
-	16, // 20: MultiWriteMemoryResponse.responses:type_name -> WriteMemoryResponse
-	2,  // 21: DevicesResponse.Device.capabilities:type_name -> DeviceCapability
-	0,  // 22: DevicesResponse.Device.defaultAddressSpace:type_name -> AddressSpace
-	3,  // 23: Devices.ListDevices:input_type -> DevicesRequest
-	5,  // 24: DeviceControl.ResetSystem:input_type -> ResetSystemRequest
-	7,  // 25: DeviceControl.PauseUnpauseEmulation:input_type -> PauseEmulationRequest
-	9,  // 26: DeviceControl.PauseToggleEmulation:input_type -> PauseToggleEmulationRequest
-	11, // 27: DeviceMemory.MappingDetect:input_type -> DetectMemoryMappingRequest
-	17, // 28: DeviceMemory.SingleRead:input_type -> SingleReadMemoryRequest
-	19, // 29: DeviceMemory.SingleWrite:input_type -> SingleWriteMemoryRequest
-	21, // 30: DeviceMemory.MultiRead:input_type -> MultiReadMemoryRequest
-	23, // 31: DeviceMemory.MultiWrite:input_type -> MultiWriteMemoryRequest
-	21, // 32: DeviceMemory.StreamRead:input_type -> MultiReadMemoryRequest
-	23, // 33: DeviceMemory.StreamWrite:input_type -> MultiWriteMemoryRequest
-	4,  // 34: Devices.ListDevices:output_type -> DevicesResponse
-	6,  // 35: DeviceControl.ResetSystem:output_type -> ResetSystemResponse
-	8,  // 36: DeviceControl.PauseUnpauseEmulation:output_type -> PauseEmulationResponse
-	10, // 37: DeviceControl.PauseToggleEmulation:output_type -> PauseToggleEmulationResponse
-	12, // 38: DeviceMemory.MappingDetect:output_type -> DetectMemoryMappingResponse
-	18, // 39: DeviceMemory.SingleRead:output_type -> SingleReadMemoryResponse
-	20, // 40: DeviceMemory.SingleWrite:output_type -> SingleWriteMemoryResponse
-	22, // 41: DeviceMemory.MultiRead:output_type -> MultiReadMemoryResponse
-	24, // 42: DeviceMemory.MultiWrite:output_type -> MultiWriteMemoryResponse
-	22, // 43: DeviceMemory.StreamRead:output_type -> MultiReadMemoryResponse
-	24, // 44: DeviceMemory.StreamWrite:output_type -> MultiWriteMemoryResponse
-	34, // [34:45] is the sub-list for method output_type
-	23, // [23:34] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	14, // 13: SingleReadMemoryRequest.request:type_name -> ReadMemoryRequest
+	15, // 14: SingleReadMemoryResponse.response:type_name -> ReadMemoryResponse
+	16, // 15: SingleWriteMemoryRequest.request:type_name -> WriteMemoryRequest
+	17, // 16: SingleWriteMemoryResponse.response:type_name -> WriteMemoryResponse
+	14, // 17: MultiReadMemoryRequest.requests:type_name -> ReadMemoryRequest
+	15, // 18: MultiReadMemoryResponse.responses:type_name -> ReadMemoryResponse
+	16, // 19: MultiWriteMemoryRequest.requests:type_name -> WriteMemoryRequest
+	17, // 20: MultiWriteMemoryResponse.responses:type_name -> WriteMemoryResponse
+	3,  // 21: DirEntry.type:type_name -> DirEntryType
+	27, // 22: ReadDirectoryResponse.entries:type_name -> DirEntry
+	2,  // 23: DevicesResponse.Device.capabilities:type_name -> DeviceCapability
+	0,  // 24: DevicesResponse.Device.defaultAddressSpace:type_name -> AddressSpace
+	4,  // 25: Devices.ListDevices:input_type -> DevicesRequest
+	6,  // 26: DeviceControl.ResetSystem:input_type -> ResetSystemRequest
+	8,  // 27: DeviceControl.PauseUnpauseEmulation:input_type -> PauseEmulationRequest
+	10, // 28: DeviceControl.PauseToggleEmulation:input_type -> PauseToggleEmulationRequest
+	12, // 29: DeviceMemory.MappingDetect:input_type -> DetectMemoryMappingRequest
+	18, // 30: DeviceMemory.SingleRead:input_type -> SingleReadMemoryRequest
+	20, // 31: DeviceMemory.SingleWrite:input_type -> SingleWriteMemoryRequest
+	22, // 32: DeviceMemory.MultiRead:input_type -> MultiReadMemoryRequest
+	24, // 33: DeviceMemory.MultiWrite:input_type -> MultiWriteMemoryRequest
+	22, // 34: DeviceMemory.StreamRead:input_type -> MultiReadMemoryRequest
+	24, // 35: DeviceMemory.StreamWrite:input_type -> MultiWriteMemoryRequest
+	26, // 36: DeviceFilesystem.ReadDirectory:input_type -> ReadDirectoryRequest
+	5,  // 37: Devices.ListDevices:output_type -> DevicesResponse
+	7,  // 38: DeviceControl.ResetSystem:output_type -> ResetSystemResponse
+	9,  // 39: DeviceControl.PauseUnpauseEmulation:output_type -> PauseEmulationResponse
+	11, // 40: DeviceControl.PauseToggleEmulation:output_type -> PauseToggleEmulationResponse
+	13, // 41: DeviceMemory.MappingDetect:output_type -> DetectMemoryMappingResponse
+	19, // 42: DeviceMemory.SingleRead:output_type -> SingleReadMemoryResponse
+	21, // 43: DeviceMemory.SingleWrite:output_type -> SingleWriteMemoryResponse
+	23, // 44: DeviceMemory.MultiRead:output_type -> MultiReadMemoryResponse
+	25, // 45: DeviceMemory.MultiWrite:output_type -> MultiWriteMemoryResponse
+	23, // 46: DeviceMemory.StreamRead:output_type -> MultiReadMemoryResponse
+	25, // 47: DeviceMemory.StreamWrite:output_type -> MultiWriteMemoryResponse
+	28, // 48: DeviceFilesystem.ReadDirectory:output_type -> ReadDirectoryResponse
+	37, // [37:49] is the sub-list for method output_type
+	25, // [25:37] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_sni_proto_init() }
@@ -2199,6 +2482,42 @@ func file_sni_proto_init() {
 			}
 		}
 		file_sni_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ReadDirectoryRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_sni_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DirEntry); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_sni_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ReadDirectoryResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_sni_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*DevicesResponse_Device); i {
 			case 0:
 				return &v.state
@@ -2217,10 +2536,10 @@ func file_sni_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_sni_proto_rawDesc,
-			NumEnums:      3,
-			NumMessages:   23,
+			NumEnums:      4,
+			NumMessages:   26,
 			NumExtensions: 0,
-			NumServices:   3,
+			NumServices:   4,
 		},
 		GoTypes:           file_sni_proto_goTypes,
 		DependencyIndexes: file_sni_proto_depIdxs,

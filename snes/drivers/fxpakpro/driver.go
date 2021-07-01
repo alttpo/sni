@@ -61,6 +61,13 @@ var driverCapabilities = []sni.DeviceCapability{
 	sni.DeviceCapability_WriteMemory,
 	sni.DeviceCapability_ResetSystem,
 	sni.DeviceCapability_ExecuteASM,
+	// filesystem:
+	sni.DeviceCapability_ReadDirectory,
+	sni.DeviceCapability_MakeDirectory,
+	sni.DeviceCapability_RemoveFile,
+	sni.DeviceCapability_PutFile,
+	sni.DeviceCapability_GetFile,
+	sni.DeviceCapability_BootFile,
 }
 
 func (d *Driver) HasCapabilities(capabilities ...sni.DeviceCapability) (bool, error) {

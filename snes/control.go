@@ -4,8 +4,6 @@ import (
 	"context"
 )
 
-type DeviceControlUser func(ctx context.Context, control DeviceControl) error
-
 type DeviceControl interface {
 	ResetSystem(ctx context.Context) error
 

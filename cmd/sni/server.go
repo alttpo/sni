@@ -526,3 +526,54 @@ func (d *deviceControlService) PauseToggleEmulation(gctx context.Context, reques
 
 	return
 }
+
+type deviceFilesystem struct {
+	sni.UnimplementedDeviceFilesystemServer
+}
+
+func (d *deviceFilesystem) ReadDirectory(ctx context.Context, request *sni.ReadDirectoryRequest) (grsp *sni.ReadDirectoryResponse, gerr error) {
+	uri, err := url.Parse(request.GetUri())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	var driver snes.Driver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
+	if gerr != nil {
+		return nil, grpcError(gerr)
+	}
+
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_ReadDirectory); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
+	}
+
+	var ok bool
+	var fs snes.DeviceFilesystem
+	fs, ok = device.(snes.DeviceFilesystem)
+	if !ok {
+		return nil, status.Error(codes.Unimplemented, "not implemented for this device")
+	}
+
+	// call ListFiles:
+	var files []*snes.DirEntry
+	files, gerr = fs.ReadDirectory(request.GetPath())
+	if gerr != nil {
+		return
+	}
+
+	// translate response:
+	grsp = &sni.ReadDirectoryResponse{
+		Uri:     request.Uri,
+		Path:    request.Path,
+		Entries: make([]*sni.DirEntry, len(files)),
+	}
+	for i, file := range files {
+		grsp.Entries[i] = &sni.DirEntry{
+			Name: file.Name,
+			Type: file.Type,
+			Size: file.Size,
+		}
+	}
+	return
+}

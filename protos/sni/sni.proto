@@ -42,6 +42,10 @@ service DeviceMemory {
   rpc StreamWrite(stream MultiWriteMemoryRequest) returns (stream MultiWriteMemoryResponse) {}
 }
 
+service DeviceFilesystem {
+  rpc ReadDirectory(ReadDirectoryRequest) returns (ReadDirectoryResponse) {}
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // enums
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -86,7 +90,12 @@ enum DeviceCapability {
   PauseUnpauseEmulation = 5;
   PauseToggleEmulation = 6;
   // TODO: query ROM name
-  // TODO: capabilities for dealing with ROM files on filesystems: upload, download, mkdir, ls, boot, etc.
+  ReadDirectory = 10;
+  MakeDirectory = 11;
+  RemoveFile = 12;
+  PutFile = 13;
+  GetFile = 14;
+  BootFile = 15;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -240,4 +249,26 @@ message MultiWriteMemoryRequest {
 message MultiWriteMemoryResponse {
   string uri = 1;
   repeated WriteMemoryResponse responses = 2;
+}
+
+message ReadDirectoryRequest {
+  string uri = 1;
+  string path = 2;
+}
+
+enum DirEntryType {
+  Directory = 0;
+  File = 1;
+}
+
+message DirEntry {
+  string name = 1;
+  DirEntryType type = 2;
+  uint64 size = 3;
+}
+
+message ReadDirectoryResponse {
+  string uri = 1;
+  string path = 2;
+  repeated DirEntry entries = 3;
 }

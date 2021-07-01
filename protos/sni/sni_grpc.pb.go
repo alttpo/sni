@@ -646,3 +646,89 @@ var DeviceMemory_ServiceDesc = grpc.ServiceDesc{
 	},
 	Metadata: "sni.proto",
 }
+
+// DeviceFilesystemClient is the client API for DeviceFilesystem service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type DeviceFilesystemClient interface {
+	ReadDirectory(ctx context.Context, in *ReadDirectoryRequest, opts ...grpc.CallOption) (*ReadDirectoryResponse, error)
+}
+
+type deviceFilesystemClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewDeviceFilesystemClient(cc grpc.ClientConnInterface) DeviceFilesystemClient {
+	return &deviceFilesystemClient{cc}
+}
+
+func (c *deviceFilesystemClient) ReadDirectory(ctx context.Context, in *ReadDirectoryRequest, opts ...grpc.CallOption) (*ReadDirectoryResponse, error) {
+	out := new(ReadDirectoryResponse)
+	err := c.cc.Invoke(ctx, "/DeviceFilesystem/ReadDirectory", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// DeviceFilesystemServer is the server API for DeviceFilesystem service.
+// All implementations must embed UnimplementedDeviceFilesystemServer
+// for forward compatibility
+type DeviceFilesystemServer interface {
+	ReadDirectory(context.Context, *ReadDirectoryRequest) (*ReadDirectoryResponse, error)
+	mustEmbedUnimplementedDeviceFilesystemServer()
+}
+
+// UnimplementedDeviceFilesystemServer must be embedded to have forward compatible implementations.
+type UnimplementedDeviceFilesystemServer struct {
+}
+
+func (UnimplementedDeviceFilesystemServer) ReadDirectory(context.Context, *ReadDirectoryRequest) (*ReadDirectoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadDirectory not implemented")
+}
+func (UnimplementedDeviceFilesystemServer) mustEmbedUnimplementedDeviceFilesystemServer() {}
+
+// UnsafeDeviceFilesystemServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to DeviceFilesystemServer will
+// result in compilation errors.
+type UnsafeDeviceFilesystemServer interface {
+	mustEmbedUnimplementedDeviceFilesystemServer()
+}
+
+func RegisterDeviceFilesystemServer(s grpc.ServiceRegistrar, srv DeviceFilesystemServer) {
+	s.RegisterService(&DeviceFilesystem_ServiceDesc, srv)
+}
+
+func _DeviceFilesystem_ReadDirectory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReadDirectoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceFilesystemServer).ReadDirectory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceFilesystem/ReadDirectory",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceFilesystemServer).ReadDirectory(ctx, req.(*ReadDirectoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// DeviceFilesystem_ServiceDesc is the grpc.ServiceDesc for DeviceFilesystem service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var DeviceFilesystem_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "DeviceFilesystem",
+	HandlerType: (*DeviceFilesystemServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ReadDirectory",
+			Handler:    _DeviceFilesystem_ReadDirectory_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "sni.proto",
+}

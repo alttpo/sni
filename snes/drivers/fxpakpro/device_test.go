@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func BenchmarkMemory(b *testing.B) {
+func openAutoCloseableDevice(b testing.TB) snes.AutoCloseableDevice {
 	var err error
 
 	// detect fxpakpro devices connected to the system:
@@ -28,6 +28,39 @@ func BenchmarkMemory(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
+	return d
+}
+
+func openExactDevice(tb testing.TB) *Device {
+	var err error
+
+	// detect fxpakpro devices connected to the system:
+	var devices []snes.DeviceDescriptor
+	devices, err = driver.Detect()
+	if err != nil {
+		tb.Fatal(err)
+	}
+
+	if len(devices) == 0 {
+		tb.Skip("no fxpakpro devices found to test against")
+	}
+
+	uri := &devices[0].Uri
+
+	var gendev snes.Device
+	gendev, err = driver.openDevice(uri)
+	if err != nil {
+		tb.Fatal(err)
+	}
+
+	d := gendev.(*Device)
+
+	return d
+}
+
+func BenchmarkMemory(b *testing.B) {
+	var err error
+	d := openAutoCloseableDevice(b)
 
 	// open the device with a single read:
 	var rsp []snes.MemoryReadResponse

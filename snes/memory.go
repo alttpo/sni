@@ -30,8 +30,6 @@ type MemoryWriteResponse struct {
 	Size int
 }
 
-type DeviceMemoryUser func(ctx context.Context, memory DeviceMemory) error
-
 type DeviceMemory interface {
 	MultiReadMemory(ctx context.Context, reads ...MemoryReadRequest) ([]MemoryReadResponse, error)
 	MultiWriteMemory(ctx context.Context, writes ...MemoryWriteRequest) ([]MemoryWriteResponse, error)
