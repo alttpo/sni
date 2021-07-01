@@ -3,6 +3,7 @@ package snes
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc/codes"
 	"net/url"
 )
 
@@ -11,6 +12,7 @@ import (
 type AutoCloseableDevice interface {
 	DeviceControl
 	DeviceMemory
+	DeviceFilesystem
 }
 
 type autoCloseableDevice struct {
@@ -90,6 +92,18 @@ func (a *autoCloseableDevice) MultiReadMemory(ctx context.Context, reads ...Memo
 func (a *autoCloseableDevice) MultiWriteMemory(ctx context.Context, writes ...MemoryWriteRequest) (rsp []MemoryWriteResponse, err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
 		rsp, err = device.MultiWriteMemory(ctx, writes...)
+		return err
+	})
+	return
+}
+
+func (a *autoCloseableDevice) ReadDirectory(ctx context.Context, path string) (rsp []DirEntry, err error) {
+	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		fs, ok := device.(DeviceFilesystem)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
+		}
+		rsp, err = fs.ReadDirectory(ctx, path)
 		return err
 	})
 	return

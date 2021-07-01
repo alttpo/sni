@@ -44,6 +44,7 @@ func StartGrpcServer() {
 	sni.RegisterDevicesServer(s, &devicesService{})
 	sni.RegisterDeviceMemoryServer(s, &deviceMemoryService{})
 	sni.RegisterDeviceControlServer(s, &deviceControlService{})
+	sni.RegisterDeviceFilesystemServer(s, &deviceFilesystem{})
 	reflection.Register(s)
 
 	go func() {

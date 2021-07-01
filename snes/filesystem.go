@@ -1,6 +1,9 @@
 package snes
 
-import "sni/protos/sni"
+import (
+	"context"
+	"sni/protos/sni"
+)
 
 type DirEntry struct {
 	Name string
@@ -9,5 +12,5 @@ type DirEntry struct {
 }
 
 type DeviceFilesystem interface {
-	ReadDirectory(path string) ([]*DirEntry, error)
+	ReadDirectory(ctx context.Context, path string) ([]DirEntry, error)
 }

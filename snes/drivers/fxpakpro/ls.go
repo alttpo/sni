@@ -1,13 +1,14 @@
 package fxpakpro
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"sni/protos/sni"
 	"sni/snes"
 )
 
-func (d *Device) listFiles(path string) (files []snes.DirEntry, err error) {
+func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEntry, err error) {
 	sb := make([]byte, 512)
 	sb[0] = byte('U')
 	sb[1] = byte('S')

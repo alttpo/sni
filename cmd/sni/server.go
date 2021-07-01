@@ -548,16 +548,9 @@ func (d *deviceFilesystem) ReadDirectory(ctx context.Context, request *sni.ReadD
 		return nil, status.Error(codes.Unimplemented, err.Error())
 	}
 
-	var ok bool
-	var fs snes.DeviceFilesystem
-	fs, ok = device.(snes.DeviceFilesystem)
-	if !ok {
-		return nil, status.Error(codes.Unimplemented, "not implemented for this device")
-	}
-
 	// call ListFiles:
-	var files []*snes.DirEntry
-	files, gerr = fs.ReadDirectory(request.GetPath())
+	var files []snes.DirEntry
+	files, gerr = device.ReadDirectory(ctx, request.GetPath())
 	if gerr != nil {
 		return
 	}
