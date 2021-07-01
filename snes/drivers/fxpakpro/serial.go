@@ -3,25 +3,26 @@ package fxpakpro
 import (
 	"fmt"
 	"go.bug.st/serial"
+	"sni/snes"
 )
 
 func sendSerial(f serial.Port, chunkSize int, buf []byte) error {
 	return sendSerialProgress(f, chunkSize, buf, nil)
 }
 
-func sendSerialProgress(f serial.Port, chunkSize int, buf []byte, report func(sent int, total int)) error {
+func sendSerialProgress(f serial.Port, chunkSize int, buf []byte, report snes.ProgressReportFunc) error {
 	// chunkSize is how many bytes each chunk is expected to be sized according to the protocol; valid values are [64, 512].
 	if chunkSize != 64 && chunkSize != 512 {
 		panic("chunkSize must be either 64 or 512")
 	}
 
-	sent := 0
-	total := len(buf)
+	sent := uint64(0)
+	total := uint64(len(buf))
 	for sent < total {
 		if report != nil {
 			report(sent, total)
 		}
-		end := sent + chunkSize
+		end := sent + uint64(chunkSize)
 		if end > total {
 			end = total
 		}
@@ -35,7 +36,7 @@ func sendSerialProgress(f serial.Port, chunkSize int, buf []byte, report func(se
 		if e != nil {
 			return e
 		}
-		sent += n
+		sent += uint64(n)
 	}
 	if sent > total {
 		sent = total

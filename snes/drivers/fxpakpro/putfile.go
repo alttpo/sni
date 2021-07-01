@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"sni/snes"
 )
 
 type putFileRequest struct {
 	path   string
 	rom    []byte
-	report func(sent int, total int)
+	report snes.ProgressReportFunc
 }
 
 func (d *Device) putFile(ctx context.Context, req putFileRequest) (err error) {
