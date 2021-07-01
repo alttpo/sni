@@ -7,10 +7,12 @@ import (
 	"testing"
 )
 
+func init() {
+	DriverInit()
+}
+
 func openAutoCloseableDevice(b testing.TB) snes.AutoCloseableDevice {
 	var err error
-
-	DriverInit()
 
 	// detect fxpakpro devices connected to the system:
 	var devices []snes.DeviceDescriptor
@@ -35,8 +37,6 @@ func openAutoCloseableDevice(b testing.TB) snes.AutoCloseableDevice {
 
 func openExactDevice(tb testing.TB) *Device {
 	var err error
-
-	DriverInit()
 
 	// detect fxpakpro devices connected to the system:
 	var devices []snes.DeviceDescriptor
