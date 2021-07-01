@@ -9,7 +9,8 @@ on:
 jobs:
   release-matrix:
     strategy:
-      fail-fast: false
+      # we want to be notified of main build failures as soon as possible
+      fail-fast: true
       matrix:
         include:
           - os: macos-latest
