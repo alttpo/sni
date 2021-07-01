@@ -93,9 +93,10 @@ enum DeviceCapability {
   ReadDirectory = 10;
   MakeDirectory = 11;
   RemoveFile = 12;
-  PutFile = 13;
-  GetFile = 14;
-  BootFile = 15;
+  RenameFile = 13;
+  PutFile = 14;
+  GetFile = 15;
+  BootFile = 16;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////

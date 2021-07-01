@@ -72,7 +72,7 @@ func (a *autoCloseableDevice) Close() error {
 func (a *autoCloseableDevice) ResetSystem(ctx context.Context) (err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
 		err = device.ResetSystem(ctx)
-		return err
+		return
 	})
 	return
 }
@@ -80,7 +80,7 @@ func (a *autoCloseableDevice) ResetSystem(ctx context.Context) (err error) {
 func (a *autoCloseableDevice) PauseUnpause(ctx context.Context, pausedState bool) (ok bool, err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
 		ok, err = device.PauseUnpause(ctx, pausedState)
-		return err
+		return
 	})
 	return
 }
@@ -88,7 +88,7 @@ func (a *autoCloseableDevice) PauseUnpause(ctx context.Context, pausedState bool
 func (a *autoCloseableDevice) PauseToggle(ctx context.Context) (err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
 		err = device.PauseToggle(ctx)
-		return err
+		return
 	})
 	return
 }
@@ -96,7 +96,7 @@ func (a *autoCloseableDevice) PauseToggle(ctx context.Context) (err error) {
 func (a *autoCloseableDevice) MultiReadMemory(ctx context.Context, reads ...MemoryReadRequest) (rsp []MemoryReadResponse, err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
 		rsp, err = device.MultiReadMemory(ctx, reads...)
-		return err
+		return
 	})
 	return
 }
@@ -104,7 +104,7 @@ func (a *autoCloseableDevice) MultiReadMemory(ctx context.Context, reads ...Memo
 func (a *autoCloseableDevice) MultiWriteMemory(ctx context.Context, writes ...MemoryWriteRequest) (rsp []MemoryWriteResponse, err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
 		rsp, err = device.MultiWriteMemory(ctx, writes...)
-		return err
+		return
 	})
 	return
 }
@@ -116,7 +116,79 @@ func (a *autoCloseableDevice) ReadDirectory(ctx context.Context, path string) (r
 			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
 		}
 		rsp, err = fs.ReadDirectory(ctx, path)
-		return err
+		return
+	})
+	return
+}
+
+func (a *autoCloseableDevice) MakeDirectory(ctx context.Context, path string) (err error) {
+	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		fs, ok := device.(DeviceFilesystem)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
+		}
+		err = fs.MakeDirectory(ctx, path)
+		return
+	})
+	return
+}
+
+func (a *autoCloseableDevice) RemoveFile(ctx context.Context, path string) (err error) {
+	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		fs, ok := device.(DeviceFilesystem)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
+		}
+		err = fs.RemoveFile(ctx, path)
+		return
+	})
+	return
+}
+
+func (a *autoCloseableDevice) RenameFile(ctx context.Context, path, newFilename string) (err error) {
+	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		fs, ok := device.(DeviceFilesystem)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
+		}
+		err = fs.RenameFile(ctx, path, newFilename)
+		return
+	})
+	return
+}
+
+func (a *autoCloseableDevice) PutFile(ctx context.Context, path string, r io.Reader, progress ProgressReportFunc) (n uint64, err error) {
+	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		fs, ok := device.(DeviceFilesystem)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
+		}
+		n, err = fs.PutFile(ctx, path, r, progress)
+		return
+	})
+	return
+}
+
+func (a *autoCloseableDevice) GetFile(ctx context.Context, path string, w io.Writer, progress ProgressReportFunc) (n uint64, err error) {
+	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		fs, ok := device.(DeviceFilesystem)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
+		}
+		n, err = fs.GetFile(ctx, path, w, progress)
+		return
+	})
+	return
+}
+
+func (a *autoCloseableDevice) BootFile(ctx context.Context, path string) (err error) {
+	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		fs, ok := device.(DeviceFilesystem)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
+		}
+		err = fs.BootFile(ctx, path)
+		return
 	})
 	return
 }

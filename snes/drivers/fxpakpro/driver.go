@@ -65,6 +65,7 @@ var driverCapabilities = []sni.DeviceCapability{
 	sni.DeviceCapability_ReadDirectory,
 	sni.DeviceCapability_MakeDirectory,
 	sni.DeviceCapability_RemoveFile,
+	sni.DeviceCapability_RenameFile,
 	sni.DeviceCapability_PutFile,
 	sni.DeviceCapability_GetFile,
 	sni.DeviceCapability_BootFile,
