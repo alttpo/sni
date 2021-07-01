@@ -1,6 +1,7 @@
 package fxpakpro
 
 import (
+	"context"
 	"fmt"
 )
 
@@ -10,20 +11,13 @@ type vgetChunk struct {
 	target []byte
 }
 
-func (d *Device) vget(space space, chunks ...vgetChunk) (err error) {
-	return d.vgetImpl(true, space, chunks...)
-}
-
-func (d *Device) vgetImpl(doLock bool, space space, chunks ...vgetChunk) (err error) {
+func (d *Device) vget(ctx context.Context, space space, chunks ...vgetChunk) (err error) {
 	if len(chunks) > 8 {
 		return fmt.Errorf("VGET cannot accept more than 8 chunks")
 	}
 
 	sb := make([]byte, 64)
-	sb[0] = byte('U')
-	sb[1] = byte('S')
-	sb[2] = byte('B')
-	sb[3] = byte('A')
+	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpVGET)
 	sb[5] = byte(space)
 	sb[6] = byte(FlagDATA64B | FlagNORESP)
@@ -41,7 +35,7 @@ func (d *Device) vgetImpl(doLock bool, space space, chunks ...vgetChunk) (err er
 		total += int(chunk.size)
 	}
 
-	if doLock {
+	if shouldLock(ctx) {
 		defer d.lock.Unlock()
 		d.lock.Lock()
 	}

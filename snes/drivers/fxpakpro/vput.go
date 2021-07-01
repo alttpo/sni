@@ -1,26 +1,22 @@
 package fxpakpro
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 type vputChunk struct {
 	addr uint32
 	data []byte
 }
 
-func (d *Device) vput(space space, chunks ...vputChunk) (err error) {
-	return d.vputImpl(true, space, chunks...)
-}
-
-func (d *Device) vputImpl(doLock bool, space space, chunks ...vputChunk) (err error) {
+func (d *Device) vput(ctx context.Context, space space, chunks ...vputChunk) (err error) {
 	if len(chunks) > 8 {
 		return fmt.Errorf("VPUT cannot accept more than 8 chunks")
 	}
 
 	sb := make([]byte, 64)
-	sb[0] = byte('U')
-	sb[1] = byte('S')
-	sb[2] = byte('B')
-	sb[3] = byte('A')
+	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpVPUT)
 	sb[5] = byte(space)
 	sb[6] = byte(FlagDATA64B | FlagNORESP)
@@ -44,7 +40,7 @@ func (d *Device) vputImpl(doLock bool, space space, chunks ...vputChunk) (err er
 		total += int(args[0])
 	}
 
-	if doLock {
+	if shouldLock(ctx) {
 		defer d.lock.Unlock()
 		d.lock.Lock()
 	}

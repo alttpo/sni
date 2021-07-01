@@ -1,6 +1,7 @@
 package fxpakpro
 
 import (
+	"context"
 	"go.bug.st/serial"
 	"sync"
 )
@@ -24,4 +25,11 @@ func (d *Device) Close() (err error) {
 	err = d.f.Close()
 	d.isClosed = true
 	return
+}
+
+type lockedKeyType int
+var lockedKey lockedKeyType
+
+func shouldLock(ctx context.Context) bool {
+	return ctx.Value(lockedKey) == nil
 }

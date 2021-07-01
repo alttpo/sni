@@ -1,13 +1,14 @@
 package fxpakpro
 
-import "encoding/binary"
+import (
+	"context"
+	"encoding/binary"
+	"fmt"
+)
 
-func (d *Device) put(space space, address uint32, data []byte) (err error) {
+func (d *Device) put(ctx context.Context, space space, address uint32, data []byte) (err error) {
 	sb := make([]byte, 512)
-	sb[0] = byte('U')
-	sb[1] = byte('S')
-	sb[2] = byte('B')
-	sb[3] = byte('A')
+	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpPUT)
 	sb[5] = byte(space)
 	sb[6] = byte(FlagNONE)
@@ -19,10 +20,12 @@ func (d *Device) put(space space, address uint32, data []byte) (err error) {
 	// put the address in:
 	binary.BigEndian.PutUint32(sb[256:], address)
 
-	// send the data to the USB port:
-	defer d.lock.Unlock()
-	d.lock.Lock()
+	if shouldLock(ctx) {
+		defer d.lock.Unlock()
+		d.lock.Lock()
+	}
 
+	// send the data to the USB port:
 	err = sendSerial(d.f, sb)
 	if err != nil {
 		_ = d.Close()
@@ -51,6 +54,11 @@ func (d *Device) put(space space, address uint32, data []byte) (err error) {
 		_ = d.Close()
 		return
 	}
+	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
+		_ = d.Close()
+		return fmt.Errorf("put: fxpakpro response packet does not contain USBA header")
+	}
+
 
 	return
 }

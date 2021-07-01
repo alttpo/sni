@@ -1,6 +1,10 @@
 package fxpakpro
 
-import "fmt"
+import (
+	"context"
+	"encoding/binary"
+	"fmt"
+)
 
 type putFileRequest struct {
 	path   string
@@ -8,12 +12,9 @@ type putFileRequest struct {
 	report func(sent int, total int)
 }
 
-func (d *Device) putFile(doLock bool, req putFileRequest) (err error) {
+func (d *Device) putFile(ctx context.Context, req putFileRequest) (err error) {
 	sb := make([]byte, 512)
-	sb[0] = byte('U')
-	sb[1] = byte('S')
-	sb[2] = byte('B')
-	sb[3] = byte('A')
+	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpPUT)
 	sb[5] = byte(SpaceFILE)
 	sb[6] = byte(FlagNONE)
@@ -24,12 +25,9 @@ func (d *Device) putFile(doLock bool, req putFileRequest) (err error) {
 
 	// size of ROM contents:
 	size := uint32(len(req.rom))
-	sb[252] = byte((size >> 24) & 0xFF)
-	sb[253] = byte((size >> 16) & 0xFF)
-	sb[254] = byte((size >> 8) & 0xFF)
-	sb[255] = byte((size >> 0) & 0xFF)
+	binary.BigEndian.PutUint32(sb[252:], size)
 
-	if doLock {
+	if shouldLock(ctx) {
 		defer d.lock.Unlock()
 		d.lock.Lock()
 	}
@@ -73,11 +71,10 @@ func (d *Device) putFile(doLock bool, req putFileRequest) (err error) {
 	}
 	if rsp[0] != 'U' || rsp[1] != 'S' || rsp[2] != 'B' || rsp[3] != 'A' {
 		_ = d.Close()
-		return fmt.Errorf("putfile: unexpected response packet does not contain USBA header")
+		return fmt.Errorf("putfile: response packet does not contain USBA header")
 	}
 
-	ec := rsp[5]
-	if ec != 0 {
+	if ec := rsp[5]; ec != 0 {
 		return fmt.Errorf("putfile: fxpakpro responded with error code %d", ec)
 	}
 

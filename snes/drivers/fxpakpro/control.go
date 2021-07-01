@@ -1,33 +1,39 @@
 package fxpakpro
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 func (d *Device) ResetSystem(ctx context.Context) (err error) {
 	sb := make([]byte, 512)
-	sb[0] = byte('U')
-	sb[1] = byte('S')
-	sb[2] = byte('B')
-	sb[3] = byte('A')
+	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpRESET)
 	sb[5] = byte(SpaceFILE)
 	sb[6] = byte(FlagNONE)
 
-	d.lock.Lock()
+	if shouldLock(ctx) {
+		defer d.lock.Unlock()
+		d.lock.Lock()
+	}
+
 	err = sendSerial(d.f, sb)
 	if err != nil {
 		_ = d.Close()
-		d.lock.Unlock()
 		return
 	}
 
 	err = recvSerial(d.f, sb, 512)
 	if err != nil {
 		_ = d.Close()
-		d.lock.Unlock()
 		return
 	}
 
-	d.lock.Unlock()
+	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
+		_ = d.Close()
+		return fmt.Errorf("mkdir: fxpakpro response packet does not contain USBA header")
+	}
+
 	return
 }
 

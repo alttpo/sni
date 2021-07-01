@@ -10,10 +10,7 @@ import (
 
 func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEntry, err error) {
 	sb := make([]byte, 512)
-	sb[0] = byte('U')
-	sb[1] = byte('S')
-	sb[2] = byte('B')
-	sb[3] = byte('A')
+	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpLS)
 	sb[5] = byte(SpaceFILE)
 	sb[6] = byte(FlagNONE)
@@ -21,10 +18,12 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEn
 	n := copy(sb[256:], path)
 	binary.BigEndian.PutUint32(sb[252:], uint32(n))
 
-	// send the data to the USB port:
-	defer d.lock.Unlock()
-	d.lock.Lock()
+	if shouldLock(ctx) {
+		defer d.lock.Unlock()
+		d.lock.Lock()
+	}
 
+	// send the data to the USB port:
 	err = sendSerial(d.f, sb)
 	if err != nil {
 		_ = d.Close()
@@ -38,12 +37,18 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEn
 		return
 	}
 
+	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
+		_ = d.Close()
+		return nil, fmt.Errorf("mkdir: fxpakpro response packet does not contain USBA header")
+	}
+
 	// fxpakpro `ls` command always returns 1 for size:
 	if size := binary.BigEndian.Uint32(sb[252:256]); size != 1 {
-		return nil, fmt.Errorf("ls: size actual %d, expected 1", size)
+		_ = d.Close()
+		return nil, fmt.Errorf("ls: fxpakpro response size actual %d, expected 1", size)
 	}
 	if errorNo := int(sb[5]); errorNo != 0 {
-		return nil, fmt.Errorf("ls: returned error code %d", errorNo)
+		return nil, fmt.Errorf("ls: fxpakpro returned error code %d", errorNo)
 	}
 
 	files = make([]snes.DirEntry, 0, 10)

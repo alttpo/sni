@@ -38,6 +38,13 @@ func (d *Device) MultiReadMemory(
 		}
 	}
 
+	subctx := ctx
+	if shouldLock(ctx) {
+		defer d.lock.Unlock()
+		d.lock.Lock()
+		subctx = context.WithValue(ctx, lockedKey, &struct{}{})
+	}
+
 	// Break up larger reads (> 255 bytes) into 255-byte chunks:
 	chunks := make([]vgetChunk, 0, 8)
 	for j, request := range reads {
@@ -59,7 +66,7 @@ func (d *Device) MultiReadMemory(
 			})
 
 			if len(chunks) == 8 {
-				err = d.vget(SpaceSNES, chunks...)
+				err = d.vget(subctx, SpaceSNES, chunks...)
 				if err != nil {
 					return
 				}
@@ -74,7 +81,7 @@ func (d *Device) MultiReadMemory(
 	}
 
 	if len(chunks) > 0 {
-		err = d.vget(SpaceSNES, chunks...)
+		err = d.vget(subctx, SpaceSNES, chunks...)
 		if err != nil {
 			return
 		}
@@ -107,6 +114,14 @@ func (d *Device) MultiWriteMemory(
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	subctx := ctx
+	if shouldLock(ctx) {
+		// lock the device for this entire sequence to avoid interruptions:
+		defer d.lock.Unlock()
+		d.lock.Lock()
+		subctx = context.WithValue(ctx, lockedKey, &struct{}{})
 	}
 
 	// pick out WRAM writes:
@@ -143,7 +158,7 @@ func (d *Device) MultiWriteMemory(
 			})
 
 			if len(chunks) == 8 {
-				err = d.vput(SpaceSNES, chunks...)
+				err = d.vput(subctx, SpaceSNES, chunks...)
 				if err != nil {
 					return
 				}
@@ -157,7 +172,7 @@ func (d *Device) MultiWriteMemory(
 	}
 
 	if len(chunks) > 0 {
-		err = d.vput(SpaceSNES, chunks...)
+		err = d.vput(subctx, SpaceSNES, chunks...)
 		if err != nil {
 			return
 		}
@@ -215,26 +230,22 @@ func (d *Device) MultiWriteMemory(
 		// await 10 frames max for NMI EXE: (17ms = 1 frame, rounded up from 16.6ms)
 		const timeout = time.Millisecond * 17 * 10
 
-		// lock the device for this entire sequence to avoid interruptions:
-		defer d.lock.Unlock()
-		d.lock.Lock()
-
 		// VGET to await NMI EXE availability:
 		{
 			var ok bool
 			deadline := time.Now().Add(timeout)
-			ok, err = d.awaitNMIEXE(false, deadline)
+			ok, err = d.awaitNMIEXE(subctx, deadline)
 			if err != nil {
 				return
 			}
 			if !ok {
-				err = fmt.Errorf("fxpakpro: could not acquire NMI EXE")
+				err = fmt.Errorf("fxpakpro: could not acquire NMI EXE pre-write")
 				return
 			}
 		}
 
 		// VPUT command to CMD space:
-		err = d.vputImpl(false, SpaceCMD, chunks...)
+		err = d.vput(subctx, SpaceCMD, chunks...)
 		if err != nil {
 			return
 		}
@@ -243,12 +254,12 @@ func (d *Device) MultiWriteMemory(
 		{
 			var ok bool
 			deadline := time.Now().Add(timeout)
-			ok, err = d.awaitNMIEXE(false, deadline)
+			ok, err = d.awaitNMIEXE(subctx, deadline)
 			if err != nil {
 				return
 			}
 			if !ok {
-				err = fmt.Errorf("fxpakpro: could not acquire NMI EXE")
+				err = fmt.Errorf("fxpakpro: could not acquire NMI EXE post-write")
 				return
 			}
 		}
@@ -257,10 +268,10 @@ func (d *Device) MultiWriteMemory(
 	return
 }
 
-func (d *Device) awaitNMIEXE(doLock bool, deadline time.Time) (ok bool, err error) {
+func (d *Device) awaitNMIEXE(ctx context.Context, deadline time.Time) (ok bool, err error) {
 	check := make([]byte, 1)
 	for ; time.Now().Before(deadline); {
-		err = d.vgetImpl(doLock, SpaceCMD, vgetChunk{addr: 0x2C00, size: 1, target: check})
+		err = d.vget(ctx, SpaceCMD, vgetChunk{addr: 0x2C00, size: 1, target: check})
 		if err != nil {
 			return
 		}
