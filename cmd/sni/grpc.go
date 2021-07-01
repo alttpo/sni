@@ -16,6 +16,8 @@ import (
 
 const fullMethodFormatter = "%32s"
 
+var grpcServer *grpc.Server
+
 func StartGrpcServer() {
 	var err error
 
@@ -37,18 +39,18 @@ func StartGrpcServer() {
 	}
 
 	// start gRPC server:
-	s := grpc.NewServer(
+	grpcServer = grpc.NewServer(
 		grpc.ChainUnaryInterceptor(logTimingInterceptor),
 		grpc.ChainStreamInterceptor(reportErrorStreamInterceptor),
 	)
-	sni.RegisterDevicesServer(s, &devicesService{})
-	sni.RegisterDeviceMemoryServer(s, &deviceMemoryService{})
-	sni.RegisterDeviceControlServer(s, &deviceControlService{})
-	sni.RegisterDeviceFilesystemServer(s, &deviceFilesystem{})
-	reflection.Register(s)
+	sni.RegisterDevicesServer(grpcServer, &devicesService{})
+	sni.RegisterDeviceMemoryServer(grpcServer, &deviceMemoryService{})
+	sni.RegisterDeviceControlServer(grpcServer, &deviceControlService{})
+	sni.RegisterDeviceFilesystemServer(grpcServer, &deviceFilesystem{})
+	reflection.Register(grpcServer)
 
 	go func() {
-		if err := s.Serve(lis); err != nil {
+		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
 		}
 	}()
