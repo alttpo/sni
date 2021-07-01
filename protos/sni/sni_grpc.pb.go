@@ -652,6 +652,12 @@ var DeviceMemory_ServiceDesc = grpc.ServiceDesc{
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DeviceFilesystemClient interface {
 	ReadDirectory(ctx context.Context, in *ReadDirectoryRequest, opts ...grpc.CallOption) (*ReadDirectoryResponse, error)
+	MakeDirectory(ctx context.Context, in *MakeDirectoryRequest, opts ...grpc.CallOption) (*MakeDirectoryResponse, error)
+	RemoveFile(ctx context.Context, in *RemoveFileRequest, opts ...grpc.CallOption) (*RemoveFileResponse, error)
+	RenameFile(ctx context.Context, in *RenameFileRequest, opts ...grpc.CallOption) (*RenameFileResponse, error)
+	PutFile(ctx context.Context, in *PutFileRequest, opts ...grpc.CallOption) (*PutFileResponse, error)
+	GetFile(ctx context.Context, in *GetFileRequest, opts ...grpc.CallOption) (*GetFileResponse, error)
+	BootFile(ctx context.Context, in *BootFileRequest, opts ...grpc.CallOption) (*BootFileResponse, error)
 }
 
 type deviceFilesystemClient struct {
@@ -671,11 +677,71 @@ func (c *deviceFilesystemClient) ReadDirectory(ctx context.Context, in *ReadDire
 	return out, nil
 }
 
+func (c *deviceFilesystemClient) MakeDirectory(ctx context.Context, in *MakeDirectoryRequest, opts ...grpc.CallOption) (*MakeDirectoryResponse, error) {
+	out := new(MakeDirectoryResponse)
+	err := c.cc.Invoke(ctx, "/DeviceFilesystem/MakeDirectory", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deviceFilesystemClient) RemoveFile(ctx context.Context, in *RemoveFileRequest, opts ...grpc.CallOption) (*RemoveFileResponse, error) {
+	out := new(RemoveFileResponse)
+	err := c.cc.Invoke(ctx, "/DeviceFilesystem/RemoveFile", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deviceFilesystemClient) RenameFile(ctx context.Context, in *RenameFileRequest, opts ...grpc.CallOption) (*RenameFileResponse, error) {
+	out := new(RenameFileResponse)
+	err := c.cc.Invoke(ctx, "/DeviceFilesystem/RenameFile", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deviceFilesystemClient) PutFile(ctx context.Context, in *PutFileRequest, opts ...grpc.CallOption) (*PutFileResponse, error) {
+	out := new(PutFileResponse)
+	err := c.cc.Invoke(ctx, "/DeviceFilesystem/PutFile", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deviceFilesystemClient) GetFile(ctx context.Context, in *GetFileRequest, opts ...grpc.CallOption) (*GetFileResponse, error) {
+	out := new(GetFileResponse)
+	err := c.cc.Invoke(ctx, "/DeviceFilesystem/GetFile", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deviceFilesystemClient) BootFile(ctx context.Context, in *BootFileRequest, opts ...grpc.CallOption) (*BootFileResponse, error) {
+	out := new(BootFileResponse)
+	err := c.cc.Invoke(ctx, "/DeviceFilesystem/BootFile", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DeviceFilesystemServer is the server API for DeviceFilesystem service.
 // All implementations must embed UnimplementedDeviceFilesystemServer
 // for forward compatibility
 type DeviceFilesystemServer interface {
 	ReadDirectory(context.Context, *ReadDirectoryRequest) (*ReadDirectoryResponse, error)
+	MakeDirectory(context.Context, *MakeDirectoryRequest) (*MakeDirectoryResponse, error)
+	RemoveFile(context.Context, *RemoveFileRequest) (*RemoveFileResponse, error)
+	RenameFile(context.Context, *RenameFileRequest) (*RenameFileResponse, error)
+	PutFile(context.Context, *PutFileRequest) (*PutFileResponse, error)
+	GetFile(context.Context, *GetFileRequest) (*GetFileResponse, error)
+	BootFile(context.Context, *BootFileRequest) (*BootFileResponse, error)
 	mustEmbedUnimplementedDeviceFilesystemServer()
 }
 
@@ -685,6 +751,24 @@ type UnimplementedDeviceFilesystemServer struct {
 
 func (UnimplementedDeviceFilesystemServer) ReadDirectory(context.Context, *ReadDirectoryRequest) (*ReadDirectoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReadDirectory not implemented")
+}
+func (UnimplementedDeviceFilesystemServer) MakeDirectory(context.Context, *MakeDirectoryRequest) (*MakeDirectoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MakeDirectory not implemented")
+}
+func (UnimplementedDeviceFilesystemServer) RemoveFile(context.Context, *RemoveFileRequest) (*RemoveFileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveFile not implemented")
+}
+func (UnimplementedDeviceFilesystemServer) RenameFile(context.Context, *RenameFileRequest) (*RenameFileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RenameFile not implemented")
+}
+func (UnimplementedDeviceFilesystemServer) PutFile(context.Context, *PutFileRequest) (*PutFileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PutFile not implemented")
+}
+func (UnimplementedDeviceFilesystemServer) GetFile(context.Context, *GetFileRequest) (*GetFileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFile not implemented")
+}
+func (UnimplementedDeviceFilesystemServer) BootFile(context.Context, *BootFileRequest) (*BootFileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BootFile not implemented")
 }
 func (UnimplementedDeviceFilesystemServer) mustEmbedUnimplementedDeviceFilesystemServer() {}
 
@@ -717,6 +801,114 @@ func _DeviceFilesystem_ReadDirectory_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DeviceFilesystem_MakeDirectory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MakeDirectoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceFilesystemServer).MakeDirectory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceFilesystem/MakeDirectory",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceFilesystemServer).MakeDirectory(ctx, req.(*MakeDirectoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeviceFilesystem_RemoveFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceFilesystemServer).RemoveFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceFilesystem/RemoveFile",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceFilesystemServer).RemoveFile(ctx, req.(*RemoveFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeviceFilesystem_RenameFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RenameFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceFilesystemServer).RenameFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceFilesystem/RenameFile",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceFilesystemServer).RenameFile(ctx, req.(*RenameFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeviceFilesystem_PutFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PutFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceFilesystemServer).PutFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceFilesystem/PutFile",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceFilesystemServer).PutFile(ctx, req.(*PutFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeviceFilesystem_GetFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceFilesystemServer).GetFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceFilesystem/GetFile",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceFilesystemServer).GetFile(ctx, req.(*GetFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeviceFilesystem_BootFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BootFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceFilesystemServer).BootFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceFilesystem/BootFile",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceFilesystemServer).BootFile(ctx, req.(*BootFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DeviceFilesystem_ServiceDesc is the grpc.ServiceDesc for DeviceFilesystem service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -727,6 +919,30 @@ var DeviceFilesystem_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReadDirectory",
 			Handler:    _DeviceFilesystem_ReadDirectory_Handler,
+		},
+		{
+			MethodName: "MakeDirectory",
+			Handler:    _DeviceFilesystem_MakeDirectory_Handler,
+		},
+		{
+			MethodName: "RemoveFile",
+			Handler:    _DeviceFilesystem_RemoveFile_Handler,
+		},
+		{
+			MethodName: "RenameFile",
+			Handler:    _DeviceFilesystem_RenameFile_Handler,
+		},
+		{
+			MethodName: "PutFile",
+			Handler:    _DeviceFilesystem_PutFile_Handler,
+		},
+		{
+			MethodName: "GetFile",
+			Handler:    _DeviceFilesystem_GetFile_Handler,
+		},
+		{
+			MethodName: "BootFile",
+			Handler:    _DeviceFilesystem_BootFile_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

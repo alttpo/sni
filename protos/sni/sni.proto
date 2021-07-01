@@ -44,6 +44,12 @@ service DeviceMemory {
 
 service DeviceFilesystem {
   rpc ReadDirectory(ReadDirectoryRequest) returns (ReadDirectoryResponse) {}
+  rpc MakeDirectory(MakeDirectoryRequest) returns (MakeDirectoryResponse) {}
+  rpc RemoveFile(RemoveFileRequest) returns (RemoveFileResponse) {}
+  rpc RenameFile(RenameFileRequest) returns (RenameFileResponse) {}
+  rpc PutFile(PutFileRequest) returns (PutFileResponse) {}
+  rpc GetFile(GetFileRequest) returns (GetFileResponse) {}
+  rpc BootFile(BootFileRequest) returns (BootFileResponse) {}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -271,4 +277,62 @@ message ReadDirectoryResponse {
   string uri = 1;
   string path = 2;
   repeated DirEntry entries = 3;
+}
+
+message MakeDirectoryRequest {
+  string uri = 1;
+  string path = 2;
+}
+message MakeDirectoryResponse {
+  string uri = 1;
+  string path = 2;
+}
+
+message RemoveFileRequest {
+  string uri = 1;
+  string path = 2;
+}
+message RemoveFileResponse {
+  string uri = 1;
+  string path = 2;
+}
+
+message RenameFileRequest {
+  string uri = 1;
+  string path = 2;
+  string newFilename = 3;
+}
+message RenameFileResponse {
+  string uri = 1;
+  string path = 2;
+  string newFilename = 3;
+}
+
+message PutFileRequest {
+  string uri = 1;
+  string path = 2;
+  bytes data = 3;
+}
+message PutFileResponse {
+  string uri = 1;
+  string path = 2;
+}
+
+message GetFileRequest {
+  string uri = 1;
+  string path = 2;
+}
+message GetFileResponse {
+  string uri = 1;
+  string path = 2;
+  bytes data = 3;
+}
+
+message BootFileRequest {
+  string uri = 1;
+  string path = 2;
+}
+message BootFileResponse {
+  string uri = 1;
+  string path = 2;
 }

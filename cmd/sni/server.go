@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"google.golang.org/grpc/codes"
@@ -548,7 +549,6 @@ func (d *deviceFilesystem) ReadDirectory(ctx context.Context, request *sni.ReadD
 		return nil, status.Error(codes.Unimplemented, err.Error())
 	}
 
-	// call ListFiles:
 	var files []snes.DirEntry
 	files, gerr = device.ReadDirectory(ctx, request.GetPath())
 	if gerr != nil {
@@ -566,6 +566,193 @@ func (d *deviceFilesystem) ReadDirectory(ctx context.Context, request *sni.ReadD
 			Name: file.Name,
 			Type: file.Type,
 		}
+	}
+	return
+}
+
+func (d *deviceFilesystem) MakeDirectory(ctx context.Context, request *sni.MakeDirectoryRequest) (grsp *sni.MakeDirectoryResponse, gerr error) {
+	uri, err := url.Parse(request.GetUri())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	var driver snes.Driver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
+	if gerr != nil {
+		return nil, grpcError(gerr)
+	}
+
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_MakeDirectory); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
+	}
+
+	gerr = device.MakeDirectory(ctx, request.GetPath())
+	if gerr != nil {
+		return
+	}
+
+	// translate response:
+	grsp = &sni.MakeDirectoryResponse{
+		Uri:  request.Uri,
+		Path: request.Path,
+	}
+	return
+}
+
+func (d *deviceFilesystem) RemoveFile(ctx context.Context, request *sni.RemoveFileRequest) (grsp *sni.RemoveFileResponse, gerr error) {
+	uri, err := url.Parse(request.GetUri())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	var driver snes.Driver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
+	if gerr != nil {
+		return nil, grpcError(gerr)
+	}
+
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_RemoveFile); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
+	}
+
+	gerr = device.RemoveFile(ctx, request.GetPath())
+	if gerr != nil {
+		return
+	}
+
+	// translate response:
+	grsp = &sni.RemoveFileResponse{
+		Uri:  request.Uri,
+		Path: request.Path,
+	}
+	return
+}
+
+func (d *deviceFilesystem) RenameFile(ctx context.Context, request *sni.RenameFileRequest) (grsp *sni.RenameFileResponse, gerr error) {
+	uri, err := url.Parse(request.GetUri())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	var driver snes.Driver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
+	if gerr != nil {
+		return nil, grpcError(gerr)
+	}
+
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_RenameFile); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
+	}
+
+	gerr = device.RenameFile(ctx, request.GetPath(), request.GetNewFilename())
+	if gerr != nil {
+		return
+	}
+
+	// translate response:
+	grsp = &sni.RenameFileResponse{
+		Uri:         request.Uri,
+		Path:        request.Path,
+		NewFilename: request.NewFilename,
+	}
+	return
+}
+
+func (d *deviceFilesystem) PutFile(ctx context.Context, request *sni.PutFileRequest) (grsp *sni.PutFileResponse, gerr error) {
+	uri, err := url.Parse(request.GetUri())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	var driver snes.Driver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
+	if gerr != nil {
+		return nil, grpcError(gerr)
+	}
+
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_PutFile); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
+	}
+
+	var n uint64
+	n, gerr = device.PutFile(ctx, request.GetPath(), bytes.NewReader(request.GetData()), nil)
+	if gerr != nil {
+		return
+	}
+	_ = n
+
+	// translate response:
+	grsp = &sni.PutFileResponse{
+		Uri:  request.Uri,
+		Path: request.Path,
+	}
+	return
+}
+
+func (d *deviceFilesystem) GetFile(ctx context.Context, request *sni.GetFileRequest) (grsp *sni.GetFileResponse, gerr error) {
+	uri, err := url.Parse(request.GetUri())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	var driver snes.Driver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
+	if gerr != nil {
+		return nil, grpcError(gerr)
+	}
+
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_GetFile); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
+	}
+
+	data := bytes.Buffer{}
+	var n uint64
+	n, gerr = device.GetFile(ctx, request.GetPath(), &data, nil)
+	if gerr != nil {
+		return
+	}
+	_ = n
+
+	// translate response:
+	grsp = &sni.GetFileResponse{
+		Uri:  request.Uri,
+		Path: request.Path,
+		Data: data.Bytes(),
+	}
+	return
+}
+
+func (d *deviceFilesystem) BootFile(ctx context.Context, request *sni.BootFileRequest) (grsp *sni.BootFileResponse, gerr error) {
+	uri, err := url.Parse(request.GetUri())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	var driver snes.Driver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
+	if gerr != nil {
+		return nil, grpcError(gerr)
+	}
+
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_BootFile); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
+	}
+
+	gerr = device.BootFile(ctx, request.GetPath())
+	if gerr != nil {
+		return
+	}
+
+	// translate response:
+	grsp = &sni.BootFileResponse{
+		Uri:     request.Uri,
+		Path:    request.Path,
 	}
 	return
 }
