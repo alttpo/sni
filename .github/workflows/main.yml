@@ -77,12 +77,6 @@ jobs:
       # cross-platform tar.gz creator:
       - run: go run .github/scripts/tar.go -z -o ${{env.basename}}.tar.gz -strip ${{env.basename}}/ ${{env.basename}}/
 
-      #- uses: papeloto/action-zip@v1
-      #  with:
-      #    files: sni-${{env.archname}}/
-      #    recursive: false
-      #    dest: sni-${{env.archname}}.zip
-
       - uses: actions/upload-artifact@v1
         with:
           name: ${{env.basename}}.tar.gz
