@@ -29,19 +29,17 @@ func (d *Device) mkdir(ctx context.Context, path string) (err error) {
 	}
 
 	// read response:
-	rsp := make([]byte, 512)
-	err = recvSerial(d.f, rsp, 512)
+	err = recvSerial(d.f, sb, 512)
 	if err != nil {
 		_ = d.Close()
 		return
 	}
-	if rsp[0] != 'U' || rsp[1] != 'S' || rsp[2] != 'B' || rsp[3] != 'A' {
+	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
 		_ = d.Close()
 		return fmt.Errorf("mkdir: fxpakpro response packet does not contain USBA header")
 	}
-
-	if ec := rsp[5]; ec != 0 {
-		return fmt.Errorf("mkdir: fxpakpro responded with error code %d", ec)
+	if ec := sb[5]; ec != 0 {
+		return fmt.Errorf("mkdir: %w", fxpakproError(ec))
 	}
 
 	return

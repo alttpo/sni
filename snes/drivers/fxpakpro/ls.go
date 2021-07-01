@@ -47,8 +47,8 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEn
 		_ = d.Close()
 		return nil, fmt.Errorf("ls: fxpakpro response size actual %d, expected 1", size)
 	}
-	if errorNo := int(sb[5]); errorNo != 0 {
-		return nil, fmt.Errorf("ls: fxpakpro returned error code %d", errorNo)
+	if ec := sb[5]; ec != 0 {
+		return nil, fmt.Errorf("ls: %w", fxpakproError(ec))
 	}
 
 	files = make([]snes.DirEntry, 0, 10)

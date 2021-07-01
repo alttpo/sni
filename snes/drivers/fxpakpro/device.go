@@ -2,6 +2,7 @@ package fxpakpro
 
 import (
 	"context"
+	"fmt"
 	"go.bug.st/serial"
 	"sync"
 )
@@ -32,4 +33,10 @@ var lockedKey lockedKeyType
 
 func shouldLock(ctx context.Context) bool {
 	return ctx.Value(lockedKey) == nil
+}
+
+type fxpakproError uint8
+
+func (f fxpakproError) Error() string {
+	return fmt.Sprintf("fxpakpro responded with error code %d", f)
 }

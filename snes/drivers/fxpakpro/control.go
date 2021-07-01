@@ -31,7 +31,10 @@ func (d *Device) ResetSystem(ctx context.Context) (err error) {
 
 	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
 		_ = d.Close()
-		return fmt.Errorf("mkdir: fxpakpro response packet does not contain USBA header")
+		return fmt.Errorf("reset: fxpakpro response packet does not contain USBA header")
+	}
+	if ec := sb[5]; ec != 0 {
+		return fmt.Errorf("reset: %w", fxpakproError(ec))
 	}
 
 	return
