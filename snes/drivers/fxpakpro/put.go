@@ -26,7 +26,7 @@ func (d *Device) put(ctx context.Context, space space, address uint32, data []by
 	}
 
 	// send the data to the USB port:
-	err = sendSerial(d.f, sb)
+	err = sendSerial(d.f, 512, sb)
 	if err != nil {
 		_ = d.Close()
 		return
@@ -41,7 +41,7 @@ func (d *Device) put(ctx context.Context, space space, address uint32, data []by
 		n = copy(dest, data)
 		data = data[n:]
 
-		err = sendSerial(d.f, sb)
+		err = sendSerial(d.f, 512, sb)
 		if err != nil {
 			_ = d.Close()
 			return

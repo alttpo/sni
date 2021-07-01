@@ -33,33 +33,17 @@ func (d *Device) putFile(ctx context.Context, req putFileRequest) (err error) {
 	}
 
 	// send command:
-	err = sendSerial(d.f, sb)
+	err = sendSerial(d.f, 512, sb)
 	if err != nil {
 		_ = d.Close()
 		return
 	}
 
 	// send data:
-	err = sendSerialProgress(d.f, req.rom, 65536, func(sent int, total int) {
-		// report on progress:
-		if req.report != nil {
-			req.report(sent, total)
-		}
-	})
+	err = sendSerialProgress(d.f, 512, req.rom, req.report)
 	if err != nil {
 		_ = d.Close()
 		return
-	}
-
-	remainder := size & 511
-	if remainder > 0 {
-		// send however many 00 bytes that rounds up the size to the next 512 bytes:
-		zeroes := make([]byte, 512-remainder)
-		err = sendSerial(d.f, zeroes)
-		if err != nil {
-			_ = d.Close()
-			return
-		}
 	}
 
 	// read response:

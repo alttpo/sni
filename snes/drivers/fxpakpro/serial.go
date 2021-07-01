@@ -5,29 +5,33 @@ import (
 	"go.bug.st/serial"
 )
 
-func sendSerial(f serial.Port, buf []byte) error {
-	sent := 0
-	//log.Print(">>\n" + hex.Dump(buf))
-	for sent < len(buf) {
-		n, e := f.Write(buf[sent:])
-		if e != nil {
-			return e
-		}
-		sent += n
-	}
-	return nil
+func sendSerial(f serial.Port, chunkSize int, buf []byte) error {
+	return sendSerialProgress(f, chunkSize, buf, nil)
 }
 
-func sendSerialProgress(f serial.Port, buf []byte, batchSize int, report func(sent int, total int)) error {
+func sendSerialProgress(f serial.Port, chunkSize int, buf []byte, report func(sent int, total int)) error {
+	// chunkSize is how many bytes each chunk is expected to be sized according to the protocol; valid values are [64, 512].
+	if chunkSize != 64 && chunkSize != 512 {
+		panic("chunkSize must be either 64 or 512")
+	}
+
 	sent := 0
 	total := len(buf)
 	for sent < total {
-		report(sent, total)
-		end := sent + batchSize
+		if report != nil {
+			report(sent, total)
+		}
+		end := sent + chunkSize
 		if end > total {
 			end = total
 		}
-		n, e := f.Write(buf[sent:end])
+		// always make sure we're sending chunks of equivalent size:
+		chunk := buf[sent:end]
+		if len(chunk) < chunkSize {
+			chunk = make([]byte, chunkSize)
+			copy(chunk, buf[sent:end])
+		}
+		n, e := f.Write(chunk)
 		if e != nil {
 			return e
 		}
@@ -36,7 +40,9 @@ func sendSerialProgress(f serial.Port, buf []byte, batchSize int, report func(se
 	if sent > total {
 		sent = total
 	}
-	report(sent, total)
+	if report != nil {
+		report(sent, total)
+	}
 	return nil
 }
 

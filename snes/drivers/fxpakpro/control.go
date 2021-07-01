@@ -17,7 +17,7 @@ func (d *Device) ResetSystem(ctx context.Context) (err error) {
 		d.lock.Lock()
 	}
 
-	err = sendSerial(d.f, sb)
+	err = sendSerial(d.f, 512, sb)
 	if err != nil {
 		_ = d.Close()
 		return

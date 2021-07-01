@@ -24,7 +24,7 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEn
 	}
 
 	// send the data to the USB port:
-	err = sendSerial(d.f, sb)
+	err = sendSerial(d.f, 512, sb)
 	if err != nil {
 		_ = d.Close()
 		return

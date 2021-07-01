@@ -22,7 +22,7 @@ func (d *Device) mkdir(ctx context.Context, path string) (err error) {
 	}
 
 	// send command:
-	err = sendSerial(d.f, sb)
+	err = sendSerial(d.f, 512, sb)
 	if err != nil {
 		_ = d.Close()
 		return
