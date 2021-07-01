@@ -1,6 +1,7 @@
 package fxpakpro
 
 import (
+	"context"
 	"reflect"
 	"sni/protos/sni"
 	"sni/snes"
@@ -55,7 +56,7 @@ func TestDevice_listFiles(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotFiles, err := d.listFiles(tt.args.path)
+			gotFiles, err := d.listFiles(context.Background(), tt.args.path)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("listFiles() error = %v, wantErr %v", err, tt.wantErr)
 				return
