@@ -264,7 +264,6 @@ enum DirEntryType {
 message DirEntry {
   string name = 1;
   DirEntryType type = 2;
-  uint64 size = 3;
 }
 
 message ReadDirectoryResponse {

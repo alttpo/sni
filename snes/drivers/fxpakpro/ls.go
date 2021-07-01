@@ -69,7 +69,6 @@ recvLoop:
 			file := snes.DirEntry{
 				Name: "",
 				Type: 0,
-				Size: 0,
 			}
 
 			// 0 for directory, 1 for file

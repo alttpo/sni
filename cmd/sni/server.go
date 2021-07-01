@@ -565,7 +565,6 @@ func (d *deviceFilesystem) ReadDirectory(ctx context.Context, request *sni.ReadD
 		grsp.Entries[i] = &sni.DirEntry{
 			Name: file.Name,
 			Type: file.Type,
-			Size: file.Size,
 		}
 	}
 	return
