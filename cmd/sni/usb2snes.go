@@ -75,6 +75,38 @@ func StartHttpServer() {
 	}()
 }
 
+type wsReader struct {
+	r *wsutil.Reader
+}
+
+func (w *wsReader) Read(p []byte) (n int, err error) {
+	n, err = w.r.Read(p)
+	// if we need to advance frame to continue reading, do so:
+	if err == wsutil.ErrNoFrameAdvance {
+		var hdr ws.Header
+		hdr, err = w.r.NextFrame()
+		if err != nil {
+			return
+		}
+		if hdr.OpCode == ws.OpClose {
+			return n, io.EOF
+		}
+
+		// we must read here to fulfill the original request:
+		if n == 0 {
+			n, err = w.r.Read(p)
+		}
+		return
+	}
+
+	// clear EOF error when reading to the end of the frame:
+	if err == io.EOF && n > 0 {
+		err = nil
+	}
+
+	return
+}
+
 func clientWebsocketHandler(rw http.ResponseWriter, req *http.Request) {
 	conn, _, _, err := ws.UpgradeHTTP(req, rw)
 	if err != nil {
@@ -531,6 +563,48 @@ serverLoop:
 			err = device.RenameFile(context.Background(), cmd.Operands[0], cmd.Operands[1])
 			if err != nil {
 				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
+			break
+
+		case "PutFile":
+			if device == nil {
+				log.Printf("usb2snes: %s: %s requires Attach first\n", clientName, cmd.Opcode)
+				break serverLoop
+			}
+
+			if len(cmd.Operands) < 2 {
+				log.Printf("usb2snes: %s: %s expected 2 operands, got %d\n", clientName, cmd.Opcode, len(cmd.Operands))
+				break serverLoop
+			}
+
+			var size64 uint64
+			size64, err = strconv.ParseUint(cmd.Operands[1], 16, 32)
+			if err != nil {
+				log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, 1, cmd.Operands[1])
+				break serverLoop
+			}
+			size := uint32(size64)
+
+			var progress snes.ProgressReportFunc = nil
+			if verboseLogging {
+				progress = func(current uint32, total uint32) {
+					log.Printf("usb2snes: %s: %s: progress $%08x/$%08x\n", clientName, cmd.Opcode, current, total)
+				}
+			}
+
+			var n uint32
+			wsr := &wsReader{r}
+			n, err = device.PutFile(context.Background(), cmd.Operands[0], size, wsr, progress)
+			if err != nil {
+				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
+			if verboseLogging {
+				log.Printf("usb2snes: %s: %s REPLY: $%x bytes\n", clientName, cmd.Opcode, n)
+			}
+			if err = wb.Flush(); err != nil {
+				log.Printf("usb2snes: %s: %s error flushing response: %s\n", clientName, cmd.Opcode, err)
 				break serverLoop
 			}
 			break
