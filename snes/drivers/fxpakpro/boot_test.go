@@ -19,10 +19,10 @@ func TestDevice_boot(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "boot /unittest/sub",
+			name: "boot o2/alttp-jp.smc",
 			args: args{
 				ctx:  context.Background(),
-				path: "unittest/sub",
+				path: "o2/alttp-jp.smc",
 			},
 			wantErr: false,
 		},

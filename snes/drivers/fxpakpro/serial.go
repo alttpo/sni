@@ -45,15 +45,14 @@ func sendSerialProgress(f serial.Port, chunkSize int, size uint32, r io.Reader, 
 			report(sent, size)
 		}
 
-		// read an exactly-sized chunk from r:
-		err = readExact(r, chunkSize, buf)
+		var n int
+		n, err = r.Read(buf)
 		if err != nil {
 			err = fmt.Errorf("sendSerialProgress: %w", err)
 			return
 		}
 
 		// write to serial port:
-		var n int
 		n, err = f.Write(buf)
 		if err != nil {
 			return

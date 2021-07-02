@@ -1,6 +1,7 @@
 package fxpakpro
 
 import (
+	"bytes"
 	"context"
 	"path/filepath"
 	"testing"
@@ -36,11 +37,7 @@ func TestDevice_mv(t *testing.T) {
 				t.Logf("mkdir() error (ignored) = %v\n", err)
 			}
 
-			if err := d.putFile(tt.args.ctx, putFileRequest{
-				path:   tt.args.path,
-				rom:    []byte{1},
-				report: nil,
-			}); err != nil {
+			if _, err := d.putFile(tt.args.ctx, tt.args.path, 1, bytes.NewReader([]byte{1}), nil); err != nil {
 				t.Errorf("putFile() error = %v", err)
 				return
 			}
