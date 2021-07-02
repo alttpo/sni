@@ -153,6 +153,23 @@ serverLoop:
 			log.Printf("usb2snes: %s: %s %s [%s]\n", clientName, cmd.Opcode, cmd.Space, strings.Join(cmd.Operands, ","))
 		}
 
+		replyJson := func() bool {
+			if verboseLogging {
+				log.Printf("usb2snes: %s: %s REPLY: %+v\n", clientName, cmd.Opcode, results)
+			}
+
+			err = je.Encode(results)
+			if err != nil {
+				log.Printf("usb2snes: %s: %s error encoding json response: %s\n", clientName, cmd.Opcode, err)
+				return false
+			}
+			if err = wj.Flush(); err != nil {
+				log.Printf("usb2snes: %s: %s error flushing response: %s\n", clientName, cmd.Opcode, err)
+				return false
+			}
+			return true
+		}
+
 		switch cmd.Opcode {
 		case "DeviceList":
 			results.Results = make([]string, 0, 10)
@@ -168,13 +185,7 @@ serverLoop:
 				}
 			}
 
-			err = je.Encode(results)
-			if err != nil {
-				log.Printf("usb2snes: %s: %s error encoding json results: %s\n", clientName, cmd.Opcode, err)
-				break serverLoop
-			}
-			if err = wj.Flush(); err != nil {
-				log.Printf("usb2snes: %s: %s error flushing response: %s\n", clientName, cmd.Opcode, err)
+			if !replyJson() {
 				break serverLoop
 			}
 			break
@@ -190,13 +201,7 @@ serverLoop:
 		case "AppVersion":
 			results.Results = []string{fmt.Sprintf("SNI-%s", version)}
 
-			err = je.Encode(results)
-			if err != nil {
-				log.Printf("usb2snes: %s: %s error encoding json response: %s\n", clientName, cmd.Opcode, err)
-				break serverLoop
-			}
-			if err = wj.Flush(); err != nil {
-				log.Printf("usb2snes: %s: %s error flushing response: %s\n", clientName, cmd.Opcode, err)
+			if !replyJson() {
 				break serverLoop
 			}
 			break
@@ -239,13 +244,7 @@ serverLoop:
 			// TODO:
 			results.Results = []string{"1.9.0-usb-v9", "SD2SNES", "No Info"}
 
-			err = je.Encode(results)
-			if err != nil {
-				log.Printf("usb2snes: %s: %s error encoding json response: %s\n", clientName, cmd.Opcode, err)
-				break serverLoop
-			}
-			if err = wj.Flush(); err != nil {
-				log.Printf("usb2snes: %s: %s error flushing response: %s\n", clientName, cmd.Opcode, err)
+			if !replyJson() {
 				break serverLoop
 			}
 			break
@@ -312,6 +311,9 @@ serverLoop:
 					log.Printf("usb2snes: %s: %s error writing response data: %s\n", clientName, cmd.Opcode, err)
 					break serverLoop
 				}
+			}
+			if verboseLogging {
+				log.Printf("usb2snes: %s: %s REPLY: %+v\n", clientName, cmd.Opcode, rsps)
 			}
 
 			if err = wb.Flush(); err != nil {
@@ -397,6 +399,9 @@ serverLoop:
 				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
 				break serverLoop
 			}
+			if verboseLogging {
+				log.Printf("usb2snes: %s: %s REPLY: %+v\n", clientName, cmd.Opcode, rsps)
+			}
 
 			_ = rsps
 			break
@@ -455,13 +460,7 @@ serverLoop:
 				results.Results = append(results.Results, strconv.Itoa(int(entry.Type)), entry.Name)
 			}
 
-			err = je.Encode(results)
-			if err != nil {
-				log.Printf("usb2snes: %s: %s error encoding json response: %s\n", clientName, cmd.Opcode, err)
-				break serverLoop
-			}
-			if err = wj.Flush(); err != nil {
-				log.Printf("usb2snes: %s: %s error flushing response: %s\n", clientName, cmd.Opcode, err)
+			if !replyJson() {
 				break serverLoop
 			}
 			break
