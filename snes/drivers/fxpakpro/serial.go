@@ -1,105 +1,117 @@
 package fxpakpro
 
 import (
+	"bytes"
 	"fmt"
 	"go.bug.st/serial"
 	"io"
 	"sni/snes"
 )
 
-func sendSerial(f serial.Port, chunkSize int, buf []byte) error {
-	return sendSerialProgress(f, chunkSize, buf, nil)
+func readExact(r io.Reader, chunkSize int, buf []byte) (err error) {
+	p := 0
+	for p < chunkSize {
+		var n int
+		n, err = r.Read(buf[p:chunkSize])
+		if err != nil {
+			return
+		}
+		if n <= 0 {
+			err = fmt.Errorf("readExact: read returned %d", n)
+			return
+		}
+		p += n
+	}
+
+	return
 }
 
-func sendSerialProgress(f serial.Port, chunkSize int, buf []byte, report snes.ProgressReportFunc) error {
+func sendSerial(f serial.Port, chunkSize int, buf []byte) (err error) {
+	_, err = sendSerialProgress(f, chunkSize, uint32(len(buf)), bytes.NewReader(buf), nil)
+	return
+}
+
+func sendSerialProgress(f serial.Port, chunkSize int, size uint32, r io.Reader, report snes.ProgressReportFunc) (sent uint32, err error) {
 	// chunkSize is how many bytes each chunk is expected to be sized according to the protocol; valid values are [64, 512].
 	if chunkSize != 64 && chunkSize != 512 {
 		panic("chunkSize must be either 64 or 512")
 	}
 
-	sent := uint64(0)
-	total := uint64(len(buf))
-	for sent < total {
-		if report != nil {
-			report(sent, total)
-		}
-		end := sent + uint64(chunkSize)
-		if end > total {
-			end = total
-		}
-		// always make sure we're sending chunks of equivalent size:
-		chunk := buf[sent:end]
-		if len(chunk) < chunkSize {
-			chunk = make([]byte, chunkSize)
-			copy(chunk, buf[sent:end])
-		}
-		n, e := f.Write(chunk)
-		if e != nil {
-			return e
-		}
-		sent += uint64(n)
-	}
-	if sent > total {
-		sent = total
-	}
-	if report != nil {
-		report(sent, total)
-	}
-	return nil
-}
-
-func recvSerial(f serial.Port, rsp []byte, expected int) error {
-	o := 0
-	for o < expected {
-		n, err := f.Read(rsp[o:expected])
-		if err != nil {
-			return err
-		}
-		if n <= 0 {
-			return fmt.Errorf("recvSerial: Read returned %d", n)
-		}
-
-		//log.Printf("<< [%d:%d]\n%s", o, o+n, hex.Dump(rsp[o:o+n]))
-		o += n
-	}
-	return nil
-}
-
-func recvSerialProgress(f serial.Port, w io.Writer, expected uint64, chunkSize int, progress snes.ProgressReportFunc) (received uint64, err error) {
 	buf := make([]byte, chunkSize)
 
-	received = uint64(0)
-	for received < expected {
-		p := 0
-		for p < chunkSize {
-			var n int
-			n, err = f.Read(buf[p:chunkSize])
-			if err != nil {
-				return
-			}
-			if n <= 0 {
-				return received, fmt.Errorf("recvSerialProgress: Read returned %d", n)
-			}
-			p += n
+	sent = uint32(0)
+	for sent < size {
+		if report != nil {
+			report(sent, size)
 		}
 
-		received += uint64(chunkSize)
-		if received <= expected {
+		// read an exactly-sized chunk from r:
+		err = readExact(r, chunkSize, buf)
+		if err != nil {
+			err = fmt.Errorf("sendSerialProgress: %w", err)
+			return
+		}
+
+		// write to serial port:
+		var n int
+		n, err = f.Write(buf)
+		if err != nil {
+			return
+		}
+
+		sent += uint32(n)
+	}
+	if sent > size {
+		sent = size
+	}
+
+	if report != nil {
+		report(sent, size)
+	}
+	return
+}
+
+func recvSerial(f serial.Port, rsp []byte, expected int) (err error) {
+	err = readExact(f, expected, rsp)
+	if err != nil {
+		err = fmt.Errorf("recvSerial: %w", err)
+		return
+	}
+	return
+}
+
+func recvSerialProgress(f serial.Port, w io.Writer, size uint32, chunkSize int, progress snes.ProgressReportFunc) (received uint32, err error) {
+	buf := make([]byte, chunkSize)
+
+	received = uint32(0)
+	for received < size {
+		if progress != nil {
+			progress(received, size)
+		}
+
+		err = readExact(f, chunkSize, buf)
+		if err != nil {
+			err = fmt.Errorf("recvSerialProgress: %w", err)
+			return
+		}
+
+		received += uint32(chunkSize)
+		if received <= size {
 			_, err = w.Write(buf)
 			if err != nil {
 				return
 			}
 		} else {
-			_, err = w.Write(buf[0 : received-expected])
+			_, err = w.Write(buf[0 : received-size])
 			if err != nil {
 				return
 			}
-			received = expected
+			received = size
 		}
+	}
 
-		if progress != nil {
-			progress(received, expected)
-		}
+	if progress != nil {
+		progress(received, size)
 	}
 
 	return

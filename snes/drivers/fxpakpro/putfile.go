@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"sni/snes"
 )
 
@@ -13,7 +14,7 @@ type putFileRequest struct {
 	report snes.ProgressReportFunc
 }
 
-func (d *Device) putFile(ctx context.Context, req putFileRequest) (err error) {
+func (d *Device) putFile(ctx context.Context, path string, size uint32, r io.Reader, progress snes.ProgressReportFunc) (n uint32, err error) {
 	sb := make([]byte, 512)
 	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpPUT)
@@ -21,11 +22,10 @@ func (d *Device) putFile(ctx context.Context, req putFileRequest) (err error) {
 	sb[6] = byte(FlagNONE)
 
 	// copy in the name to position 256:
-	nameBytes := []byte(req.path)
+	nameBytes := []byte(path)
 	copy(sb[256:512], nameBytes)
 
 	// size of ROM contents:
-	size := uint32(len(req.rom))
 	binary.BigEndian.PutUint32(sb[252:], size)
 
 	if shouldLock(ctx) {
@@ -41,7 +41,7 @@ func (d *Device) putFile(ctx context.Context, req putFileRequest) (err error) {
 	}
 
 	// send data:
-	err = sendSerialProgress(d.f, 512, req.rom, req.report)
+	n, err = sendSerialProgress(d.f, 512, size, r, progress)
 	if err != nil {
 		_ = d.Close()
 		return
@@ -55,10 +55,10 @@ func (d *Device) putFile(ctx context.Context, req putFileRequest) (err error) {
 	}
 	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
 		_ = d.Close()
-		return fmt.Errorf("putfile: response packet does not contain USBA header")
+		return size, fmt.Errorf("putfile: response packet does not contain USBA header")
 	}
 	if ec := sb[5]; ec != 0 {
-		return fmt.Errorf("putfile: %w", fxpakproError(ec))
+		return size, fmt.Errorf("putfile: %w", fxpakproError(ec))
 	}
 
 	return

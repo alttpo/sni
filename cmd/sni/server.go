@@ -678,8 +678,14 @@ func (d *deviceFilesystem) PutFile(ctx context.Context, request *sni.PutFileRequ
 		return nil, status.Error(codes.Unimplemented, err.Error())
 	}
 
-	var n uint64
-	n, gerr = device.PutFile(ctx, request.GetPath(), bytes.NewReader(request.GetData()), nil)
+	var n uint32
+	n, gerr = device.PutFile(
+		ctx,
+		request.GetPath(),
+		uint32(len(request.GetData())),
+		bytes.NewReader(request.GetData()),
+		nil,
+	)
 	if gerr != nil {
 		return
 	}
@@ -711,17 +717,27 @@ func (d *deviceFilesystem) GetFile(ctx context.Context, request *sni.GetFileRequ
 	}
 
 	data := bytes.Buffer{}
-	var n uint64
-	n, gerr = device.GetFile(ctx, request.GetPath(), &data, nil)
+	var n uint32
+	n, gerr = device.GetFile(
+		ctx,
+		request.GetPath(),
+		&data,
+		func(current uint32, total uint32) {
+			// grow the buffer if we haven't already:
+			if uint32(data.Cap()) < total {
+				data.Grow(int(total - uint32(data.Cap())))
+			}
+		},
+	)
 	if gerr != nil {
 		return
 	}
-	_ = n
 
 	// translate response:
 	grsp = &sni.GetFileResponse{
 		Uri:  request.Uri,
 		Path: request.Path,
+		Size: n,
 		Data: data.Bytes(),
 	}
 	return
@@ -751,8 +767,8 @@ func (d *deviceFilesystem) BootFile(ctx context.Context, request *sni.BootFileRe
 
 	// translate response:
 	grsp = &sni.BootFileResponse{
-		Uri:     request.Uri,
-		Path:    request.Path,
+		Uri:  request.Uri,
+		Path: request.Path,
 	}
 	return
 }

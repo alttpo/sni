@@ -316,6 +316,7 @@ message PutFileRequest {
 message PutFileResponse {
   string uri = 1;
   string path = 2;
+  uint32 size = 3;
 }
 
 message GetFileRequest {
@@ -325,7 +326,8 @@ message GetFileRequest {
 message GetFileResponse {
   string uri = 1;
   string path = 2;
-  bytes data = 3;
+  uint32 size = 3;
+  bytes data = 4;
 }
 
 message BootFileRequest {

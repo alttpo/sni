@@ -157,19 +157,19 @@ func (a *autoCloseableDevice) RenameFile(ctx context.Context, path, newFilename 
 	return
 }
 
-func (a *autoCloseableDevice) PutFile(ctx context.Context, path string, r io.Reader, progress ProgressReportFunc) (n uint64, err error) {
+func (a *autoCloseableDevice) PutFile(ctx context.Context, path string, size uint32, r io.Reader, progress ProgressReportFunc) (n uint32, err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
 		fs, ok := device.(DeviceFilesystem)
 		if !ok {
 			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
 		}
-		n, err = fs.PutFile(ctx, path, r, progress)
+		n, err = fs.PutFile(ctx, path, size, r, progress)
 		return
 	})
 	return
 }
 
-func (a *autoCloseableDevice) GetFile(ctx context.Context, path string, w io.Writer, progress ProgressReportFunc) (n uint64, err error) {
+func (a *autoCloseableDevice) GetFile(ctx context.Context, path string, w io.Writer, progress ProgressReportFunc) (n uint32, err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
 		fs, ok := device.(DeviceFilesystem)
 		if !ok {
