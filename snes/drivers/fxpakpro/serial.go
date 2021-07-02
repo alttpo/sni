@@ -3,6 +3,7 @@ package fxpakpro
 import (
 	"fmt"
 	"go.bug.st/serial"
+	"io"
 	"sni/snes"
 )
 
@@ -62,4 +63,44 @@ func recvSerial(f serial.Port, rsp []byte, expected int) error {
 		o += n
 	}
 	return nil
+}
+
+func recvSerialProgress(f serial.Port, w io.Writer, expected uint64, chunkSize int, progress snes.ProgressReportFunc) (received uint64, err error) {
+	buf := make([]byte, chunkSize)
+
+	received = uint64(0)
+	for received < expected {
+		p := 0
+		for p < chunkSize {
+			var n int
+			n, err = f.Read(buf[p:chunkSize])
+			if err != nil {
+				return
+			}
+			if n <= 0 {
+				return received, fmt.Errorf("recvSerialProgress: Read returned %d", n)
+			}
+			p += n
+		}
+
+		received += uint64(chunkSize)
+		if received <= expected {
+			_, err = w.Write(buf)
+			if err != nil {
+				return
+			}
+		} else {
+			_, err = w.Write(buf[0 : received-expected])
+			if err != nil {
+				return
+			}
+			received = expected
+		}
+
+		if progress != nil {
+			progress(received, expected)
+		}
+	}
+
+	return
 }

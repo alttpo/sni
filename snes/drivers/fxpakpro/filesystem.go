@@ -44,28 +44,7 @@ func (d *Device) PutFile(ctx context.Context, path string, r io.Reader, progress
 }
 
 func (d *Device) GetFile(ctx context.Context, path string, w io.Writer, progress snes.ProgressReportFunc) (n uint64, err error) {
-	var data []byte
-	// TODO: pass `progress` into getFile
-	if progress != nil {
-		progress(0, 0)
-	}
-	// TODO: pass `w` into getFile to avoid large allocations
-	data, err = d.getFile(ctx, path)
-	if err != nil {
-		return
-	}
-	total := uint64(len(data))
-	if progress != nil {
-		progress(total, total)
-	}
-
-	var wn int
-	wn, err = w.Write(data)
-	if err != nil {
-		return
-	}
-
-	n = uint64(wn)
+	n, err = d.getFile(ctx, path, w, progress)
 	return
 }
 
