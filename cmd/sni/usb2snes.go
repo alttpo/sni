@@ -270,10 +270,18 @@ serverLoop:
 				addrHex := cmd.Operands[i*2]
 				var addr uint64
 				addr, err = strconv.ParseUint(addrHex, 16, 32)
+				if err != nil {
+					log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, i*2, addrHex)
+					break serverLoop
+				}
 
 				sizeHex := cmd.Operands[i*2+1]
 				var size uint64
 				size, err = strconv.ParseUint(sizeHex, 16, 32)
+				if err != nil {
+					log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, i*2+1, sizeHex)
+					break serverLoop
+				}
 
 				var addr32 uint32
 				space := strings.TrimSpace(strings.ToUpper(cmd.Space))
@@ -344,10 +352,18 @@ serverLoop:
 				addrHex := cmd.Operands[i*2]
 				var addr uint64
 				addr, err = strconv.ParseUint(addrHex, 16, 32)
+				if err != nil {
+					log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, i*2, addrHex)
+					break serverLoop
+				}
 
 				sizeHex := cmd.Operands[i*2+1]
 				var size uint64
 				size, err = strconv.ParseUint(sizeHex, 16, 32)
+				if err != nil {
+					log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, i*2+1, sizeHex)
+					break serverLoop
+				}
 
 				var addr32 uint32
 				space := strings.TrimSpace(strings.ToUpper(cmd.Space))
