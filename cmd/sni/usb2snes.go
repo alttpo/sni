@@ -567,6 +567,39 @@ serverLoop:
 			}
 			break
 
+		case "GetFile":
+			if device == nil {
+				log.Printf("usb2snes: %s: %s requires Attach first\n", clientName, cmd.Opcode)
+				break serverLoop
+			}
+
+			if len(cmd.Operands) < 1 {
+				log.Printf("usb2snes: %s: %s expected 1 operands, got %d\n", clientName, cmd.Opcode, len(cmd.Operands))
+				break serverLoop
+			}
+
+			var progress snes.ProgressReportFunc = nil
+			if verboseLogging {
+				progress = func(current uint32, total uint32) {
+					log.Printf("usb2snes: %s: %s: progress $%08x/$%08x\n", clientName, cmd.Opcode, current, total)
+				}
+			}
+
+			var n uint32
+			n, err = device.GetFile(context.Background(), cmd.Operands[0], wb, progress)
+			if err != nil {
+				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
+			if verboseLogging {
+				log.Printf("usb2snes: %s: %s REPLY: $%x bytes\n", clientName, cmd.Opcode, n)
+			}
+			if err = wb.Flush(); err != nil {
+				log.Printf("usb2snes: %s: %s error flushing response: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
+			break
+
 		case "PutFile":
 			if device == nil {
 				log.Printf("usb2snes: %s: %s requires Attach first\n", clientName, cmd.Opcode)
