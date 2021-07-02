@@ -1,5 +1,7 @@
 # SNI - Super Nintendo Interface
 
+![SNI Logo](https://github.com/alttpo/sni/blob/main/cmd/sni/icon/sni-logo.png?raw=true)
+
 SNI is an interface that allows multiple concurrent applications to access
 various kinds of Super Nintendo devices connected to the computer.
 
@@ -12,14 +14,21 @@ SNI is designed and implemented by **jsd1982** and was started in May 2021.
 
 Simply start `sni.exe` and leave it running.
 
-Once started, a systray icon will appear for Windows and Mac users; however,
-there are currently no useful menu options for end users other than Quit.
-SNI is intended to be easy to use with little to no direct user interaction.
-It should always Just Work™.
+SNI is intended to be easy to use with little to no direct user interaction. It should always Just Work™.
+
+Once started, a systray icon will appear. Clicking it will reveal this menu:
+
+![image](https://user-images.githubusercontent.com/538152/124302378-c24d0600-db26-11eb-81f0-eada39f708ee.png)
+
+The top menu item is for informational purposes only; it shows the current version of SNI running.
+
+The "Disconnect SNES" menu item is sort of like an emergency stop button if you need to disconnect SNI from your SNES devices. This feature is intended to release the SD2SNES / FX Pak Pro device temporarily so that other non-SNI applications may make use of it. Note that this feature will not disconnect SNI applications from SNI. If SNI applications are currently connected to SNI, this will only be a temporary measure as the next application request made will automatically reestablish a connection with your SNES device.
+
+The "Log all requests" is a checkbox menu item. Enabling it will enable detailed logging of all requests and responses made to SNI via either the gRPC service or the usb2snes WebSockets compatibility protocol. If disabled, only error responses are recorded in the log.
 
 Currently supported SNES devices are:
 
-* FX Pak Pro a.k.a. SD2SNES hardware USB-enabled SNES cartridge with usb2snes-compatible firmware
+* FX Pak Pro a.k.a. SD2SNES hardware USB-enabled SNES cartridge with usb2snes-compatible firmware (e.g. v1.10.3-usb)
 * Lua Bridge compatible emulators e.g. Snes9x-rr, BizHawk
 * RetroArch with bsnes-mercury emulator core
 
@@ -35,6 +44,9 @@ The following environment variables are defined:
 | --- | --- | --- |
 | SNI_GRPC_LISTEN_HOST | 0.0.0.0 | host to listen on for gRPC connections |
 | SNI_GRPC_LISTEN_PORT | 8191 | port to listen on for gRPC connections |
+| SNI_USB2SNES_DISABLED | 0 | usb2snes: set to 1 to disable usb2snes server |
+| SNI_USB2SNES_LISTEN_HOST | 0.0.0.0 | usb2snes: host/IP to listen on |
+| SNI_USB2SNES_LISTEN_PORT | 8080 | usb2snes: port number to listen on |
 | SNI_FXPAKPRO_DISABLE | 0 | fxpakpro: set to 1 to disable FX Pak Pro driver |
 | SNI_RETROARCH_DISABLE | 0 | retroarch: set to 1 to disable Retroarch driver |
 | SNI_RETROARCH_HOSTS | localhost:55355 | retroarch: list of comma-delimited host:port pairs to detect retroarch instances on; configure these with `network_cmd_port` setting in `retroarch.cfg` |
@@ -61,7 +73,9 @@ file is located at:
 SNI offers a [gRPC](https://grpc.io/) API as its primary means of communication
 with application clients.
 
-## Design Goals
+SNI also offers a compatibility `usb2snes` WebSockets server listening on port 8080.
+
+## gRPC API Design Goals
 1. The gRPC protocol implemented by SNI is entirely **stateless**.
 1. Every request is always paired with a response and there is no chance of
    request-response ordering being broken.
@@ -72,8 +86,8 @@ with application clients.
 1. A client's connection to the gRPC server does NOT indicate any
    device-specific connection has been established.
 1. Device connections are only established between the SNI service and the
-   device itself. These connections are made on-demand when clients make
-   requests.
+   device itself.
+1. Device connections are created on-demand when clients make requests.
 1. Device connections are maintained until an unrecoverable device error is
    encountered when talking with the device.
 1. When a device error is encountered, the device connection is immediately
@@ -85,7 +99,7 @@ with application clients.
 If you find a scenario where any of these goals are violated, we urge you to
 file an [issue report](https://github.com/alttpo/sni/issues/new).
 
-## Generating Client Code
+## Generating gRPC Client Code
 To get started, choose your favorite programming language and use grpc's
 `protoc` tool to generate client code [using the provided sni.proto file](https://github.com/alttpo/sni/blob/main/protos/sni/sni.proto).
 
@@ -118,10 +132,11 @@ respective naming conventions and best practices.
 In gRPC terms, a "service" is simply a collection of related methods. One can
 think of it as somewhat analogous to a "class" in object-oriented terms.
 
-SNI offers three primary gRPC services:
+SNI offers four primary gRPC services:
 * `Devices`
 * `DeviceMemory`
 * `DeviceControl`
+* `DeviceFilesystem`
 
 Let's start with the [Devices](#devices) service as it serves as the main entry
 point to SNI.
@@ -130,7 +145,7 @@ point to SNI.
 
 The `Devices` service exposes a single method:
 
-#### [ListDevices](https://github.com/alttpo/sni/blob/main/protos/sni/sni.proto#L7)
+#### ListDevices
 This method allows us to query the system and detect the currently connected
 SNES devices.
 
@@ -334,8 +349,15 @@ addresses used to store the memory data that was intercepted.
 The FX Pak Pro SNI driver natively uses this address space and all requests
 made to it are translated into this address space.
 
-For developers familiar with the usb2snes WebSockets protocol, this is the
+For developers familiar with the `usb2snes` WebSockets protocol, this is the
 address space used by those systems.
+
+SNI extends this address space to allow access to the FX Pak Pro cart's
+`CMD` space. In simple terms, the `SNES` space is mapped starting at `$00_000000`
+up to `$00_FFFFFF`, and the `CMD` space is mapped starting at `$01_000000`.
+For any other SNES device, this `CMD` space is not used. This was put in place
+to allow for backwards compatibility with the `usb2snes` protocol's `GetAddress`
+and `PutAddress` opcodes with `"Space": "CMD"`.
 
 #### SNES A-bus Address Space
 The SNES A-bus is the primary memory bus that SNES code deals with. If you
@@ -344,17 +366,6 @@ natural to you.
 
 The exact address ranges and their interpretation depends on the memory mapping
 mode of the ROM e.g. LoROM, HiROM, or ExHiROM.
-
-The RetroArch SNI driver assumes most emulator cores expose the SNES A-bus
-address space. This is true for the bsnes-mercury core at least. Unfortunately,
-RetroArch provides no ability via network commands to detect which emulator
-core is running let alone determine the address space the core uses. It is
-therefore impossible for SNI to determine how best to translate addresses
-for RetroArch in general.
-
-In this case, it is advisable for the application to offer the end user a
-manual selection of which core is running and then use the Raw address space
-for memory requests so that SNI does not translate the address mistakenly.
 
 #### Raw Address Space
 The Raw address space serves as an escape mechanism to allow developers
@@ -532,13 +543,14 @@ not accessible by the cartridge; only the CPU can write to WRAM.
 To get around this limitation, the pak offers a feature we'll call NMI EXE.
 
 The pak maps a writable 1024 byte RAM buffer into the SNES A-bus at
-`$00-3F:2C00-2FFF`. When this region is written to, the NMI EXE feature is
-enabled. When the SNES reads the NMI vector (at `$FFEA`) to jump to, the pak
-overrides the vector to point to its own code buffer mapped at `$2C00`.
+`2C00-2FFF` in banks `$00-3F`. When this region is written to, the NMI EXE
+feature is enabled. When the SNES reads the NMI vector (at `$FFEA`) to jump to,
+the pak overrides the vector to point to its own code buffer mapped at `$2C00`.
 The SNES then jumps to that code which should itself end in a `JMP ($FFEA)`
-so that the original NMI vector is executed as well.
+so that the original NMI vector is executed as well. To disable the feature,
+write `$00` to `$00:2C00`.
 
-That's great, but how does that enable WRAM writes?
+That's great and all, but what does that have to do with WRAM writes?
 
 In this 1024 byte buffer, we can place any arbitrary code we want, including
 **code that writes to WRAM**. SNI does exactly that using `MVN` instructions.
@@ -550,8 +562,51 @@ There are a few caveats:
 * The current implementation has a fixed overhead of `0x1B` bytes of setup
   ASM code plus `0x0C` bytes of ASM code per transfer; these overheads
   shorten the amount of WRAM data available to write per frame.
+* It costs time to await the NMI EXE feature to be available to write to
+  and to confirm that the NMI EXE code was executed on the next frame.
+  In practice, this whole process takes on average 36ms.
+
+To take more control over the approach, you can use the `CMD` space mapping
+in the FXPakPro address space and use the `$2C00` feature yourself. The
+`CMD` space is mapped from `$01_000000` to `$01_FFFFFF` in the FXPakPro
+address space.
+
+This would mean generating your own SNES ASM code to perform your custom
+WRAM write logic (or whatever else you want).
+
+SNI has [its own internal Go package](https://github.com/alttpo/sni/blob/main/snes/asm/emitter.go)
+that is very capable of programmatically emitting SNES machine code. If your
+application is written in Go, you are free to reuse this package. For other
+languages, feel free to take inspiration from the package's simple design
+and implement your own ASM emitter library.
+
+To see this package in action, you can run `go test memory_test.go` in the
+[snes/drivers/fxpakpro](https://github.com/alttpo/sni/blob/main/snes/drivers/fxpakpro/memory_test.go#L12)
+folder after checking out the repository. This test will show the ASM generated
+as text with helpful comments about the machine code emitted.
 
 ### RetroArch
+
+The RetroArch SNI driver assumes most emulator cores expose the SNES A-bus
+address space. This is true for the bsnes-mercury core at least. Unfortunately,
+RetroArch provides no ability via network commands to detect which emulator
+core is running let alone determine the address space the core uses. It is
+therefore impossible for SNI to determine how best to translate addresses
+for RetroArch in general.
+
+Regardless, SNI makes a best-effort approach to translate addresses using
+the provided address space and memory mapping mode fields required to be
+present in the request.
+
+If working with multiple emulator cores, it is advisable for the application
+to offer the end user a manual selection of which emulator core is running
+and then use the Raw address space for memory requests so that SNI does not
+translate the address mistakenly.
+
+Until the situation is resolved on RetroArch's end and we can reliably
+detect the emulator core and discover its memory mapping, we cannot accept
+nor act on bug reports about this particular situation as there is nothing
+that can be done about it from SNI's perspective.
 
 #### Reads and Writes
 
@@ -560,10 +615,16 @@ frame is presented to the end user. This means there is a **maximum delay of
 16ms** between when RetroArch receives the network command into its buffer and
 when it performs the command and sends back the reply.
 
+Since network commands are queued up while waiting for RetroArch to process them,
+we can submit multiple commands into the queue and then RetroArch will process
+all of them in order during vsync.
+
 SNI takes advantage of this regular cadence and sends multiple requests during
 the 16ms window. Replies are awaited for in the order commands were delivered.
+
 This design allows multiple applications to issue reads and writes concurrently
-without waiting for each other to complete.
+without waiting for each other to complete. It also increases throughput for
+applications that submit multiple read requests sequentially.
 
 #### RetroArch Versions
 
