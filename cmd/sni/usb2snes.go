@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"io"
@@ -82,14 +83,18 @@ func clientWebsocketHandler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	clientName := conn.RemoteAddr().String()
+	defer func() {
+		log.Printf("usb2snes: %s: %s disconnected\n", clientName, conn.RemoteAddr())
+		conn.Close()
+	}()
+
 	// setup general readers, writers and JSON encoders, decoders:
 	r := wsutil.NewReader(conn, ws.StateServerSide)
 	wb := wsutil.NewWriter(conn, ws.StateServerSide, ws.OpBinary)
 	wj := wsutil.NewWriter(conn, ws.StateServerSide, ws.OpText)
 	je := json.NewEncoder(wj)
 	jd := json.NewDecoder(r)
-
-	clientName := conn.RemoteAddr().String()
 
 	var attachedUri *url.URL
 	var driver snes.Driver
@@ -173,6 +178,31 @@ serverLoop:
 				break serverLoop
 			}
 			break
+		case "Name":
+			if len(cmd.Operands) != 1 {
+				log.Printf("usb2snes: %s: %s missing required operand\n", clientName, cmd.Opcode)
+				break serverLoop
+			}
+
+			clientName = cmd.Operands[0]
+			log.Printf("usb2snes: %s: %s '%s'\n", conn.RemoteAddr(), cmd.Opcode, clientName)
+			break
+		case "AppVersion":
+			results.Results = []string{fmt.Sprintf("SNI-%s", version)}
+
+			err = je.Encode(results)
+			if err != nil {
+				log.Printf("usb2snes: %s: %s error encoding json response: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
+			if err = wj.Flush(); err != nil {
+				log.Printf("usb2snes: %s: %s error flushing response: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
+			break
+		case "Close":
+			break serverLoop
+
 		case "Attach":
 			if len(cmd.Operands) != 1 {
 				log.Printf("usb2snes: %s: missing required Operand\n", clientName)
@@ -199,15 +229,6 @@ serverLoop:
 				log.Printf("usb2snes: %s: could not detect memory mapping: %s\n", clientName, err)
 				break serverLoop
 			}
-			break
-		case "Name":
-			if len(cmd.Operands) != 1 {
-				log.Printf("usb2snes: %s: %s missing required operand\n", clientName, cmd.Opcode)
-				break serverLoop
-			}
-
-			clientName = cmd.Operands[0]
-			log.Printf("usb2snes: %s: %s '%s'\n", conn.RemoteAddr(), cmd.Opcode, clientName)
 			break
 		case "Info":
 			if device == nil {
@@ -379,11 +400,129 @@ serverLoop:
 
 			_ = rsps
 			break
+
+		case "Reset":
+			if device == nil {
+				log.Printf("usb2snes: %s: %s requires Attach first\n", clientName, cmd.Opcode)
+				break serverLoop
+			}
+
+			err = device.ResetSystem(context.Background())
+			if err != nil {
+				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
+			break
+
+		case "Boot":
+			if device == nil {
+				log.Printf("usb2snes: %s: %s requires Attach first\n", clientName, cmd.Opcode)
+				break serverLoop
+			}
+
+			if len(cmd.Operands) < 1 {
+				log.Printf("usb2snes: %s: %s expected 1 operands, got %d\n", clientName, cmd.Opcode, len(cmd.Operands))
+				break serverLoop
+			}
+
+			err = device.BootFile(context.Background(), cmd.Operands[0])
+			if err != nil {
+				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
+			break
+
+		case "List":
+			if device == nil {
+				log.Printf("usb2snes: %s: %s requires Attach first\n", clientName, cmd.Opcode)
+				break serverLoop
+			}
+
+			if len(cmd.Operands) < 1 {
+				log.Printf("usb2snes: %s: %s expected 1 operands, got %d\n", clientName, cmd.Opcode, len(cmd.Operands))
+				break serverLoop
+			}
+
+			var entries []snes.DirEntry
+			entries, err = device.ReadDirectory(context.Background(), cmd.Operands[0])
+			if err != nil {
+				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
+
+			// translate entries into string array:
+			for _, entry := range entries {
+				results.Results = append(results.Results, strconv.Itoa(int(entry.Type)), entry.Name)
+			}
+
+			err = je.Encode(results)
+			if err != nil {
+				log.Printf("usb2snes: %s: %s error encoding json response: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
+			if err = wj.Flush(); err != nil {
+				log.Printf("usb2snes: %s: %s error flushing response: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
+			break
+
+		case "MakeDir":
+			if device == nil {
+				log.Printf("usb2snes: %s: %s requires Attach first\n", clientName, cmd.Opcode)
+				break serverLoop
+			}
+
+			if len(cmd.Operands) < 1 {
+				log.Printf("usb2snes: %s: %s expected 1 operands, got %d\n", clientName, cmd.Opcode, len(cmd.Operands))
+				break serverLoop
+			}
+
+			err = device.MakeDirectory(context.Background(), cmd.Operands[0])
+			if err != nil {
+				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
+			break
+
+		case "Remove":
+			if device == nil {
+				log.Printf("usb2snes: %s: %s requires Attach first\n", clientName, cmd.Opcode)
+				break serverLoop
+			}
+
+			if len(cmd.Operands) < 1 {
+				log.Printf("usb2snes: %s: %s expected 1 operands, got %d\n", clientName, cmd.Opcode, len(cmd.Operands))
+				break serverLoop
+			}
+
+			err = device.RemoveFile(context.Background(), cmd.Operands[0])
+			if err != nil {
+				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
+			break
+
+		case "Rename":
+			if device == nil {
+				log.Printf("usb2snes: %s: %s requires Attach first\n", clientName, cmd.Opcode)
+				break serverLoop
+			}
+
+			if len(cmd.Operands) < 2 {
+				log.Printf("usb2snes: %s: %s expected 2 operands, got %d\n", clientName, cmd.Opcode, len(cmd.Operands))
+				break serverLoop
+			}
+
+			err = device.RenameFile(context.Background(), cmd.Operands[0], cmd.Operands[1])
+			if err != nil {
+				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
+			break
+
 		default:
 			log.Printf("usb2snes: %s: unrecognized opcode '%s'\n", clientName, cmd.Opcode)
 			break
 		}
 	}
-
-	log.Printf("usb2snes: %s: %s disconnected\n", clientName, conn.RemoteAddr())
 }
