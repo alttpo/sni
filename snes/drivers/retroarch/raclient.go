@@ -120,7 +120,9 @@ func (c *RAClient) DetermineVersion() (err error) {
 		return
 	}
 
-	log.Printf("retroarch: version %s", string(rsp))
+	if logDetector {
+		log.Printf("retroarch: version %s", string(rsp))
+	}
 	c.version = string(rsp)
 
 	// parse the version string:
