@@ -169,13 +169,13 @@ func (a *autoCloseableDevice) PutFile(ctx context.Context, path string, size uin
 	return
 }
 
-func (a *autoCloseableDevice) GetFile(ctx context.Context, path string, w io.Writer, progress ProgressReportFunc) (n uint32, err error) {
+func (a *autoCloseableDevice) GetFile(ctx context.Context, path string, w io.Writer, sizeReceived SizeReceivedFunc, progress ProgressReportFunc) (size uint32, err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
 		fs, ok := device.(DeviceFilesystem)
 		if !ok {
 			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
 		}
-		n, err = fs.GetFile(ctx, path, w, progress)
+		size, err = fs.GetFile(ctx, path, w, sizeReceived, progress)
 		return
 	})
 	return

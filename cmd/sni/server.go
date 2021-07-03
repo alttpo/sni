@@ -718,17 +718,12 @@ func (d *deviceFilesystem) GetFile(ctx context.Context, request *sni.GetFileRequ
 
 	data := bytes.Buffer{}
 	var n uint32
-	n, gerr = device.GetFile(
-		ctx,
-		request.GetPath(),
-		&data,
-		func(current uint32, total uint32) {
-			// grow the buffer if we haven't already:
-			if uint32(data.Cap()) < total {
-				data.Grow(int(total - uint32(data.Cap())))
-			}
-		},
-	)
+	n, gerr = device.GetFile(ctx, request.GetPath(), &data, nil, func(current uint32, total uint32) {
+		// grow the buffer if we haven't already:
+		if uint32(data.Cap()) < total {
+			data.Grow(int(total - uint32(data.Cap())))
+		}
+	})
 	if gerr != nil {
 		return
 	}

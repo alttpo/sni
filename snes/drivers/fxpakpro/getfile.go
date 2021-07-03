@@ -8,7 +8,7 @@ import (
 	"sni/snes"
 )
 
-func (d *Device) getFile(ctx context.Context, path string, w io.Writer, progress snes.ProgressReportFunc) (received uint32, err error) {
+func (d *Device) getFile(ctx context.Context, path string, w io.Writer, sizeReceived snes.SizeReceivedFunc, progress snes.ProgressReportFunc) (received uint32, err error) {
 	sb := make([]byte, 512)
 	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpGET)
@@ -45,8 +45,13 @@ func (d *Device) getFile(ctx context.Context, path string, w io.Writer, progress
 		return 0, fmt.Errorf("getFile: %w", fxpakproError(ec))
 	}
 
-	// read all remaining bytes in chunks of 512 bytes:
+	// read the size of the file:
 	size := binary.BigEndian.Uint32(sb[252:256])
+	if sizeReceived != nil {
+		sizeReceived(size)
+	}
+
+	// read all remaining bytes in chunks of 512 bytes:
 	received, err = recvSerialProgress(d.f, w, size, 512, progress)
 	return
 }

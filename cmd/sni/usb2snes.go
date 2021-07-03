@@ -121,7 +121,8 @@ func (w *wsWriter) Write(p []byte) (n int, err error) {
 	}
 
 	if w.written >= w.frameSize {
-		err = w.w.FlushFragment()
+		err = w.w.Flush()
+		w.written = 0
 	}
 	return
 }
@@ -604,11 +605,20 @@ serverLoop:
 				}
 			}
 
-			// call FlushFragment after every 1024 bytes written:
+			// calls Flush after every `frameSize` bytes written:
 			wsw := &wsWriter{w: wb, frameSize: 1024}
 
+			// callback to write the json reply about the file size:
+			sizeReceived := snes.SizeReceivedFunc(func(size uint32) {
+				// send a single response packet with the size of the file
+				results.Results = append(results.Results, strconv.FormatUint(uint64(size), 16))
+				if !replyJson() {
+					// TODO: cause failure of writer
+				}
+			})
+
 			var n uint32
-			n, err = device.GetFile(context.Background(), cmd.Operands[0], wsw, progress)
+			n, err = device.GetFile(context.Background(), cmd.Operands[0], wsw, sizeReceived, progress)
 			if err != nil {
 				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
 				break serverLoop

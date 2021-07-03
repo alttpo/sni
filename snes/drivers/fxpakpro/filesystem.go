@@ -27,8 +27,8 @@ func (d *Device) PutFile(ctx context.Context, path string, size uint32, r io.Rea
 	return
 }
 
-func (d *Device) GetFile(ctx context.Context, path string, w io.Writer, progress snes.ProgressReportFunc) (n uint32, err error) {
-	n, err = d.getFile(ctx, path, w, progress)
+func (d *Device) GetFile(ctx context.Context, path string, w io.Writer, sizeReceived snes.SizeReceivedFunc, progress snes.ProgressReportFunc) (size uint32, err error) {
+	size, err = d.getFile(ctx, path, w, sizeReceived, progress)
 	return
 }
 
