@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sni/cmd/sni/tray"
 	"sni/protos/sni"
 	"sni/snes"
 	"sni/snes/mapping"
@@ -20,8 +21,6 @@ import (
 	"strings"
 	"time"
 )
-
-var verboseLogging bool = false
 
 func StartHttpServer() {
 	var err error
@@ -201,12 +200,12 @@ serverLoop:
 		}
 		var results response
 
-		if verboseLogging {
+		if tray.VerboseLogging {
 			log.Printf("usb2snes: %s: %s %s [%s]\n", clientName, cmd.Opcode, cmd.Space, strings.Join(cmd.Operands, ","))
 		}
 
 		replyJson := func() bool {
-			if verboseLogging {
+			if tray.VerboseLogging {
 				log.Printf("usb2snes: %s: %s REPLY: %+v\n", clientName, cmd.Opcode, results)
 			}
 
@@ -224,17 +223,21 @@ serverLoop:
 
 		switch cmd.Opcode {
 		case "DeviceList":
-			results.Results = make([]string, 0, 10)
+			descriptors := make([]snes.DeviceDescriptor, 0, 10)
 			for _, driver := range snes.Drivers() {
-				descriptors, err := driver.Driver.Detect()
+				d, err := driver.Driver.Detect()
 				if err != nil {
 					log.Printf("usb2snes: %s: %s error detecting from driver '%s': %s\n", clientName, cmd.Opcode, driver.Name, err)
 					continue
 				}
+				descriptors = append(descriptors, d...)
+			}
 
-				for _, descriptor := range descriptors {
-					results.Results = append(results.Results, descriptor.Uri.String())
-				}
+			tray.UpdateDeviceList(descriptors)
+
+			results.Results = make([]string, 0, 10)
+			for _, descriptor := range descriptors {
+				results.Results = append(results.Results, descriptor.Uri.String())
 			}
 
 			if !replyJson() {
@@ -372,7 +375,7 @@ serverLoop:
 					break serverLoop
 				}
 			}
-			if verboseLogging {
+			if tray.VerboseLogging {
 				log.Printf("usb2snes: %s: %s REPLY: %+v\n", clientName, cmd.Opcode, rsps)
 			}
 
@@ -467,7 +470,7 @@ serverLoop:
 				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
 				break serverLoop
 			}
-			if verboseLogging {
+			if tray.VerboseLogging {
 				log.Printf("usb2snes: %s: %s REPLY: %+v\n", clientName, cmd.Opcode, rsps)
 			}
 
@@ -599,7 +602,7 @@ serverLoop:
 			}
 
 			var progress snes.ProgressReportFunc = nil
-			if verboseLogging {
+			if tray.VerboseLogging {
 				progress = func(current uint32, total uint32) {
 					log.Printf("usb2snes: %s: %s: progress $%08x/$%08x\n", clientName, cmd.Opcode, current, total)
 				}
@@ -623,7 +626,7 @@ serverLoop:
 				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
 				break serverLoop
 			}
-			if verboseLogging {
+			if tray.VerboseLogging {
 				log.Printf("usb2snes: %s: %s REPLY: $%x bytes\n", clientName, cmd.Opcode, n)
 			}
 			if err = wb.Flush(); err != nil {
@@ -652,7 +655,7 @@ serverLoop:
 			size := uint32(size64)
 
 			var progress snes.ProgressReportFunc = nil
-			if verboseLogging {
+			if tray.VerboseLogging {
 				progress = func(current uint32, total uint32) {
 					log.Printf("usb2snes: %s: %s: progress $%08x/$%08x\n", clientName, cmd.Opcode, current, total)
 				}
@@ -665,7 +668,7 @@ serverLoop:
 				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
 				break serverLoop
 			}
-			if verboseLogging {
+			if tray.VerboseLogging {
 				log.Printf("usb2snes: %s: %s REPLY: $%x bytes\n", clientName, cmd.Opcode, n)
 			}
 			if err = wb.Flush(); err != nil {

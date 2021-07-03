@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"google.golang.org/grpc/status"
+	"sni/cmd/sni/tray"
 	"sni/protos/sni"
 	"sni/snes"
 )
@@ -22,6 +23,17 @@ type DevicesService struct {
 }
 
 func (s *DevicesService) ListDevices(ctx context.Context, request *sni.DevicesRequest) (*sni.DevicesResponse, error) {
+	descriptors := make([]snes.DeviceDescriptor, 0, 10)
+	for _, driver := range snes.Drivers() {
+		d, err := driver.Driver.Detect()
+		if err != nil {
+			return nil, err
+		}
+		descriptors = append(descriptors, d...)
+	}
+
+	tray.UpdateDeviceList(descriptors)
+
 	var kindPredicate func(kind string) bool
 	if request.GetKinds() == nil {
 		kindPredicate = func(kind string) bool { return true }
@@ -37,24 +49,18 @@ func (s *DevicesService) ListDevices(ctx context.Context, request *sni.DevicesRe
 	}
 
 	devices := make([]*sni.DevicesResponse_Device, 0, 10)
-	for _, driver := range snes.Drivers() {
-		if !kindPredicate(driver.Driver.Kind()) {
+	for _, descriptor := range descriptors {
+		if !kindPredicate(descriptor.Kind) {
 			continue
 		}
 
-		descriptors, err := driver.Driver.Detect()
-		if err != nil {
-			return nil, err
-		}
-		for _, descriptor := range descriptors {
-			devices = append(devices, &sni.DevicesResponse_Device{
-				Uri:                 descriptor.Uri.String(),
-				DisplayName:         descriptor.DisplayName,
-				Kind:                descriptor.Kind,
-				Capabilities:        descriptor.Capabilities,
-				DefaultAddressSpace: descriptor.DefaultAddressSpace,
-			})
-		}
+		devices = append(devices, &sni.DevicesResponse_Device{
+			Uri:                 descriptor.Uri.String(),
+			DisplayName:         descriptor.DisplayName,
+			Kind:                descriptor.Kind,
+			Capabilities:        descriptor.Capabilities,
+			DefaultAddressSpace: descriptor.DefaultAddressSpace,
+		})
 	}
 
 	return &sni.DevicesResponse{Devices: devices}, nil

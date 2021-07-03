@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"sni/cmd/sni/service"
+	"sni/cmd/sni/tray"
 	"sni/protos/sni"
 	"sni/util/env"
 	"strconv"
@@ -81,7 +82,7 @@ func logTimingInterceptor(
 	tEnd := time.Now()
 
 	var reqStr, rspStr string
-	if err != nil || verboseLogging {
+	if err != nil || tray.VerboseLogging {
 		// format request message as string:
 		if reqStringer, ok := info.Server.(methodRequestStringer); ok {
 			reqStr = reqStringer.MethodRequestString(info.FullMethod, req)
@@ -93,7 +94,7 @@ func logTimingInterceptor(
 	if err != nil {
 		// log method, time taken, request, and error:
 		log.Printf(fullMethodFormatter + ": %10d ns: req=`%s`, err=`%v`\n", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), reqStr, err)
-	} else if verboseLogging {
+	} else if tray.VerboseLogging {
 		// only log normal requests+responses when verbose mode on:
 
 		// format response message as string:

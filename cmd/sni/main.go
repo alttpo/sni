@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sni/cmd/sni/tray"
 	"strings"
 	"time"
 )
@@ -75,6 +76,6 @@ func main() {
 	StartGrpcServer()
 	StartHttpServer()
 
-	// start up a systray handler if possible:
-	createSystray()
+	// start up a systray:
+	tray.CreateSystray(version, commit, date, builtBy)
 }
