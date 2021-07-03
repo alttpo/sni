@@ -54,8 +54,10 @@ func trayStart() {
 			case <-toggleVerbose.ClickedCh:
 				verboseLogging = !verboseLogging
 				if verboseLogging {
+					log.Println("enable verbose logging")
 					toggleVerbose.Check()
 				} else {
+					log.Println("disable verbose logging")
 					toggleVerbose.Uncheck()
 				}
 				break
