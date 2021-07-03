@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"log"
 	"net"
+	"sni/cmd/sni/service"
 	"sni/protos/sni"
 	"sni/util/env"
 	"strconv"
@@ -43,10 +44,10 @@ func StartGrpcServer() {
 		grpc.ChainUnaryInterceptor(logTimingInterceptor),
 		grpc.ChainStreamInterceptor(reportErrorStreamInterceptor),
 	)
-	sni.RegisterDevicesServer(grpcServer, &devicesService{})
-	sni.RegisterDeviceMemoryServer(grpcServer, &deviceMemoryService{})
-	sni.RegisterDeviceControlServer(grpcServer, &deviceControlService{})
-	sni.RegisterDeviceFilesystemServer(grpcServer, &deviceFilesystem{})
+	sni.RegisterDevicesServer(grpcServer, &service.DevicesService{})
+	sni.RegisterDeviceMemoryServer(grpcServer, &service.DeviceMemoryService{})
+	sni.RegisterDeviceControlServer(grpcServer, &service.DeviceControlService{})
+	sni.RegisterDeviceFilesystemServer(grpcServer, &service.DeviceFilesystem{})
 	reflection.Register(grpcServer)
 
 	go func() {
