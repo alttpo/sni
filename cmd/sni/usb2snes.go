@@ -107,6 +107,25 @@ func (w *wsReader) Read(p []byte) (n int, err error) {
 	return
 }
 
+type wsWriter struct {
+	w *wsutil.Writer
+	frameSize int
+	written int
+}
+
+func (w *wsWriter) Write(p []byte) (n int, err error) {
+	n, err = w.w.Write(p)
+	w.written += n
+	if err != nil {
+		return
+	}
+
+	if w.written >= w.frameSize {
+		err = w.w.FlushFragment()
+	}
+	return
+}
+
 func clientWebsocketHandler(rw http.ResponseWriter, req *http.Request) {
 	conn, _, _, err := ws.UpgradeHTTP(req, rw)
 	if err != nil {
@@ -585,8 +604,11 @@ serverLoop:
 				}
 			}
 
+			// call FlushFragment after every 1024 bytes written:
+			wsw := &wsWriter{w: wb, frameSize: 1024}
+
 			var n uint32
-			n, err = device.GetFile(context.Background(), cmd.Operands[0], wb, progress)
+			n, err = device.GetFile(context.Background(), cmd.Operands[0], wsw, progress)
 			if err != nil {
 				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
 				break serverLoop
