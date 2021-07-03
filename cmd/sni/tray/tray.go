@@ -6,11 +6,13 @@ import (
 	"log"
 	"sni/cmd/sni/icon"
 	"sni/snes"
+	"time"
 )
 
 var VerboseLogging bool = false
 
 const maxItems = 10
+
 var deviceMenuItems [maxItems]*systray.MenuItem
 
 func UpdateDeviceList(descriptors []snes.DeviceDescriptor) {
@@ -22,7 +24,7 @@ func UpdateDeviceList(descriptors []snes.DeviceDescriptor) {
 	for i, desc := range descriptors[0:n] {
 		deviceMenuItems[i].SetTitle(desc.DisplayName)
 		deviceMenuItems[i].SetTooltip(desc.Kind)
-		deviceMenuItems[i].Check()
+		//deviceMenuItems[i].Check()
 		deviceMenuItems[i].Show()
 	}
 	for i := n; i < maxItems; i++ {
@@ -65,7 +67,7 @@ func trayStart() {
 	versionTooltip := fmt.Sprintf("SNI %s (%s) built on %s", version, commit, date)
 	systray.AddMenuItem(versionText, versionTooltip)
 	systray.AddSeparator()
-	devicesMenu := systray.AddMenuItem("Devices", "Devices currently detected")
+	devicesMenu := systray.AddMenuItem("Devices", "")
 	systray.AddSeparator()
 	disconnectAll := systray.AddMenuItem("Disconnect SNES", "Disconnect from all connected SNES devices")
 	systray.AddSeparator()
@@ -81,6 +83,7 @@ func trayStart() {
 
 	// Menu item click handler:
 	go func() {
+		refreshPeriod := time.Tick(time.Second * 2)
 		for {
 			select {
 			case <-mQuit.ClickedCh:
@@ -104,19 +107,25 @@ func trayStart() {
 				}
 				break
 			case <-refresh.ClickedCh:
-				descriptors := make([]snes.DeviceDescriptor, 0, 10)
-				for _, named := range snes.Drivers() {
-					d, err := named.Driver.Detect()
-					if err != nil {
-						continue
-					}
-
-					descriptors = append(descriptors, d...)
-				}
-				UpdateDeviceList(descriptors)
-
+				RefreshDeviceList()
+				break
+			case <-refreshPeriod:
+				RefreshDeviceList()
 				break
 			}
 		}
 	}()
+}
+
+func RefreshDeviceList() {
+	descriptors := make([]snes.DeviceDescriptor, 0, 10)
+	for _, named := range snes.Drivers() {
+		d, err := named.Driver.Detect()
+		if err != nil {
+			continue
+		}
+
+		descriptors = append(descriptors, d...)
+	}
+	UpdateDeviceList(descriptors)
 }
