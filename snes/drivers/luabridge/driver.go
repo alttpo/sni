@@ -190,7 +190,7 @@ func (d *Driver) runServer(listener *net.TCPListener) {
 }
 
 func DriverInit() {
-	bindHost = env.GetOrDefault("SNI_LUABRIDGE_LISTEN_HOST", "127.0.0.1")
+	bindHost = env.GetOrDefault("SNI_LUABRIDGE_LISTEN_HOST", "0.0.0.0")
 	bindPort = env.GetOrDefault("SNI_LUABRIDGE_LISTEN_PORT", "65398")
 	bindHostPort = net.JoinHostPort(bindHost, bindPort)
 

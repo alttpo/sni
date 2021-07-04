@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"sni/cmd/sni/tray"
+	"sni/snes/services/grpcimpl"
+	"sni/snes/services/usb2snes"
 	"strings"
 	"time"
 )
@@ -32,12 +34,7 @@ var (
 )
 
 var (
-	listenHost string // hostname/ip to listen on for webserver
-	listenPort int    // port number to listen on for webserver
 	logPath    string
-)
-
-var (
 	cpuprofile = flag.String("cpuprofile", "", "start pprof profiler on addr:port")
 )
 
@@ -73,8 +70,8 @@ func main() {
 	retroarch.DriverInit()
 	mock.DriverInit()
 
-	StartGrpcServer()
-	StartHttpServer()
+	grpcimpl.StartGrpcServer()
+	usb2snes.StartHttpServer(version)
 
 	// start up a systray:
 	tray.CreateSystray(version, commit, date, builtBy)

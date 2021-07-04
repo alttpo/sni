@@ -1,4 +1,4 @@
-package main
+package grpcimpl
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"google.golang.org/grpc/reflection"
 	"log"
 	"net"
-	"sni/cmd/sni/service"
 	"sni/cmd/sni/tray"
 	"sni/protos/sni"
 	"sni/util/env"
@@ -18,41 +17,46 @@ import (
 
 const fullMethodFormatter = "%32s"
 
-var grpcServer *grpc.Server
+var (
+	ListenHost string
+	ListenPort int
+	ListenAddr string
+	GrpcServer *grpc.Server
+)
 
 func StartGrpcServer() {
 	var err error
 
 	// Parse env vars:
-	listenHost = env.GetOrDefault("SNI_GRPC_LISTEN_HOST", "0.0.0.0")
+	ListenHost = env.GetOrDefault("SNI_GRPC_LISTEN_HOST", "0.0.0.0")
 
-	listenPort, err = strconv.Atoi(env.GetOrDefault("SNI_GRPC_LISTEN_PORT", "8191"))
+	ListenPort, err = strconv.Atoi(env.GetOrDefault("SNI_GRPC_LISTEN_PORT", "8191"))
 	if err != nil {
-		listenPort = 8191
+		ListenPort = 8191
 	}
-	if listenPort <= 0 {
-		listenPort = 8191
+	if ListenPort <= 0 {
+		ListenPort = 8191
 	}
-	listenAddr := net.JoinHostPort(listenHost, strconv.Itoa(listenPort))
 
-	lis, err := net.Listen("tcp", listenAddr)
+	ListenAddr = net.JoinHostPort(ListenHost, strconv.Itoa(ListenPort))
+	lis, err := net.Listen("tcp", ListenAddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
 	// start gRPC server:
-	grpcServer = grpc.NewServer(
+	GrpcServer = grpc.NewServer(
 		grpc.ChainUnaryInterceptor(logTimingInterceptor),
 		grpc.ChainStreamInterceptor(reportErrorStreamInterceptor),
 	)
-	sni.RegisterDevicesServer(grpcServer, &service.DevicesService{})
-	sni.RegisterDeviceMemoryServer(grpcServer, &service.DeviceMemoryService{})
-	sni.RegisterDeviceControlServer(grpcServer, &service.DeviceControlService{})
-	sni.RegisterDeviceFilesystemServer(grpcServer, &service.DeviceFilesystem{})
-	reflection.Register(grpcServer)
+	sni.RegisterDevicesServer(GrpcServer, &DevicesService{})
+	sni.RegisterDeviceMemoryServer(GrpcServer, &DeviceMemoryService{})
+	sni.RegisterDeviceControlServer(GrpcServer, &DeviceControlService{})
+	sni.RegisterDeviceFilesystemServer(GrpcServer, &DeviceFilesystem{})
+	reflection.Register(GrpcServer)
 
 	go func() {
-		if err := grpcServer.Serve(lis); err != nil {
+		if err := GrpcServer.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
 		}
 	}()
@@ -93,7 +97,7 @@ func logTimingInterceptor(
 
 	if err != nil {
 		// log method, time taken, request, and error:
-		log.Printf(fullMethodFormatter + ": %10d ns: req=`%s`, err=`%v`\n", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), reqStr, err)
+		log.Printf(fullMethodFormatter+": %10d ns: req=`%s`, err=`%v`\n", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), reqStr, err)
 	} else if tray.VerboseLogging {
 		// only log normal requests+responses when verbose mode on:
 
@@ -105,7 +109,7 @@ func logTimingInterceptor(
 		}
 
 		// log method, time taken, request, and response:
-		log.Printf(fullMethodFormatter + ": %10d ns: req=`%s`, rsp=`%s`\n", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), reqStr, rspStr)
+		log.Printf(fullMethodFormatter+": %10d ns: req=`%s`, rsp=`%s`\n", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), reqStr, rspStr)
 	}
 
 	return
@@ -122,12 +126,12 @@ func reportErrorStreamInterceptor(
 		streamSource = p.Addr.String()
 	}
 
-	log.Printf(fullMethodFormatter + ": start stream from %s\n", info.FullMethod, streamSource)
+	log.Printf(fullMethodFormatter+": start stream from %s\n", info.FullMethod, streamSource)
 	err = handler(srv, ss)
 	if err != nil {
-		log.Printf(fullMethodFormatter + ": end stream from %s; err=`%v`\n", info.FullMethod, streamSource, err)
+		log.Printf(fullMethodFormatter+": end stream from %s; err=`%v`\n", info.FullMethod, streamSource, err)
 	} else {
-		log.Printf(fullMethodFormatter + ": end stream from %s\n", info.FullMethod, streamSource)
+		log.Printf(fullMethodFormatter+": end stream from %s\n", info.FullMethod, streamSource)
 	}
 
 	return

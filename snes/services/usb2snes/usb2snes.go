@@ -1,4 +1,4 @@
-package main
+package usb2snes
 
 import (
 	"context"
@@ -22,7 +22,15 @@ import (
 	"time"
 )
 
-func StartHttpServer() {
+var (
+	ListenHost string // hostname/ip to listen on for webserver
+	ListenPort int    // port number to listen on for webserver
+	version    string
+)
+
+func StartHttpServer(versionParam string) {
+	version = versionParam
+
 	var err error
 
 	// Parse env vars:
@@ -32,16 +40,16 @@ func StartHttpServer() {
 		return
 	}
 
-	listenHost = env.GetOrDefault("SNI_USB2SNES_LISTEN_HOST", "0.0.0.0")
+	ListenHost = env.GetOrDefault("SNI_USB2SNES_LISTEN_HOST", "0.0.0.0")
 
-	listenPort, err = strconv.Atoi(env.GetOrDefault("SNI_USB2SNES_LISTEN_PORT", "8080"))
+	ListenPort, err = strconv.Atoi(env.GetOrDefault("SNI_USB2SNES_LISTEN_PORT", "8080"))
 	if err != nil {
-		listenPort = 8080
+		ListenPort = 8080
 	}
-	if listenPort <= 0 {
-		listenPort = 8080
+	if ListenPort <= 0 {
+		ListenPort = 8080
 	}
-	listenAddr := net.JoinHostPort(listenHost, strconv.Itoa(listenPort))
+	listenAddr := net.JoinHostPort(ListenHost, strconv.Itoa(ListenPort))
 
 	mux := http.NewServeMux()
 	mux.Handle("/", http.HandlerFunc(clientWebsocketHandler))
@@ -107,9 +115,9 @@ func (w *wsReader) Read(p []byte) (n int, err error) {
 }
 
 type wsWriter struct {
-	w *wsutil.Writer
+	w         *wsutil.Writer
 	frameSize int
-	written int
+	written   int
 }
 
 func (w *wsWriter) Write(p []byte) (n int, err error) {
@@ -346,7 +354,7 @@ serverLoop:
 					break
 				case "CMD":
 					// dirty dirty hack to put the CMD address space into the FxPakPro space as some sort of subspace:
-					addr32 = uint32(addr & 0x00_FFFFFF) | 0x01_000000
+					addr32 = uint32(addr&0x00_FFFFFF) | 0x01_000000
 					break
 				default:
 					log.Printf("usb2snes: %s: %s: unrecognized space '%s'\n", clientName, cmd.Opcode, space)
@@ -428,7 +436,7 @@ serverLoop:
 					break
 				case "CMD":
 					// dirty dirty hack to put the CMD address space into the FxPakPro space as some sort of subspace:
-					addr32 = uint32(addr & 0x00_FFFFFF) | 0x01_000000
+					addr32 = uint32(addr&0x00_FFFFFF) | 0x01_000000
 					break
 				default:
 					log.Printf("usb2snes: %s: %s: unrecognized space '%s'\n", clientName, cmd.Opcode, space)
