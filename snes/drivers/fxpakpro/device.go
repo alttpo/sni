@@ -29,6 +29,7 @@ func (d *Device) Close() (err error) {
 }
 
 type lockedKeyType int
+
 var lockedKey lockedKeyType
 
 func shouldLock(ctx context.Context) bool {

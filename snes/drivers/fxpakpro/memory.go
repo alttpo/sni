@@ -321,7 +321,7 @@ func (d *Device) MultiWriteMemory(
 
 func (d *Device) awaitNMIEXE(ctx context.Context, deadline time.Time) (ok bool, err error) {
 	check := make([]byte, 1)
-	for ; time.Now().Before(deadline); {
+	for time.Now().Before(deadline) {
 		err = d.vget(ctx, SpaceCMD, vgetChunk{addr: 0x2C00, size: 1, target: check})
 		if err != nil {
 			return

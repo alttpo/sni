@@ -14,7 +14,6 @@ func (e ErrDeviceDisconnected) Error() string {
 	return fmt.Sprintf("snes device disconnected: %v", e.wrapped)
 }
 
-
 type CodedError struct {
 	codes.Code
 	Cause error
