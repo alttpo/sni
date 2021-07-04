@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"log"
 	"net"
-	"sni/cmd/sni/tray"
+	"sni/cmd/sni/config"
 	"sni/protos/sni"
 	"sni/util/env"
 	"strconv"
@@ -86,7 +86,7 @@ func logTimingInterceptor(
 	tEnd := time.Now()
 
 	var reqStr, rspStr string
-	if err != nil || tray.VerboseLogging {
+	if err != nil || config.VerboseLogging {
 		// format request message as string:
 		if reqStringer, ok := info.Server.(methodRequestStringer); ok {
 			reqStr = reqStringer.MethodRequestString(info.FullMethod, req)
@@ -98,7 +98,7 @@ func logTimingInterceptor(
 	if err != nil {
 		// log method, time taken, request, and error:
 		log.Printf(fullMethodFormatter+": %10d ns: req=`%s`, err=`%v`\n", info.FullMethod, tEnd.Sub(tStart).Nanoseconds(), reqStr, err)
-	} else if tray.VerboseLogging {
+	} else if config.VerboseLogging {
 		// only log normal requests+responses when verbose mode on:
 
 		// format response message as string:

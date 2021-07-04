@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sni/cmd/sni/config"
 	"sni/cmd/sni/tray"
 	"sni/snes/services/grpcimpl"
 	"sni/snes/services/usb2snes"
@@ -38,7 +39,7 @@ var (
 	cpuprofile = flag.String("cpuprofile", "", "start pprof profiler on addr:port")
 )
 
-func init() {
+func main() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.LUTC)
 
 	ts := time.Now().Format("2006-01-02T15:04:05.000Z")
@@ -53,9 +54,7 @@ func init() {
 	log.Printf("sni %s %s built on %s by %s", version, commit, date, builtBy)
 	log.Printf("logging to '%s'\n", logPath)
 	log.SetOutput(io.MultiWriter(os.Stderr, logFile))
-}
 
-func main() {
 	flag.Parse()
 	if *cpuprofile != "" {
 		go func() {
@@ -63,6 +62,8 @@ func main() {
 			log.Println(http.ListenAndServe(*cpuprofile, nil))
 		}()
 	}
+
+	config.Load()
 
 	// explicitly initialize all the drivers:
 	fxpakpro.DriverInit()

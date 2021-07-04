@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sni/cmd/sni/config"
 	"sni/cmd/sni/tray"
 	"sni/protos/sni"
 	"sni/snes"
@@ -222,12 +223,12 @@ serverLoop:
 		}
 		var results response
 
-		if tray.VerboseLogging {
+		if config.VerboseLogging {
 			log.Printf("usb2snes: %s: %s %s [%s]\n", clientName, cmd.Opcode, cmd.Space, strings.Join(cmd.Operands, ","))
 		}
 
 		replyJson := func() bool {
-			if tray.VerboseLogging {
+			if config.VerboseLogging {
 				log.Printf("usb2snes: %s: %s REPLY: %+v\n", clientName, cmd.Opcode, results)
 			}
 
@@ -401,7 +402,7 @@ serverLoop:
 					break serverLoop
 				}
 			}
-			if tray.VerboseLogging {
+			if config.VerboseLogging {
 				log.Printf("usb2snes: %s: %s REPLY: %+v\n", clientName, cmd.Opcode, rsps)
 			}
 
@@ -496,7 +497,7 @@ serverLoop:
 				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
 				break serverLoop
 			}
-			if tray.VerboseLogging {
+			if config.VerboseLogging {
 				log.Printf("usb2snes: %s: %s REPLY: %+v\n", clientName, cmd.Opcode, rsps)
 			}
 
@@ -628,7 +629,7 @@ serverLoop:
 			}
 
 			var progress snes.ProgressReportFunc = nil
-			if tray.VerboseLogging {
+			if config.VerboseLogging {
 				progress = func(current uint32, total uint32) {
 					log.Printf("usb2snes: %s: %s: progress $%08x/$%08x\n", clientName, cmd.Opcode, current, total)
 				}
@@ -652,7 +653,7 @@ serverLoop:
 				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
 				break serverLoop
 			}
-			if tray.VerboseLogging {
+			if config.VerboseLogging {
 				log.Printf("usb2snes: %s: %s REPLY: $%x bytes\n", clientName, cmd.Opcode, n)
 			}
 			if err = wb.Flush(); err != nil {
@@ -681,7 +682,7 @@ serverLoop:
 			size := uint32(size64)
 
 			var progress snes.ProgressReportFunc = nil
-			if tray.VerboseLogging {
+			if config.VerboseLogging {
 				progress = func(current uint32, total uint32) {
 					log.Printf("usb2snes: %s: %s: progress $%08x/$%08x\n", clientName, cmd.Opcode, current, total)
 				}
@@ -694,7 +695,7 @@ serverLoop:
 				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
 				break serverLoop
 			}
-			if tray.VerboseLogging {
+			if config.VerboseLogging {
 				log.Printf("usb2snes: %s: %s REPLY: $%x bytes\n", clientName, cmd.Opcode, n)
 			}
 			if err = wb.Flush(); err != nil {
