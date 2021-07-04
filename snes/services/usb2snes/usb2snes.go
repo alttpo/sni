@@ -179,6 +179,20 @@ serverLoop:
 			log.Printf("usb2snes: %s: client closed connection\n", clientName)
 			break serverLoop
 		}
+		if hdr.OpCode == ws.OpPing {
+			var p []byte
+			p, err = io.ReadAll(r)
+			if err != nil {
+				log.Printf("usb2snes: %s: error reading ping frame: %s\n", clientName, err)
+				break serverLoop
+			}
+			err = ws.WriteFrame(conn, ws.NewPongFrame(p))
+			if err != nil {
+				log.Printf("usb2snes: %s: error writing pong frame: %s\n", clientName, err)
+				break serverLoop
+			}
+			continue serverLoop
+		}
 
 		if hdr.OpCode != ws.OpText {
 			log.Printf("usb2snes: %s: client sent unexpected websocket frame opcode 0x%x\n", clientName, hdr.OpCode)
