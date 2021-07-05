@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const readWriteTimeout = time.Millisecond * 256
+const readWriteTimeout = time.Second * 20
 
 const hextable = "0123456789abcdef"
 

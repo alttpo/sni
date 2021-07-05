@@ -104,13 +104,18 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 				}
 				continue
 			}
+		} else if detector.IsClosed() {
+			detector.Close()
+			// refresh detector:
+			c := NewRAClient(detector.addr, fmt.Sprintf("retroarch[%d]", i))
+			d.detectors[i] = c
 		}
 
 		// we need to check if the retroarch device is listening:
 		err = detector.DetermineVersion()
 		if err != nil {
 			if logDetector {
-				log.Printf("retroarch: detect: detector[%d]: version: %v\n", i, err)
+				log.Printf("retroarch: detect: detector[%d]: %s\n", i, err)
 			}
 			continue
 		}
