@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sni/cmd/sni/appversion"
 	"sni/cmd/sni/config"
 	"sni/cmd/sni/tray"
 	"sni/protos/sni"
@@ -26,12 +27,9 @@ import (
 var (
 	ListenHost string // hostname/ip to listen on for webserver
 	ListenPort int    // port number to listen on for webserver
-	version    string
 )
 
-func StartHttpServer(versionParam string) {
-	version = versionParam
-
+func StartHttpServer() {
 	var err error
 
 	// Parse env vars:
@@ -277,7 +275,7 @@ serverLoop:
 			log.Printf("usb2snes: %s: %s '%s'\n", conn.RemoteAddr(), cmd.Opcode, clientName)
 			break
 		case "AppVersion":
-			results.Results = []string{fmt.Sprintf("SNI-%s", version)}
+			results.Results = []string{fmt.Sprintf("SNI-%s", appversion.Version)}
 
 			if !replyJson() {
 				break serverLoop

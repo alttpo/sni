@@ -5,9 +5,8 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"log"
-	"os"
 	"path/filepath"
-	"runtime"
+	"sni/cmd/sni/logging"
 	"sni/ob"
 )
 
@@ -35,6 +34,11 @@ func Load() {
 	loadApps()
 }
 
+func Reload() {
+	ReloadConfig()
+	ReloadApps()
+}
+
 func Save() {
 	var err error
 
@@ -55,22 +59,24 @@ func loadConfig() {
 	configFilename := "config"
 	Config.SetConfigName(configFilename)
 	Config.SetConfigType("yaml")
-	if runtime.GOOS == "windows" {
-		ConfigPath = os.ExpandEnv("$LOCALAPPDATA/sni/")
-		_ = os.Mkdir(ConfigPath, 0644|os.ModeDir)
-		Config.AddConfigPath(ConfigPath)
-	} else {
-		ConfigPath = os.ExpandEnv("$HOME/.sni/")
-		Config.AddConfigPath(ConfigPath)
-	}
+
+	// set the path:
+	ConfigPath = logging.Dir
+	Config.AddConfigPath(ConfigPath)
 	ConfigPath = filepath.Join(ConfigPath, fmt.Sprintf("%s.yaml", configFilename))
 
+	// notify observers of configuration file change:
 	Config.OnConfigChange(func(_ fsnotify.Event) {
 		log.Printf("config: %s.yaml modified\n", configFilename)
 		configObservable.ObjectPublish(Config)
 	})
 	Config.WatchConfig()
 
+	ReloadConfig()
+}
+
+func ReloadConfig() {
+	// load configuration for the first time:
 	err := Config.ReadInConfig()
 	if err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
@@ -81,6 +87,7 @@ func loadConfig() {
 		return
 	}
 
+	// publish the configuration to subscribers:
 	configObservable.ObjectPublish(Config)
 }
 
@@ -91,15 +98,11 @@ func loadApps() {
 	appsFilename := "apps"
 	Apps.SetConfigName(appsFilename)
 	Apps.SetConfigType("yaml")
-	if runtime.GOOS == "windows" {
-		AppsPath = os.ExpandEnv("$LOCALAPPDATA/sni/")
-		_ = os.Mkdir(AppsPath, 0644|os.ModeDir)
-		Apps.AddConfigPath(AppsPath)
-	} else {
-		AppsPath = os.ExpandEnv("$HOME/.sni/")
-		Apps.AddConfigPath(AppsPath)
-	}
-	AppsPath = filepath.Join(ConfigPath, fmt.Sprintf("%s.yaml", appsFilename))
+
+	// set the path:
+	AppsPath = logging.Dir
+	Apps.AddConfigPath(AppsPath)
+	AppsPath = filepath.Join(AppsPath, fmt.Sprintf("%s.yaml", appsFilename))
 
 	Apps.OnConfigChange(func(_ fsnotify.Event) {
 		log.Printf("config: %s.yaml modified\n", appsFilename)
@@ -107,6 +110,10 @@ func loadApps() {
 	})
 	Apps.WatchConfig()
 
+	ReloadApps()
+}
+
+func ReloadApps() {
 	err := Apps.ReadInConfig()
 	if err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {

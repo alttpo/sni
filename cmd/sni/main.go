@@ -2,18 +2,14 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
+	"sni/cmd/sni/appversion"
 	"sni/cmd/sni/config"
+	"sni/cmd/sni/logging"
 	"sni/cmd/sni/tray"
 	"sni/snes/services/grpcimpl"
 	"sni/snes/services/usb2snes"
-	"strings"
-	"time"
 )
 
 import _ "net/http/pprof"
@@ -35,25 +31,20 @@ var (
 )
 
 var (
-	logPath    string
 	cpuprofile = flag.String("cpuprofile", "", "start pprof profiler on addr:port")
 )
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.LUTC)
+	// make the version info public in the appversion package because the main package cannot be imported:
+	appversion.Init(
+		version,
+		commit,
+		date,
+		builtBy,
+	)
 
-	ts := time.Now().Format("2006-01-02T15:04:05.000Z")
-	ts = strings.ReplaceAll(ts, ":", "-")
-	ts = strings.ReplaceAll(ts, ".", "-")
-	logPath = filepath.Join(os.TempDir(), fmt.Sprintf("sni-%s.log", ts))
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Printf("could not open log file '%s' for writing\n", logPath)
-	}
-
-	log.Printf("sni %s %s built on %s by %s", version, commit, date, builtBy)
-	log.Printf("logging to '%s'\n", logPath)
-	log.SetOutput(io.MultiWriter(os.Stderr, logFile))
+	// initialize logging subsystem:
+	logging.Init()
 
 	flag.Parse()
 	if *cpuprofile != "" {
@@ -63,6 +54,7 @@ func main() {
 		}()
 	}
 
+	// load configuration:
 	config.Load()
 
 	// explicitly initialize all the drivers:
@@ -72,8 +64,8 @@ func main() {
 	mock.DriverInit()
 
 	grpcimpl.StartGrpcServer()
-	usb2snes.StartHttpServer(version)
+	usb2snes.StartHttpServer()
 
 	// start up a systray:
-	tray.CreateSystray(version, commit, date, builtBy)
+	tray.CreateSystray()
 }

@@ -6,8 +6,10 @@ import (
 	"github.com/spf13/viper"
 	"log"
 	"runtime"
+	"sni/cmd/sni/appversion"
 	"sni/cmd/sni/config"
 	"sni/cmd/sni/icon"
+	"sni/cmd/sni/logging"
 	"sni/ob"
 	"sni/snes"
 	"strings"
@@ -35,19 +37,7 @@ func UpdateDeviceList(descriptors []snes.DeviceDescriptor) {
 	}
 }
 
-var (
-	version string
-	commit  string
-	date    string
-	builtBy string
-)
-
-func CreateSystray(versionParam, commitParam, dateParam, builtByParam string) {
-	version = versionParam
-	commit = commitParam
-	date = dateParam
-	builtBy = builtByParam
-
+func CreateSystray() {
 	// Start up a systray:
 	systray.Run(trayStart, trayExit)
 }
@@ -64,11 +54,11 @@ func trayStart() {
 	// Set up the systray:
 	systray.SetIcon(icon.Data)
 
-	versionText := fmt.Sprintf("Super Nintendo Interface %s (%s)", version, commit)
+	versionText := fmt.Sprintf("Super Nintendo Interface %s (%s)", appversion.Version, appversion.Commit)
 	systray.SetTooltip(versionText)
 
-	versionTooltip := fmt.Sprintf("SNI %s (%s) built on %s", version, commit, date)
-	systray.AddMenuItem(versionText, versionTooltip)
+	versionTooltip := fmt.Sprintf("SNI %s (%s) built on %s", appversion.Version, appversion.Commit, appversion.Date)
+	versionMenuItem := systray.AddMenuItem(versionText, versionTooltip)
 	systray.AddSeparator()
 	devicesMenu := systray.AddMenuItem("Devices", "")
 	appsMenu := systray.AddMenuItem("Applications", "")
@@ -109,6 +99,8 @@ func trayStart() {
 	appsMenuTooltipNone := fmt.Sprintf("Update apps.yaml to define application shortcuts: %s", config.AppsPath)
 	appsMenuTooltipSome := fmt.Sprintf("Application shortcuts defined by: %s", config.AppsPath)
 	appsMenu.SetTooltip(appsMenuTooltipNone)
+
+	appsReload := appsMenu.AddSubMenuItem("Reload Configuration", "Reload Configuration from apps.yaml")
 
 	// subscribe to configuration changes:
 	config.AppsObservable.Subscribe(ob.NewObserver("tray", func(object interface{}) {
@@ -199,6 +191,20 @@ func trayStart() {
 			case <-mQuit.ClickedCh:
 				fmt.Println("Requesting quit")
 				systray.Quit()
+				break
+			case <-versionMenuItem.ClickedCh:
+				launch(&appConfig{
+					Name:    "",
+					Tooltip: "",
+					Os:      "",
+					Dir:     "",
+					Path:    "",
+					Args:    nil,
+					Url:     logging.Dir,
+				})
+				break
+			case <-appsReload.ClickedCh:
+				config.ReloadApps()
 				break
 			case <-disconnectAll.ClickedCh:
 				for _, named := range snes.Drivers() {
