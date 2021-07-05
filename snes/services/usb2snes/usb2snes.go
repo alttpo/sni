@@ -388,6 +388,10 @@ serverLoop:
 			// issue the read request:
 			var rsps []snes.MemoryReadResponse
 			rsps, err = device.MultiReadMemory(context.Background(), reqs...)
+			if err != nil {
+				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
 
 			// write the response data:
 			for i := range rsps {
