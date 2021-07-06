@@ -10,6 +10,8 @@ import (
 	"sni/util"
 	"sni/util/env"
 	"strings"
+	"sync"
+	"time"
 )
 
 const driverName = "ra"
@@ -30,7 +32,7 @@ func NewDriver(addresses []*net.UDPAddr) *Driver {
 	d.container = snes.NewDeviceDriverContainer(d.openDevice)
 
 	for i, addr := range addresses {
-		c := NewRAClient(addr, fmt.Sprintf("retroarch[%d]", i))
+		c := NewRAClient(addr, fmt.Sprintf("retroarch[%d]", i), time.Millisecond*16*4)
 		d.detectors[i] = c
 	}
 
@@ -72,7 +74,7 @@ func (d *Driver) openDevice(uri *url.URL) (q snes.Device, err error) {
 	}
 
 	var c *RAClient
-	c = NewRAClient(addr, addr.String())
+	c = NewRAClient(addr, addr.String(), time.Second*5)
 	err = c.Connect(addr)
 	if err != nil {
 		return
@@ -91,48 +93,67 @@ func (d *Driver) openDevice(uri *url.URL) (q snes.Device, err error) {
 }
 
 func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
+	devicesLock := sync.Mutex{}
 	devices = make([]snes.DeviceDescriptor, 0, len(d.detectors))
-	for i, detector := range d.detectors {
-		detector.MuteLog(true)
-		if !detector.IsConnected() {
-			// "connect" to this UDP endpoint:
-			detector.version = ""
-			err = detector.Connect(detector.addr)
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(d.detectors))
+	for i, de := range d.detectors {
+		// run detectors in parallel:
+		go func(i int, detector *RAClient) {
+			defer wg.Done()
+
+			detector.MuteLog(true)
+
+			// reopen detector if necessary:
+			if detector.IsClosed() {
+				detector.Close()
+				// refresh detector:
+				c := NewRAClient(detector.addr, fmt.Sprintf("retroarch[%d]", i), time.Millisecond*16*4)
+				d.detectors[i] = c
+				c.MuteLog(true)
+				detector = c
+			}
+
+			// reconnect detector if necessary:
+			if !detector.IsConnected() {
+				// "connect" to this UDP endpoint:
+				detector.version = ""
+				err = detector.Connect(detector.addr)
+				if err != nil {
+					if logDetector {
+						log.Printf("retroarch: detect: detector[%d]: connect: %v\n", i, err)
+					}
+					return
+				}
+			}
+
+			// we need to check if the retroarch device is listening:
+			err = detector.DetermineVersion()
 			if err != nil {
 				if logDetector {
-					log.Printf("retroarch: detect: detector[%d]: connect: %v\n", i, err)
+					log.Printf("retroarch: detect: detector[%d]: %s\n", i, err)
 				}
-				continue
+				return
 			}
-		} else if detector.IsClosed() {
-			detector.Close()
-			// refresh detector:
-			c := NewRAClient(detector.addr, fmt.Sprintf("retroarch[%d]", i))
-			d.detectors[i] = c
-		}
-
-		// we need to check if the retroarch device is listening:
-		err = detector.DetermineVersion()
-		if err != nil {
-			if logDetector {
-				log.Printf("retroarch: detect: detector[%d]: %s\n", i, err)
+			if !detector.HasVersion() {
+				return
 			}
-			continue
-		}
-		if !detector.HasVersion() {
-			continue
-		}
 
-		descriptor := snes.DeviceDescriptor{
-			Uri:                 url.URL{Scheme: driverName, Host: detector.addr.String()},
-			DisplayName:         fmt.Sprintf("RetroArch v%s (%s)", detector.version, detector.addr),
-			Kind:                d.Kind(),
-			Capabilities:        driverCapabilities[:],
-			DefaultAddressSpace: sni.AddressSpace_SnesABus,
-		}
+			descriptor := snes.DeviceDescriptor{
+				Uri:                 url.URL{Scheme: driverName, Host: detector.addr.String()},
+				DisplayName:         fmt.Sprintf("RetroArch v%s (%s)", detector.version, detector.addr),
+				Kind:                d.Kind(),
+				Capabilities:        driverCapabilities[:],
+				DefaultAddressSpace: sni.AddressSpace_SnesABus,
+			}
 
-		devices = append(devices, descriptor)
+			devicesLock.Lock()
+			devices = append(devices, descriptor)
+			devicesLock.Unlock()
+		}(i, de)
 	}
+	wg.Wait()
 
 	err = nil
 	return

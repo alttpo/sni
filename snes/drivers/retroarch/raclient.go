@@ -18,8 +18,6 @@ import (
 	"time"
 )
 
-const readWriteTimeout = time.Second * 20
-
 const hextable = "0123456789abcdef"
 
 type readOperation struct {
@@ -56,6 +54,8 @@ type RAClient struct {
 
 	addr *net.UDPAddr
 
+	readWriteTimeout time.Duration
+
 	expectationLock  sync.Mutex
 	outgoing         chan *rwRequest
 	expectedIncoming chan *rwRequest
@@ -79,9 +79,10 @@ func isCloseWorthy(err error) bool {
 	return true
 }
 
-func NewRAClient(addr *net.UDPAddr, name string) *RAClient {
+func NewRAClient(addr *net.UDPAddr, name string, timeout time.Duration) *RAClient {
 	c := &RAClient{
 		addr:             addr,
+		readWriteTimeout: timeout,
 		outgoing:         make(chan *rwRequest, 8),
 		expectedIncoming: make(chan *rwRequest, 8),
 	}
@@ -111,7 +112,7 @@ func (c *RAClient) HasVersion() bool { return c.version != "" }
 
 func (c *RAClient) DetermineVersion() (err error) {
 	var rsp []byte
-	rsp, err = c.WriteThenRead([]byte("VERSION\n"), time.Now().Add(readWriteTimeout))
+	rsp, err = c.WriteThenRead([]byte("VERSION\n"), time.Now().Add(c.readWriteTimeout))
 	if err != nil {
 		return
 	}
@@ -186,7 +187,7 @@ func (c *RAClient) writeCommand() string {
 func (c *RAClient) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRequest) (mrsp []snes.MemoryReadResponse, err error) {
 	deadline, ok := ctx.Deadline()
 	if !ok {
-		deadline = time.Now().Add(readWriteTimeout)
+		deadline = time.Now().Add(c.readWriteTimeout)
 	}
 	outgoing := make([]*rwRequest, 0, len(reads)*2)
 
@@ -297,7 +298,7 @@ func (c *RAClient) MultiReadMemory(ctx context.Context, reads ...snes.MemoryRead
 func (c *RAClient) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWriteRequest) (mrsp []snes.MemoryWriteResponse, err error) {
 	deadline, ok := ctx.Deadline()
 	if !ok {
-		deadline = time.Now().Add(readWriteTimeout)
+		deadline = time.Now().Add(c.readWriteTimeout)
 	}
 
 	outgoing := make([]*rwRequest, 0, len(writes)*2)
@@ -566,7 +567,7 @@ func (c *RAClient) parseCommandResponse(rsp []byte, rwreq *rwRequest) (err error
 func (c *RAClient) ResetSystem(ctx context.Context) (err error) {
 	deadline, ok := ctx.Deadline()
 	if !ok {
-		deadline = time.Now().Add(readWriteTimeout)
+		deadline = time.Now().Add(c.readWriteTimeout)
 	}
 
 	err = c.WriteWithDeadline([]byte("RESET\n"), deadline)
@@ -580,7 +581,7 @@ func (c *RAClient) PauseUnpause(ctx context.Context, pausedState bool) (bool, er
 func (c *RAClient) PauseToggle(ctx context.Context) (err error) {
 	deadline, ok := ctx.Deadline()
 	if !ok {
-		deadline = time.Now().Add(readWriteTimeout)
+		deadline = time.Now().Add(c.readWriteTimeout)
 	}
 
 	err = c.WriteWithDeadline([]byte("PAUSE_TOGGLE\n"), deadline)

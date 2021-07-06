@@ -234,6 +234,9 @@ serverLoop:
 		case "DeviceList":
 			descriptors := make([]snes.DeviceDescriptor, 0, 10)
 			for _, driver := range snes.Drivers() {
+				if config.VerboseLogging {
+					log.Printf("usb2snes: %s: %s detecting devices from driver '%s'\n", clientName, cmd.Opcode, driver.Name)
+				}
 				d, err := driver.Driver.Detect()
 				if err != nil {
 					log.Printf("usb2snes: %s: %s error detecting from driver '%s': %s\n", clientName, cmd.Opcode, driver.Name, err)
@@ -241,8 +244,11 @@ serverLoop:
 				}
 				descriptors = append(descriptors, d...)
 			}
+			if config.VerboseLogging {
+				log.Printf("usb2snes: %s: %s detection complete\n", clientName, cmd.Opcode)
+			}
 
-			tray.UpdateDeviceList(descriptors)
+			go tray.UpdateDeviceList(descriptors)
 
 			results.Results = make([]string, 0, 10)
 			for _, descriptor := range descriptors {

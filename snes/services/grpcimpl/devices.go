@@ -32,7 +32,7 @@ func (s *DevicesService) ListDevices(ctx context.Context, request *sni.DevicesRe
 		descriptors = append(descriptors, d...)
 	}
 
-	tray.UpdateDeviceList(descriptors)
+	go tray.UpdateDeviceList(descriptors)
 
 	var kindPredicate func(kind string) bool
 	if request.GetKinds() == nil {
