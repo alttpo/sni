@@ -44,9 +44,8 @@ The following environment variables are defined:
 | --- | --- | --- |
 | SNI_GRPC_LISTEN_HOST | 0.0.0.0 | host to listen on for gRPC connections |
 | SNI_GRPC_LISTEN_PORT | 8191 | port to listen on for gRPC connections |
-| SNI_USB2SNES_DISABLED | 0 | usb2snes: set to 1 to disable usb2snes server |
-| SNI_USB2SNES_LISTEN_HOST | 0.0.0.0 | usb2snes: host/IP to listen on |
-| SNI_USB2SNES_LISTEN_PORT | 8080 | usb2snes: port number to listen on |
+| SNI_USB2SNES_DISABLE | 0 | usb2snes: set to 1 to disable usb2snes server |
+| SNI_USB2SNES_LISTEN_ADDRS | 0.0.0.0:23074,0.0.0.0:8080 | usb2snes: comma-delimited list of host:ports to listen on |
 | SNI_FXPAKPRO_DISABLE | 0 | fxpakpro: set to 1 to disable FX Pak Pro driver |
 | SNI_RETROARCH_DISABLE | 0 | retroarch: set to 1 to disable Retroarch driver |
 | SNI_RETROARCH_HOSTS | localhost:55355 | retroarch: list of comma-delimited host:port pairs to detect retroarch instances on; configure these with `network_cmd_port` setting in `retroarch.cfg` |

@@ -24,61 +24,49 @@ import (
 	"time"
 )
 
-var (
-	ListenHost string // hostname/ip to listen on for webserver
-	ListenPort int    // port number to listen on for webserver
-)
-
 func StartHttpServer() {
-	var err error
-
 	// Parse env vars:
-	disabled := env.GetOrDefault("SNI_USB2SNES_DISABLED", "0")
+	disabled := env.GetOrDefault("SNI_USB2SNES_DISABLE", "0")
 	if util.IsTruthy(disabled) {
-		log.Printf("usb2snes: server isabled due to env var %s=%s\n", "SNI_USB2SNES_DISABLED", disabled)
+		log.Printf("usb2snes: server isabled due to env var %s=%s\n", "SNI_USB2SNES_DISABLE", disabled)
 		return
 	}
 
-	ListenHost = env.GetOrDefault("SNI_USB2SNES_LISTEN_HOST", "0.0.0.0")
+	addrList := env.GetOrDefault("SNI_USB2SNES_LISTEN_ADDRS", "0.0.0.0:23074,0.0.0.0:8080")
+	listenAddrs := strings.Split(addrList, ",")
+	for _, listenAddr := range listenAddrs {
+		go listenHttp(listenAddr)
+	}
+}
 
-	ListenPort, err = strconv.Atoi(env.GetOrDefault("SNI_USB2SNES_LISTEN_PORT", "8080"))
-	if err != nil {
-		ListenPort = 8080
-	}
-	if ListenPort <= 0 {
-		ListenPort = 8080
-	}
-	listenAddr := net.JoinHostPort(ListenHost, strconv.Itoa(ListenPort))
+func listenHttp(listenAddr string) {
+	var err error
+	var lis net.Listener
 
 	mux := http.NewServeMux()
 	mux.Handle("/", http.HandlerFunc(clientWebsocketHandler))
 
-	go func() {
-		var err error
-		var lis net.Listener
-
-		// attempt to start the usb2snes server:
-		count := 0
-		for {
-			lis, err = net.Listen("tcp", listenAddr)
-			if err == nil {
-				break
-			}
-
-			if count == 0 {
-				log.Printf("usb2snes: failed to listen on %s: %v\n", listenAddr, err)
-			}
-			count++
-			if count >= 30 {
-				count = 0
-			}
-
-			time.Sleep(time.Second)
+	// attempt to start the usb2snes server:
+	count := 0
+	for {
+		lis, err = net.Listen("tcp", listenAddr)
+		if err == nil {
+			break
 		}
 
-		log.Printf("usb2snes: listening on %s\n", listenAddr)
-		log.Println(http.Serve(lis, mux))
-	}()
+		if count == 0 {
+			log.Printf("usb2snes: failed to listen on %s: %v\n", listenAddr, err)
+		}
+		count++
+		if count >= 30 {
+			count = 0
+		}
+
+		time.Sleep(time.Second)
+	}
+
+	log.Printf("usb2snes: listening on %s\n", listenAddr)
+	log.Println(http.Serve(lis, mux))
 }
 
 type wsReader struct {
