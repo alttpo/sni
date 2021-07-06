@@ -395,7 +395,7 @@ serverLoop:
 				}
 			}
 			if config.VerboseLogging {
-				log.Printf("usb2snes: %s: %s REPLY: %+v\n", clientName, cmd.Opcode, rsps)
+				log.Printf("usb2snes: %s: %s REPLY\n", clientName, cmd.Opcode)
 			}
 
 			if err = wb.Flush(); err != nil {
