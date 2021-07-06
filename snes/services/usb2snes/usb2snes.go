@@ -463,17 +463,9 @@ serverLoop:
 					Data: make([]byte, size),
 				}
 
-				hdr, err = r.NextFrame()
-				if err == io.EOF {
-					break serverLoop
-				}
-				if err != nil {
-					log.Printf("usb2snes: %s: %s nextFrame()[%d/%d]: %s\n", clientName, cmd.Opcode, i+1, reqCount, err)
-					break serverLoop
-				}
-
 				var n int
-				n, err = r.Read(reqs[i].Data)
+				wsr := &wsReader{r: r}
+				n, err = wsr.Read(reqs[i].Data)
 				_ = n
 				//log.Printf("usb2snes: %s: %s read()[%d/%d]: read %d bytes; expected %d\n", clientName, cmd.Opcode, i+1, reqCount, n, size)
 				if err != nil && err != io.EOF {
