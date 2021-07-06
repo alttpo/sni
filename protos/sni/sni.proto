@@ -119,7 +119,8 @@ message DevicesResponse {
     // URI that describes exactly how to connect to the device, e.g.:
     // RetroArch:  "ra://127.0.0.1:55355"
     // FX Pak Pro: "fxpakpro://./dev/cu.usbmodemDEMO000000001" (MacOS)
-    //             "fxpakpro://./COM4"                        (Windows)
+    //             "fxpakpro://./COM4"                         (Windows)
+    //             "fxpakpro://./dev/ttyACM0"                  (Linux)
     // uri is used as the unique identifier of the device for clients to refer to
     string uri = 1;
     // friendly display name of the device
