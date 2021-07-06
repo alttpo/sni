@@ -89,6 +89,9 @@ func trayStart() {
 	}))
 
 	refresh := devicesMenu.AddSubMenuItem("Refresh", "Refresh list of devices")
+	refresh.ClickedFunc = func(item *systray.MenuItem) {
+		RefreshDeviceList()
+	}
 	for i := range deviceMenuItems {
 		deviceMenuItems[i] = devicesMenu.AddSubMenuItemCheckbox("_", "_", false)
 		deviceMenuItems[i].Hide()
@@ -145,25 +148,18 @@ func trayStart() {
 
 		for len(appsMenuItems) < len(appConfigs) {
 			i := len(appsMenuItems)
+			app := appConfigs[i]
+
 			menuItem := appsMenu.AddSubMenuItem("", "")
-			appsMenuItems = append(appsMenuItems, menuItem)
-
-			// run a click handler goroutine for this menu item:
-			go func() {
-				defer func() {
-					recover()
-				}()
-
-				for range menuItem.ClickedCh {
-					// skip the action if this menu item no longer exists:
-					if i >= len(appConfigs) {
-						continue
-					}
-
-					app := appConfigs[i]
-					launch(app)
+			menuItem.ClickedFunc = func(item *systray.MenuItem) {
+				// skip the action if this menu item no longer exists:
+				if i >= len(appConfigs) {
+					return
 				}
-			}()
+
+				launch(app)
+			}
+			appsMenuItems = append(appsMenuItems, menuItem)
 		}
 
 		// set menu items:
@@ -183,55 +179,56 @@ func trayStart() {
 		}
 	}))
 
-	// Menu item click handler:
+	// click handlers:
+	versionMenuItem.ClickedFunc = func(item *systray.MenuItem) {
+		launch(&appConfig{
+			Name:    "",
+			Tooltip: "",
+			Os:      "",
+			Dir:     "",
+			Path:    "",
+			Args:    nil,
+			Url:     logging.Dir,
+		})
+	}
+
+
+
+	appsReload.ClickedFunc = func(item *systray.MenuItem) {
+		config.ReloadApps()
+	}
+
+	disconnectAll.ClickedFunc = func(item *systray.MenuItem) {
+		for _, named := range snes.Drivers() {
+			log.Printf("%s: disconnecting all devices...\n", named.Name)
+			named.Driver.DisconnectAll()
+		}
+	}
+
+	toggleVerbose.ClickedFunc = func(item *systray.MenuItem) {
+		config.VerboseLogging = !config.VerboseLogging
+		if config.VerboseLogging {
+			log.Println("enable verbose logging")
+			toggleVerbose.Check()
+		} else {
+			log.Println("disable verbose logging")
+			toggleVerbose.Uncheck()
+		}
+		// update config file:
+		config.Config.Set("verboseLogging", config.VerboseLogging)
+		config.Save()
+	}
+
+	mQuit.ClickedFunc = func(item *systray.MenuItem) {
+		fmt.Println("Requesting quit")
+		systray.Quit()
+	}
+
+	// refresh device list periodically:
 	go func() {
 		refreshPeriod := time.Tick(time.Second * 2)
-		for {
-			select {
-			case <-mQuit.ClickedCh:
-				fmt.Println("Requesting quit")
-				systray.Quit()
-				break
-			case <-versionMenuItem.ClickedCh:
-				launch(&appConfig{
-					Name:    "",
-					Tooltip: "",
-					Os:      "",
-					Dir:     "",
-					Path:    "",
-					Args:    nil,
-					Url:     logging.Dir,
-				})
-				break
-			case <-appsReload.ClickedCh:
-				config.ReloadApps()
-				break
-			case <-disconnectAll.ClickedCh:
-				for _, named := range snes.Drivers() {
-					log.Printf("%s: disconnecting all devices...\n", named.Name)
-					named.Driver.DisconnectAll()
-				}
-				break
-			case <-toggleVerbose.ClickedCh:
-				config.VerboseLogging = !config.VerboseLogging
-				if config.VerboseLogging {
-					log.Println("enable verbose logging")
-					toggleVerbose.Check()
-				} else {
-					log.Println("disable verbose logging")
-					toggleVerbose.Uncheck()
-				}
-				// update config file:
-				config.Config.Set("verboseLogging", config.VerboseLogging)
-				config.Save()
-				break
-			case <-refresh.ClickedCh:
-				RefreshDeviceList()
-				break
-			case <-refreshPeriod:
-				RefreshDeviceList()
-				break
-			}
+		for range refreshPeriod {
+			RefreshDeviceList()
 		}
 	}()
 }

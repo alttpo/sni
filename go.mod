@@ -3,8 +3,8 @@ module sni
 go 1.16
 
 require (
-	github.com/fsnotify/fsnotify v1.4.9 // indirect
-	github.com/getlantern/systray v1.2.0
+	github.com/fsnotify/fsnotify v1.4.9
+	github.com/getlantern/systray v1.3.0
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.0.4
@@ -15,4 +15,6 @@ require (
 	google.golang.org/protobuf v1.26.0
 )
 
-replace github.com/getlantern/systray => github.com/alttpo/systray v1.2.0
+replace github.com/getlantern/systray => github.com/alttpo/systray v1.3.0
+
+//replace github.com/getlantern/systray => ../systray
