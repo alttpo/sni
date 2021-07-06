@@ -8,6 +8,8 @@ import (
 	"runtime"
 )
 
+var runDll32 string = ""
+
 type appConfig struct {
 	Name    string
 	Tooltip string
@@ -42,7 +44,10 @@ func launch(app *appConfig) {
 		if runtime.GOOS == "darwin" {
 			cmd = exec.Command("open", app.Url)
 		} else if runtime.GOOS == "windows" {
-			cmd = exec.Command("start", app.Url)
+			if runDll32 == "" {
+				runDll32 = filepath.Join(os.Getenv("SYSTEMROOT"), "System32", "rundll32.exe")
+			}
+			cmd = exec.Command(runDll32, "url.dll,FileProtocolHandler", app.Url)
 		} else {
 			cmd = exec.Command("xdg-open", app.Url)
 		}
