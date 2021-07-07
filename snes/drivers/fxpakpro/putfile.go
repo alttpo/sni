@@ -40,13 +40,6 @@ func (d *Device) putFile(ctx context.Context, path string, size uint32, r io.Rea
 		return
 	}
 
-	// send data:
-	n, err = sendSerialProgress(d.f, 512, size, r, progress)
-	if err != nil {
-		_ = d.Close()
-		return
-	}
-
 	// read response:
 	err = recvSerial(d.f, sb, 512)
 	if err != nil {
@@ -57,8 +50,19 @@ func (d *Device) putFile(ctx context.Context, path string, size uint32, r io.Rea
 		_ = d.Close()
 		return size, fmt.Errorf("putfile: response packet does not contain USBA header")
 	}
+	if sb[4] != byte(OpRESPONSE) {
+		_ = d.Close()
+		return size, fmt.Errorf("putfile: wrong opcode in response packet; got $%02x", sb[4])
+	}
 	if ec := sb[5]; ec != 0 {
 		return size, fmt.Errorf("putfile: %w", fxpakproError(ec))
+	}
+
+	// send data:
+	n, err = sendSerialProgress(d.f, 512, size, r, progress)
+	if err != nil {
+		_ = d.Close()
+		return
 	}
 
 	return

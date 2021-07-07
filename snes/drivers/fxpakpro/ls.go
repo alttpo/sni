@@ -47,6 +47,10 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEn
 		_ = d.Close()
 		return nil, fmt.Errorf("ls: fxpakpro response size actual %d, expected 1", size)
 	}
+	if sb[4] != byte(OpRESPONSE) {
+		_ = d.Close()
+		return nil, fmt.Errorf("ls: wrong opcode in response packet; got $%02x", sb[4])
+	}
 	if ec := sb[5]; ec != 0 {
 		return nil, fmt.Errorf("ls: %w", fxpakproError(ec))
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go.bug.st/serial"
 	"io"
+	"log"
 	"sni/snes"
 )
 
@@ -45,14 +46,21 @@ func sendSerialProgress(f serial.Port, chunkSize int, size uint32, r io.Reader, 
 			report(sent, size)
 		}
 
-		var nr int
-		nr, err = r.Read(buf)
-		if err != nil {
-			err = fmt.Errorf("sendSerialProgress: read from io.Reader: %w", err)
-			return
-		}
-		if nr == 0 {
-			continue
+		recvd := 0
+		for recvd < chunkSize {
+			var nr int
+			nr, err = r.Read(buf[recvd:])
+			if err != nil {
+				err = fmt.Errorf("sendSerialProgress: read from io.Reader: %w", err)
+				return
+			}
+			if nr == 0 {
+				continue
+			}
+			if nr != chunkSize {
+				log.Printf("sendSerialProgress: something funky happened; only read %d bytes when expecting %d\n", nr, chunkSize)
+			}
+			recvd += nr
 		}
 
 		// write to serial port:
@@ -61,11 +69,12 @@ func sendSerialProgress(f serial.Port, chunkSize int, size uint32, r io.Reader, 
 		if err != nil {
 			return
 		}
-		if nw != nr {
-			err = fmt.Errorf("sendSerialProgress: wrote %d bytes but read %d", nw, nr)
+		if nw != recvd {
+			err = fmt.Errorf("sendSerialProgress: read %d bytes but only write %d to serial port", recvd, nw)
+			return
 		}
 
-		sent += uint32(nr)
+		sent += uint32(nw)
 	}
 	if sent > size {
 		sent = size

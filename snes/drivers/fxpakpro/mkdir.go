@@ -38,6 +38,10 @@ func (d *Device) mkdir(ctx context.Context, path string) (err error) {
 		_ = d.Close()
 		return fmt.Errorf("mkdir: fxpakpro response packet does not contain USBA header")
 	}
+	if sb[4] != byte(OpRESPONSE) {
+		_ = d.Close()
+		return fmt.Errorf("mkdir: wrong opcode in response packet; got $%02x", sb[4])
+	}
 	if ec := sb[5]; ec != 0 {
 		return fmt.Errorf("mkdir: %w", fxpakproError(ec))
 	}

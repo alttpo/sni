@@ -41,6 +41,10 @@ func (d *Device) mv(ctx context.Context, path, newFilename string) (err error) {
 		_ = d.Close()
 		return fmt.Errorf("mv: fxpakpro response packet does not contain USBA header")
 	}
+	if sb[4] != byte(OpRESPONSE) {
+		_ = d.Close()
+		return fmt.Errorf("mv: wrong opcode in response packet; got $%02x", sb[4])
+	}
 	if ec := sb[5]; ec != 0 {
 		return fmt.Errorf("mv: %w", fxpakproError(ec))
 	}

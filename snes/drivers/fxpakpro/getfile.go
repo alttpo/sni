@@ -41,6 +41,10 @@ func (d *Device) getFile(ctx context.Context, path string, w io.Writer, sizeRece
 		_ = d.Close()
 		return 0, fmt.Errorf("getFile: response packet does not contain USBA header")
 	}
+	if sb[4] != byte(OpRESPONSE) {
+		_ = d.Close()
+		return 0, fmt.Errorf("getFile: wrong opcode in response packet; got $%02x", sb[4])
+	}
 	if ec := sb[5]; ec != 0 {
 		return 0, fmt.Errorf("getFile: %w", fxpakproError(ec))
 	}

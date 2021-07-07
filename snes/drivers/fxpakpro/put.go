@@ -58,6 +58,10 @@ func (d *Device) put(ctx context.Context, space space, address uint32, data []by
 		_ = d.Close()
 		return fmt.Errorf("put: fxpakpro response packet does not contain USBA header")
 	}
+	if sb[4] != byte(OpRESPONSE) {
+		_ = d.Close()
+		return fmt.Errorf("put: wrong opcode in response packet; got $%02x", sb[4])
+	}
 	if ec := sb[5]; ec != 0 {
 		return fmt.Errorf("put: %w", fxpakproError(ec))
 	}
