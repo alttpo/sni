@@ -2,6 +2,7 @@ package tray
 
 import (
 	"fmt"
+	"github.com/alttpo/observable"
 	"github.com/getlantern/systray"
 	"github.com/spf13/viper"
 	"log"
@@ -10,7 +11,6 @@ import (
 	"sni/cmd/sni/config"
 	"sni/cmd/sni/icon"
 	"sni/cmd/sni/logging"
-	"sni/ob"
 	"sni/snes"
 	"strings"
 	"time"
@@ -70,12 +70,8 @@ func trayStart() {
 	mQuit := systray.AddMenuItem("Quit", "Quit")
 
 	// subscribe to configuration changes:
-	config.ConfigObservable.Subscribe(ob.NewObserver("logging", func(object interface{}) {
-		if object == nil {
-			return
-		}
-
-		v, ok := object.(*viper.Viper)
+	config.ConfigObservable.Subscribe(observable.NewObserver("logging", func(event observable.Event) {
+		v, ok := event.Value.(*viper.Viper)
 		if !ok || v == nil {
 			return
 		}
@@ -106,12 +102,8 @@ func trayStart() {
 	appsReload := appsMenu.AddSubMenuItem("Reload Configuration", "Reload Configuration from apps.yaml")
 
 	// subscribe to configuration changes:
-	config.AppsObservable.Subscribe(ob.NewObserver("tray", func(object interface{}) {
-		if object == nil {
-			return
-		}
-
-		v, ok := object.(*viper.Viper)
+	config.AppsObservable.Subscribe(observable.NewObserver("tray", func(event observable.Event) {
+		v, ok := event.Value.(*viper.Viper)
 		if !ok || v == nil {
 			return
 		}

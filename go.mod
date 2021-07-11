@@ -3,6 +3,7 @@ module sni
 go 1.16
 
 require (
+	github.com/alttpo/observable v0.0.0-20210711204527-d8b64a4529cc // indirect
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/getlantern/systray v1.3.0
 	github.com/gobwas/httphead v0.1.0 // indirect

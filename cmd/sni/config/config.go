@@ -2,21 +2,21 @@ package config
 
 import (
 	"fmt"
+	"github.com/alttpo/observable"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"log"
 	"path/filepath"
 	"sni/cmd/sni/logging"
-	"sni/ob"
 )
 
 var (
-	ConfigObservable ob.Observable
-	configObservable = ob.NewObservable()
+	ConfigObservable *observable.Object
+	configObservable = observable.NewObject()
 	ConfigPath       string
 
-	AppsObservable ob.Observable
-	appsObservable = ob.NewObservable()
+	AppsObservable *observable.Object
+	appsObservable = observable.NewObject()
 	AppsPath       string
 )
 
@@ -68,7 +68,7 @@ func loadConfig() {
 	// notify observers of configuration file change:
 	Config.OnConfigChange(func(_ fsnotify.Event) {
 		log.Printf("config: %s.yaml modified\n", configFilename)
-		configObservable.ObjectPublish(Config)
+		configObservable.Set(Config)
 	})
 	Config.WatchConfig()
 
@@ -88,7 +88,7 @@ func ReloadConfig() {
 	}
 
 	// publish the configuration to subscribers:
-	configObservable.ObjectPublish(Config)
+	configObservable.Set(Config)
 }
 
 func loadApps() {
@@ -106,7 +106,7 @@ func loadApps() {
 
 	Apps.OnConfigChange(func(_ fsnotify.Event) {
 		log.Printf("config: %s.yaml modified\n", appsFilename)
-		appsObservable.ObjectPublish(Apps)
+		appsObservable.Set(Apps)
 	})
 	Apps.WatchConfig()
 
@@ -124,5 +124,5 @@ func ReloadApps() {
 		return
 	}
 
-	appsObservable.ObjectPublish(Apps)
+	appsObservable.Set(Apps)
 }
