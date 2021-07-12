@@ -29,7 +29,7 @@ func (d *Device) rm(ctx context.Context, path string) (err error) {
 	}
 
 	// read response:
-	err = recvSerial(d.f, sb, 512)
+	err = recvSerial(ctx, d.f, sb, 512)
 	if err != nil {
 		_ = d.Close()
 		return

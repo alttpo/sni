@@ -31,7 +31,7 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEn
 	}
 
 	// await the first response packet for error status:
-	err = recvSerial(d.f, sb, 512)
+	err = recvSerial(ctx, d.f, sb, 512)
 	if err != nil {
 		_ = d.Close()
 		return
@@ -59,7 +59,9 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEn
 
 recvLoop:
 	for {
-		err = recvSerial(d.f, sb, 512)
+		iterCtx, iterCancel := context.WithTimeout(ctx, safeTimeout)
+		err = recvSerial(iterCtx, d.f, sb, 512)
+		iterCancel()
 		if err != nil {
 			_ = d.Close()
 			return

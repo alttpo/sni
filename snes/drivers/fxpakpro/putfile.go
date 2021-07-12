@@ -41,7 +41,7 @@ func (d *Device) putFile(ctx context.Context, path string, size uint32, r io.Rea
 	}
 
 	// read response:
-	err = recvSerial(d.f, sb, 512)
+	err = recvSerial(ctx, d.f, sb, 512)
 	if err != nil {
 		_ = d.Close()
 		return

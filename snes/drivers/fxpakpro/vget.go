@@ -56,7 +56,7 @@ func (d *Device) vget(ctx context.Context, space space, chunks ...vgetChunk) (er
 	// read the expected number of 64-byte packets:
 	expected := packets * 64
 	rsp := make([]byte, expected)
-	err = recvSerial(d.f, rsp, expected)
+	err = recvSerial(ctx, d.f, rsp, expected)
 	if err != nil {
 		_ = d.Close()
 		return

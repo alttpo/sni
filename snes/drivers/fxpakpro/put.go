@@ -49,7 +49,7 @@ func (d *Device) put(ctx context.Context, space space, address uint32, data []by
 	}
 
 	// await single response:
-	err = recvSerial(d.f, sb, 512)
+	err = recvSerial(ctx, d.f, sb, 512)
 	if err != nil {
 		_ = d.Close()
 		return

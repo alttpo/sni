@@ -23,7 +23,7 @@ func (d *Device) ResetSystem(ctx context.Context) (err error) {
 		return
 	}
 
-	err = recvSerial(d.f, sb, 512)
+	err = recvSerial(ctx, d.f, sb, 512)
 	if err != nil {
 		_ = d.Close()
 		return

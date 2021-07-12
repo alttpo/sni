@@ -32,7 +32,7 @@ func (d *Device) getFile(ctx context.Context, path string, w io.Writer, sizeRece
 	}
 
 	// read response:
-	err = recvSerial(d.f, sb, 512)
+	err = recvSerial(ctx, d.f, sb, 512)
 	if err != nil {
 		_ = d.Close()
 		return

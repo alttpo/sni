@@ -2,12 +2,16 @@ package fxpakpro
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"go.bug.st/serial"
 	"io"
 	"log"
 	"sni/snes"
+	"time"
 )
+
+const safeTimeout = time.Millisecond * 250
 
 func readExact(r io.Reader, chunkSize int, buf []byte) (err error) {
 	p := 0
@@ -86,7 +90,16 @@ func sendSerialProgress(f serial.Port, chunkSize int, size uint32, r io.Reader, 
 	return
 }
 
-func recvSerial(f serial.Port, rsp []byte, expected int) (err error) {
+func recvSerial(ctx context.Context, f serial.Port, rsp []byte, expected int) (err error) {
+	var timeout time.Duration = serial.NoTimeout
+	if deadline, ok := ctx.Deadline(); ok {
+		timeout = deadline.Sub(time.Now())
+	}
+	err = f.SetReadTimeout(timeout)
+	if err != nil {
+		return
+	}
+
 	err = readExact(f, expected, rsp)
 	if err != nil {
 		err = fmt.Errorf("recvSerial: %w", err)
@@ -102,6 +115,12 @@ func recvSerialProgress(f serial.Port, w io.Writer, size uint32, chunkSize int, 
 	for received < size {
 		if progress != nil {
 			progress(received, size)
+		}
+
+		err = f.SetReadTimeout(safeTimeout)
+		if err != nil {
+			err = fmt.Errorf("recvSerialProgress: %w", err)
+			return
 		}
 
 		err = readExact(f, chunkSize, buf)
@@ -127,6 +146,12 @@ func recvSerialProgress(f serial.Port, w io.Writer, size uint32, chunkSize int, 
 
 	if progress != nil {
 		progress(received, size)
+	}
+
+	err = f.SetReadTimeout(serial.NoTimeout)
+	if err != nil {
+		err = fmt.Errorf("recvSerialProgress: %w", err)
+		return
 	}
 
 	return
