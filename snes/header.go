@@ -147,14 +147,44 @@ func (h *Header) Score(addr uint32) (score int) {
 	if h.EmulatedVectors.RESET < 0x8000 {
 		return 0
 	}
+	// Increase points for each other vector >= 0x8000:
+	if h.NativeVectors.NMI >= 0x8000 {
+		score++
+	}
+	if h.NativeVectors.BRK >= 0x8000 {
+		score++
+	}
+	if h.NativeVectors.IRQ >= 0x8000 {
+		score++
+	}
+	if h.NativeVectors.COP >= 0x8000 {
+		score++
+	}
+	if h.NativeVectors.ABORT >= 0x8000 {
+		score++
+	}
+	if h.EmulatedVectors.NMI >= 0x8000 {
+		score++
+	}
+	if h.EmulatedVectors.IRQBRK >= 0x8000 {
+		score++
+	}
+	if h.EmulatedVectors.COP >= 0x8000 {
+		score++
+	}
+	if h.EmulatedVectors.ABORT >= 0x8000 {
+		score++
+	}
 
+	// A valid checksum is very encouraging:
 	if (uint32(h.CheckSum)+uint32(h.ComplementCheckSum) == 0xffff) && (h.CheckSum != 0) && (h.ComplementCheckSum != 0) {
-		score += 4
+		score += 8
 	}
 	if h.OldMakerCode == 0x33 {
 		score += 2
 	}
 
+	// Valid ranges:
 	if h.CartridgeType < 0x08 {
 		score++
 	}
@@ -169,19 +199,20 @@ func (h *Header) Score(addr uint32) (score int) {
 	}
 
 	// 0x20 is usually LoROM
-	if addr == 0x007fb0 && h.MapMode == 0x20 {
+	mapper := h.MapMode & ^uint8(0x10)
+	if addr == 0x007fb0 && mapper == 0x20 {
 		score += 2
 	}
 	// 0x21 is usually HiROM
-	if addr == 0x00ffb0 && h.MapMode == 0x21 {
+	if addr == 0x00ffb0 && mapper == 0x21 {
 		score += 2
 	}
 	// 0x22 is usually ExLoROM
-	if addr == 0x007fb0 && h.MapMode == 0x22 {
+	if addr == 0x007fb0 && mapper == 0x22 {
 		score += 2
 	}
 	// 0x25 is usually ExHiROM
-	if addr == 0x40ffb0 && h.MapMode == 0x25 {
+	if addr == 0x40ffb0 && mapper == 0x25 {
 		score += 2
 	}
 

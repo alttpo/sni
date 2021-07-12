@@ -110,7 +110,7 @@ func detectHeader(ctx context.Context, memory snes.DeviceMemory) (outHeaderBytes
 
 	defaultAddressSpace, _ := memory.DefaultAddressSpace(nil)
 
-	bestScore := -1
+	bestScore := 0
 	for _, address := range addresses {
 		// reduce number of requests if the device's address space matches ours:
 		deviceMappings := mappings
@@ -168,7 +168,7 @@ func detectHeader(ctx context.Context, memory snes.DeviceMemory) (outHeaderBytes
 		}
 	}
 
-	if bestScore < 0 {
+	if bestScore <= 0 {
 		err = snes.WithCode(codes.FailedPrecondition, fmt.Errorf(
 			"detect: unable to detect valid ROM header",
 		))
