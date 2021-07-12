@@ -30,7 +30,7 @@ func TestNewROM(t *testing.T) {
 	}
 
 	// check:
-	if gotR.NativeVectors.NMI != 0x80c9 {
+	if gotR.Header.NativeVectors.NMI != 0x80c9 {
 		t.Fatal("NativeVectors.NMI")
 	}
 }
@@ -112,7 +112,7 @@ func TestROM_BusWriter_Bank00_Success(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rom.NativeVectors.NMI != 0x80c8 {
+	if rom.Header.NativeVectors.NMI != 0x80c8 {
 		t.Fatal("ReadHeader should update NMI vector at $FFEA")
 	}
 }
