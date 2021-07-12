@@ -6,6 +6,7 @@ import (
 	"go.bug.st/serial/enumerator"
 	"log"
 	"net/url"
+	"runtime"
 	"sni/protos/sni"
 	"sni/snes"
 	"sni/util"
@@ -163,7 +164,12 @@ func (d *Driver) DeviceKey(uri *url.URL) string {
 func (d *Driver) openDevice(uri *url.URL) (device snes.Device, err error) {
 	portName := uri.Path
 
-	baudRequest := baudRates[0]
+	var baudRequest int
+	if runtime.GOOS == "darwin" {
+		baudRequest = baudRates[3]
+	} else {
+		baudRequest = baudRates[0]
+	}
 	if baudStr := uri.Query().Get("baud"); baudStr != "" {
 		baudRequest, _ = strconv.Atoi(baudStr)
 	}
