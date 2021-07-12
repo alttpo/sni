@@ -333,7 +333,7 @@ func TestPakAddressToBus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got, _ := PakAddressToBus(tt.args.pakAddr); got != tt.want {
-				t.Errorf("PakAddressToBus() = %06x, want %06x", got, tt.want)
+				t.Errorf("PakAddressToBus() = 0x%06x, want 0x%06x", got, tt.want)
 			}
 		})
 	}
@@ -583,6 +583,13 @@ func TestBusAddressToPak(t *testing.T) {
 		},
 		// banks 00-7D:
 		{
+			name: "ROM bank $40:FFC0",
+			args: args{
+				busAddr: 0x40FFC0,
+			},
+			want: 0x00FFC0,
+		},
+		{
 			name: "ROM bank $40:0000",
 			args: args{
 				busAddr: 0x400000,
@@ -653,6 +660,13 @@ func TestBusAddressToPak(t *testing.T) {
 			want: 0xE3FFFF,
 		},
 		// banks 00-1F:
+		{
+			name: "ROM bank $00:FFC0",
+			args: args{
+				busAddr: 0x00FFC0,
+			},
+			want: 0x007FC0,
+		},
 		{
 			name: "ROM bank $00:8000",
 			args: args{
@@ -742,7 +756,7 @@ func TestBusAddressToPak(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got, _ := BusAddressToPak(tt.args.busAddr); got != tt.want {
-				t.Errorf("BusAddressToPak() = %v, want %v", got, tt.want)
+				t.Errorf("BusAddressToPak() = 0x%06x, want 0x%06x", got, tt.want)
 			}
 		})
 	}

@@ -126,6 +126,34 @@ func (h *Header) WriteHeader(b *bytes.Buffer) (err error) {
 	return
 }
 
+func (h *Header) Score() (score int) {
+	if h.OldMakerCode == 0x33 {
+		score += 2
+	}
+	if uint32(h.CheckSum)+uint32(h.ComplementCheckSum) == 0xffff {
+		score += 4
+	}
+
+	if h.CartridgeType < 0x08 {
+		score++
+	}
+	if h.ROMSize < 0x10 {
+		score++
+	}
+	if h.RAMSize < 0x08 {
+		score++
+	}
+	if h.DestinationCode < 0x0e {
+		score++
+	}
+
+	if h.MapMode&0b0010_0000 == 0b0010_0000 {
+		score++
+	}
+
+	return
+}
+
 type NativeVectors struct {
 	Unused1 [4]byte //`rom:"FFE0"`
 	COP     uint16  `rom:"FFE4"`
