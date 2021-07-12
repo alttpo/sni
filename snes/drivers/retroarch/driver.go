@@ -19,6 +19,8 @@ const driverName = "ra"
 var logDetector = false
 var driver *Driver
 
+const defaultAddressSpace = sni.AddressSpace_SnesABus
+
 type Driver struct {
 	container snes.DeviceContainer
 
@@ -145,7 +147,7 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 				DisplayName:         fmt.Sprintf("RetroArch v%s (%s)", detector.version, detector.addr),
 				Kind:                d.Kind(),
 				Capabilities:        driverCapabilities[:],
-				DefaultAddressSpace: sni.AddressSpace_SnesABus,
+				DefaultAddressSpace: defaultAddressSpace,
 			}
 
 			devicesLock.Lock()

@@ -38,6 +38,8 @@ var (
 	}
 )
 
+const defaultAddressSpace = sni.AddressSpace_FxPakPro
+
 type Driver struct {
 	container snes.DeviceContainer
 }
@@ -108,7 +110,7 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 				DisplayName:         fmt.Sprintf("%s (%s:%s)", port.Name, port.VID, port.PID),
 				Kind:                d.Kind(),
 				Capabilities:        driverCapabilities[:],
-				DefaultAddressSpace: sni.AddressSpace_FxPakPro,
+				DefaultAddressSpace: defaultAddressSpace,
 			})
 		}
 	}

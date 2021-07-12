@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"sni/protos/sni"
 	"sni/snes"
 	"sync"
 	"time"
@@ -34,6 +35,10 @@ func (d *Device) IsClosed() bool {
 
 func (d *Device) Close() error {
 	panic("implement me")
+}
+
+func (d *Device) DefaultAddressSpace(context.Context) (space sni.AddressSpace, err error) {
+	return sni.AddressSpace_SnesABus, nil
 }
 
 func (d *Device) MultiReadMemory(context context.Context, reads ...snes.MemoryReadRequest) (mrsps []snes.MemoryReadResponse, err error) {

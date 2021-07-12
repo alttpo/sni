@@ -6,6 +6,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"io"
 	"net/url"
+	"sni/protos/sni"
 )
 
 // AutoCloseableDevice is a Device wrapper that ensures that a valid Device instance is always used for every
@@ -88,6 +89,14 @@ func (a *autoCloseableDevice) PauseUnpause(ctx context.Context, pausedState bool
 func (a *autoCloseableDevice) PauseToggle(ctx context.Context) (err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
 		err = device.PauseToggle(ctx)
+		return
+	})
+	return
+}
+
+func (a *autoCloseableDevice) DefaultAddressSpace(ctx context.Context) (space sni.AddressSpace, err error) {
+	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		space, err = device.DefaultAddressSpace(ctx)
 		return
 	})
 	return

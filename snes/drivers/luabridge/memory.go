@@ -14,6 +14,8 @@ import (
 
 const readWriteTimeout = time.Second * 15
 
+func (d *Device) DefaultAddressSpace(context.Context) (sni.AddressSpace, error) { return defaultAddressSpace, nil }
+
 func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRequest) (rsp []snes.MemoryReadResponse, err error) {
 	defer func() {
 		if err != nil {

@@ -2,6 +2,7 @@ package snes
 
 import (
 	"context"
+	"sni/protos/sni"
 )
 
 type MemoryReadRequest struct {
@@ -31,6 +32,7 @@ type MemoryWriteResponse struct {
 }
 
 type DeviceMemory interface {
+	DefaultAddressSpace(ctx context.Context) (space sni.AddressSpace, err error)
 	MultiReadMemory(ctx context.Context, reads ...MemoryReadRequest) ([]MemoryReadResponse, error)
 	MultiWriteMemory(ctx context.Context, writes ...MemoryWriteRequest) ([]MemoryWriteResponse, error)
 }

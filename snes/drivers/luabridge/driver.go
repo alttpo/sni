@@ -21,6 +21,8 @@ var (
 )
 var driver *Driver
 
+const defaultAddressSpace = sni.AddressSpace_SnesABus
+
 type Driver struct {
 	// track opened devices by URI
 	devicesRw  sync.RWMutex
@@ -61,7 +63,7 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 			DisplayName:         fmt.Sprintf("%s v%s", device.clientName, device.version),
 			Kind:                d.Kind(),
 			Capabilities:        driverCapabilities[:],
-			DefaultAddressSpace: sni.AddressSpace_SnesABus,
+			DefaultAddressSpace: defaultAddressSpace,
 		})
 	}
 	d.devicesRw.RUnlock()
