@@ -8,6 +8,7 @@ import (
 	"sni/cmd/sni/config"
 	"sni/cmd/sni/logging"
 	"sni/cmd/sni/tray"
+	"sni/snes/drivers/emunw"
 	"sni/snes/services/grpcimpl"
 	"sni/snes/services/usb2snes"
 )
@@ -59,10 +60,12 @@ func main() {
 
 	// explicitly initialize all the drivers:
 	fxpakpro.DriverInit()
+	emunw.DriverInit()
 	luabridge.DriverInit()
 	retroarch.DriverInit()
 	mock.DriverInit()
 
+	// start the servers:
 	grpcimpl.StartGrpcServer()
 	usb2snes.StartHttpServer()
 
