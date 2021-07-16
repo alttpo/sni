@@ -8,10 +8,11 @@ import (
 	"io"
 	"log"
 	"sni/snes"
+	"sni/snes/timing"
 	"time"
 )
 
-const safeTimeout = time.Millisecond * 250
+const safeTimeout = timing.Frame * 16
 
 func readExact(r io.Reader, chunkSize int, buf []byte) (err error) {
 	p := 0

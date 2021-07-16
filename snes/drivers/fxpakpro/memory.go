@@ -8,6 +8,7 @@ import (
 	"sni/snes"
 	"sni/snes/asm"
 	"sni/snes/mapping"
+	"sni/snes/timing"
 	"strings"
 	"time"
 )
@@ -280,8 +281,8 @@ func (d *Device) MultiWriteMemory(
 			)
 		}
 
-		// await 10 frames max for NMI EXE: (17ms = 1 frame, rounded up from 16.6ms)
-		const timeout = time.Millisecond * 17 * 10
+		// await 10 frames max for NMI EXE:
+		const timeout = timing.Frame * 10
 
 		// VGET to await NMI EXE availability:
 		{

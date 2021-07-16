@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"sni/protos/sni"
 	"sni/snes"
+	"sni/snes/timing"
 	"sni/util"
 	"sni/util/env"
 	"strings"
@@ -34,7 +35,7 @@ func NewDriver(addresses []*net.TCPAddr) *Driver {
 	d.container = snes.NewDeviceDriverContainer(d.openDevice)
 
 	for i, addr := range addresses {
-		c := NewClient(addr, addr.String(), time.Millisecond*16*4)
+		c := NewClient(addr, addr.String(), timing.Frame*4)
 		d.detectors[i] = c
 	}
 
@@ -101,7 +102,7 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 			if detector.IsClosed() {
 				detector.Close()
 				// refresh detector:
-				c := NewClient(detector.addr, fmt.Sprintf("emunw[%d]", i), time.Millisecond*16*4)
+				c := NewClient(detector.addr, fmt.Sprintf("emunw[%d]", i), timing.Frame*4)
 				d.detectors[i] = c
 				detector = c
 			}
@@ -120,7 +121,7 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 			{
 				// check emulator status:
 				var status []map[string]string
-				_, status, err = detector.SendCommandWaitReply("EMU_STATUS", time.Now().Add(time.Millisecond*32))
+				_, status, err = detector.SendCommandWaitReply("EMU_STATUS", time.Now().Add(timing.Frame*2))
 				if err != nil {
 					return
 				}

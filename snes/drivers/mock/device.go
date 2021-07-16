@@ -4,6 +4,7 @@ import (
 	"context"
 	"sni/protos/sni"
 	"sni/snes"
+	"sni/snes/timing"
 	"sync"
 	"time"
 )
@@ -19,7 +20,7 @@ type Device struct {
 
 func (d *Device) Init() {
 	// 5,369,317.5/89,341.5 ~= 60.0988 frames / sec ~= 16,639,265.605 ns / frame
-	d.frameTicker = time.NewTicker(16_639_265 * time.Nanosecond)
+	d.frameTicker = time.NewTicker(timing.Frame)
 
 	go func() {
 		for range d.frameTicker.C {

@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"sni/protos/sni"
 	"sni/snes"
+	"sni/snes/timing"
 	"sni/util"
 	"sni/util/env"
 	"strings"
@@ -34,7 +35,7 @@ func NewDriver(addresses []*net.UDPAddr) *Driver {
 	d.container = snes.NewDeviceDriverContainer(d.openDevice)
 
 	for i, addr := range addresses {
-		c := NewRAClient(addr, fmt.Sprintf("retroarch[%d]", i), time.Millisecond*16*4)
+		c := NewRAClient(addr, fmt.Sprintf("retroarch[%d]", i), timing.Frame*4)
 		d.detectors[i] = c
 	}
 
@@ -111,7 +112,7 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 			if detector.IsClosed() {
 				detector.Close()
 				// refresh detector:
-				c := NewRAClient(detector.addr, fmt.Sprintf("retroarch[%d]", i), time.Millisecond*16*4)
+				c := NewRAClient(detector.addr, fmt.Sprintf("retroarch[%d]", i), timing.Frame*4)
 				d.detectors[i] = c
 				c.MuteLog(true)
 				detector = c
