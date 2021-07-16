@@ -104,7 +104,7 @@ func (c *Client) SendCommandWaitReply(cmd string, deadline time.Time) (bin []byt
 		return
 	}
 
-	bin, ascii, err = c.parseCommandResponse(deadline)
+	bin, ascii, err = c.readResponse(deadline)
 	if ascii != nil {
 		if errText, ok := ascii[0]["error"]; ok {
 			err = fmt.Errorf("emunw: error=%s", errText)
@@ -114,7 +114,7 @@ func (c *Client) SendCommandWaitReply(cmd string, deadline time.Time) (bin []byt
 	return
 }
 
-func (c *Client) parseCommandResponse(deadline time.Time) (bin []byte, ascii []map[string]string, err error) {
+func (c *Client) readResponse(deadline time.Time) (bin []byte, ascii []map[string]string, err error) {
 	var n int
 	// TODO: hope that packets Read() don't contain multiple responses
 	b := make([]byte, 65536)
@@ -123,18 +123,27 @@ func (c *Client) parseCommandResponse(deadline time.Time) (bin []byte, ascii []m
 		_ = c.Close()
 		return
 	}
-
 	d := b[:n]
+
+	bin, ascii, err = parseResponse(d)
+	if err != nil {
+		_ = c.Close()
+		return
+	}
+
+	return
+}
+
+func parseResponse(d []byte) (bin []byte, ascii []map[string]string, err error) {
 	// parse binary reply:
 	if d[0] == 0 {
 		size := binary.BigEndian.Uint32(d[1 : 1+4])
-		bin = b[5 : 5+size]
+		bin = d[5 : 5+size]
 		return
 	}
 	// expect ascii reply otherwise:
 	if d[0] != '\n' {
 		err = fmt.Errorf("emunw: command reply expected starting with '\\0' or '\\n' but got '%c'", d[0])
-		_ = c.Close()
 		return
 	}
 
@@ -235,7 +244,7 @@ func (c *Client) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 	for _, memType := range memTypes {
 		var bin []byte
 		var ascii []map[string]string
-		bin, ascii, err = c.parseCommandResponse(deadline)
+		bin, ascii, err = c.readResponse(deadline)
 		if err != nil {
 			return
 		}
@@ -330,7 +339,7 @@ func (c *Client) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWrit
 	errReplies := strings.Builder{}
 	for range memTypes {
 		var ascii []map[string]string
-		_, ascii, err = c.parseCommandResponse(deadline)
+		_, ascii, err = c.readResponse(deadline)
 		if err != nil {
 			return
 		}
