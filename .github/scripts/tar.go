@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+const osPathSep = string(os.PathSeparator)
+
 func main() {
 	stripPrefix := flag.String("strip", ".", "strip path prefix from filenames embedded in tar")
 	outFile := flag.String("o", "archive.tar", "output filename of .tar(.gz)")
@@ -91,10 +93,11 @@ func main() {
 				return err
 			}
 
-			if path == *stripPrefix {
+			stdPath := strings.Replace(path, osPathSep, "/", -1)
+			if stdPath == *stripPrefix {
 				return nil
 			}
-			outPath := strings.TrimPrefix(path, *stripPrefix + "/")
+			outPath := strings.TrimPrefix(stdPath, *stripPrefix+"/")
 			if outPath == "" {
 				return nil
 			}
@@ -133,6 +136,7 @@ func main() {
 			if err != nil {
 				return err
 			}
+
 			// override Name to use the given path so it contains the relative path:
 			hdr.Name = outPath
 
