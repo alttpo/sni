@@ -19,6 +19,8 @@ type Device struct {
 
 	clientName string
 	version    string
+	host       string
+	isBizHawk  bool
 }
 
 func NewDevice(conn *net.TCPConn, key string) *Device {
@@ -56,7 +58,7 @@ func (d *Device) initConnection() {
 		return
 	}
 
-	log.Printf("luabridge: client '%s' version '%s'\n", d.clientName, d.version)
+	log.Printf("luabridge: client '%s' version '%s' host '%s' bizhawk: %v\n", d.clientName, d.version, d.host, d.isBizHawk)
 
 	for {
 		// every 5 seconds, check if connection is closed; only way to do this reliably is to read data:
@@ -91,8 +93,18 @@ func (d *Device) CheckVersion() (err error) {
 		return
 	}
 
+	// Version|SNI Connector|2|Bizhawk-bsnes
+	// Version|SNI Connector|2|Bizhawk-snes9x
+	// Version|SNI Connector|2|Snes9x
 	d.clientName = rspn[1]
 	d.version = rspn[2]
+	if len(rspn) >= 4 {
+		d.host = strings.ToLower(rspn[3])
+		d.isBizHawk = strings.HasPrefix(d.host, "bizhawk")
+	} else {
+		d.host = ""
+		d.isBizHawk = false
+	}
 	return
 }
 
