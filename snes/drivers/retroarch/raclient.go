@@ -282,19 +282,22 @@ func (c *RAClient) MultiReadMemory(ctx context.Context, reads ...snes.MemoryRead
 	}
 
 	// await all responses:
+	err = nil
 	for _, rwreq := range outgoing {
-		err = <-responses
-		if err != nil {
-			if isCloseWorthy(err) {
+		tmperr := <-responses
+		if tmperr != nil {
+			if err == nil {
+				err = tmperr
+			}
+			if isCloseWorthy(tmperr) {
 				_ = c.Close()
 			}
-			return
+			continue
 		}
 
 		mrsp[rwreq.index].Data = rwreq.Read.ResponseData
 	}
 
-	err = nil
 	return
 }
 
@@ -397,13 +400,17 @@ func (c *RAClient) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWr
 	}
 
 	// await all responses:
+	err = nil
 	for _, rwreq := range outgoing {
-		err = <-responses
-		if err != nil {
-			if isCloseWorthy(err) {
+		tmperr := <-responses
+		if tmperr != nil {
+			if err == nil {
+				err = tmperr
+			}
+			if isCloseWorthy(tmperr) {
 				_ = c.Close()
 			}
-			return
+			continue
 		}
 
 		mrsp[rwreq.index].Size += rwreq.Write.ResponseSize
