@@ -15,7 +15,9 @@ import (
 
 const readWriteTimeout = time.Second * 15
 
-func (d *Device) DefaultAddressSpace(context.Context) (sni.AddressSpace, error) { return defaultAddressSpace, nil }
+func (d *Device) DefaultAddressSpace(context.Context) (sni.AddressSpace, error) {
+	return defaultAddressSpace, nil
+}
 
 func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRequest) (rsp []snes.MemoryReadResponse, err error) {
 	defer func() {
@@ -35,17 +37,15 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 
 	rsp = make([]snes.MemoryReadResponse, len(reads))
 	for j, read := range reads {
-		var addr uint32
-		addr, err = mapping.TranslateAddress(
-			read.RequestAddress,
-			sni.AddressSpace_SnesABus,
-		)
-		if err != nil {
-			return
+		var domain mapping.MemoryType
+		var offset uint32
+		domain, _, offset = mapping.MemoryTypeFor(&read.RequestAddress)
+		if domain == "SRAM" {
+			domain = "CARTRAM"
 		}
 
 		sb := bytes.NewBuffer(make([]byte, 0, 64))
-		_, _ = fmt.Fprintf(sb, "Read|%d|%d\n", addr, read.Size)
+		_, _ = fmt.Fprintf(sb, "Read|%d|%d|%s\n", offset, read.Size, domain)
 
 		if config.VerboseLogging {
 			log.Printf("luabridge: > %s", sb.Bytes())
@@ -80,8 +80,8 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 		rsp[j] = snes.MemoryReadResponse{
 			RequestAddress: read.RequestAddress,
 			DeviceAddress: snes.AddressTuple{
-				Address:       addr,
-				AddressSpace:  sni.AddressSpace_SnesABus,
+				Address:       offset,
+				AddressSpace:  sni.AddressSpace_FxPakPro,
 				MemoryMapping: read.RequestAddress.MemoryMapping,
 			},
 			Data: tmp.Data,
@@ -109,18 +109,16 @@ func (d *Device) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWrit
 
 	rsp = make([]snes.MemoryWriteResponse, len(writes))
 	for j, write := range writes {
-		var addr uint32
-		addr, err = mapping.TranslateAddress(
-			write.RequestAddress,
-			sni.AddressSpace_SnesABus,
-		)
-		if err != nil {
-			return
+		var domain mapping.MemoryType
+		var offset uint32
+		domain, _, offset = mapping.MemoryTypeFor(&write.RequestAddress)
+		if domain == "SRAM" {
+			domain = "CARTRAM"
 		}
 
 		// preallocate enough space to write the whole command:
 		sb := bytes.NewBuffer(make([]byte, 0, 24+4*len(write.Data)))
-		_, _ = fmt.Fprintf(sb, "Write|%d", addr)
+		_, _ = fmt.Fprintf(sb, "Write|%d|%s", offset, domain)
 		for _, b := range write.Data {
 			_, _ = fmt.Fprintf(sb, "|%d", b)
 		}
@@ -141,8 +139,8 @@ func (d *Device) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWrit
 		rsp[j] = snes.MemoryWriteResponse{
 			RequestAddress: write.RequestAddress,
 			DeviceAddress: snes.AddressTuple{
-				Address:       addr,
-				AddressSpace:  sni.AddressSpace_SnesABus,
+				Address:       offset,
+				AddressSpace:  sni.AddressSpace_FxPakPro,
 				MemoryMapping: write.RequestAddress.MemoryMapping,
 			},
 			Size: len(write.Data),
