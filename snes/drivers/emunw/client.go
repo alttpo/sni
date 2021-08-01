@@ -5,8 +5,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"log"
 	"net"
+	"sni/cmd/sni/config"
 	"sni/protos/sni"
 	"sni/snes"
 	"sni/snes/mapping"
@@ -99,6 +102,11 @@ func (c *Client) SendCommandWaitReply(cmd string, deadline time.Time) (bin []byt
 	b := bytes.NewBuffer(make([]byte, 0, len(cmd)+1))
 	b.WriteString(cmd)
 	b.WriteByte('\n')
+
+	if config.VerboseLogging {
+		log.Printf("emunw: > %s", b.Bytes())
+	}
+
 	err = c.writeWithDeadline(b.Bytes(), deadline)
 	if err != nil {
 		return
@@ -139,12 +147,20 @@ func parseResponse(d []byte) (bin []byte, ascii []map[string]string, err error) 
 	if d[0] == 0 {
 		size := binary.BigEndian.Uint32(d[1 : 1+4])
 		bin = d[5 : 5+size]
+
+		if config.VerboseLogging {
+			log.Printf("emunw: bin< %s", hex.Dump(bin))
+		}
 		return
 	}
 	// expect ascii reply otherwise:
 	if d[0] != '\n' {
 		err = fmt.Errorf("emunw: command reply expected starting with '\\0' or '\\n' but got '%c'", d[0])
 		return
+	}
+
+	if config.VerboseLogging {
+		log.Printf("emunw: asc< %s", d)
 	}
 
 	// parse ascii reply as array<map<string,string>>:

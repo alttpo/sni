@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"log"
 	"net"
+	"sni/cmd/sni/config"
 	"sni/protos/sni"
 	"sni/snes"
 	"sni/snes/mapping"
@@ -121,7 +122,7 @@ func (c *RAClient) DetermineVersion() (err error) {
 		return
 	}
 
-	if logDetector {
+	if config.VerboseLogging || logDetector {
 		log.Printf("retroarch: version %s", string(rsp))
 	}
 	c.version = string(rsp)
@@ -440,7 +441,10 @@ func (c *RAClient) handleOutgoing() {
 		c.expectationLock.Lock()
 		{
 			reqStr := sb.String()
-			//log.Printf("retroarch: > %s", reqStr)
+
+			if config.VerboseLogging {
+				log.Printf("retroarch: > %s", reqStr)
+			}
 
 			err := c.WriteWithDeadline([]byte(reqStr), rwreq.deadline)
 			if err != nil {
@@ -469,7 +473,9 @@ func (c *RAClient) handleIncoming() {
 			continue
 		}
 
-		//log.Printf("retroarch: < %s\n", string(rsp))
+		if config.VerboseLogging {
+			log.Printf("retroarch: < %s\n", string(rsp))
+		}
 
 		err = c.parseCommandResponse(rsp, rwreq)
 		rwreq.R <- err
@@ -505,7 +511,7 @@ func (c *RAClient) parseCommandResponse(rsp []byte, rwreq *rwRequest) (err error
 				var txt string
 				txt, err = bufio.NewReader(t).ReadString('\n')
 				if err != nil {
-					log.Printf("could not read error text from %s response: %v; `%s`", cmd, err, string(rsp))
+					log.Printf("retroarch: could not read error text from %s response: %v; `%s`", cmd, err, string(rsp))
 					err = snes.WithCode(codes.FailedPrecondition, fmt.Errorf("retroarch: unknown error"))
 					return
 				}

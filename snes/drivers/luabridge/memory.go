@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sni/cmd/sni/config"
 	"sni/protos/sni"
 	"sni/snes"
 	"sni/snes/mapping"
@@ -46,6 +47,10 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 		sb := bytes.NewBuffer(make([]byte, 0, 64))
 		_, _ = fmt.Fprintf(sb, "Read|%d|%d\n", addr, read.Size)
 
+		if config.VerboseLogging {
+			log.Printf("luabridge: > %s", sb.Bytes())
+		}
+
 		data := make([]byte, 65536)
 		var n int
 		n, err = d.WriteThenRead(sb.Bytes(), data, deadline)
@@ -53,12 +58,17 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 			return
 		}
 
+		data = data[:n]
+		if config.VerboseLogging {
+			log.Printf("luabridge: < %s", data)
+		}
+
 		// parse response as json:
 		type tmpResultJson struct {
 			Data []byte `json:"data"`
 		}
 		tmp := tmpResultJson{}
-		err = json.Unmarshal(data[:n], &tmp)
+		err = json.Unmarshal(data, &tmp)
 		if err != nil {
 			return
 		}
@@ -115,6 +125,10 @@ func (d *Device) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWrit
 			_, _ = fmt.Fprintf(sb, "|%d", b)
 		}
 		sb.WriteByte('\n')
+
+		if config.VerboseLogging {
+			log.Printf("luabridge: > %s", sb.Bytes())
+		}
 
 		// send the command:
 		var n int
