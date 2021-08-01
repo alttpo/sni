@@ -8,9 +8,9 @@ import (
 	"net/url"
 	"sni/protos/sni"
 	"sni/snes"
+	"sni/util"
 	"sni/util/env"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -151,7 +151,7 @@ func (d *Driver) AllDeviceKeys() []string {
 func (d *Driver) StartServer() (err error) {
 	var tcpListener *net.TCPListener
 	var listener net.Listener
-	lc := &net.ListenConfig{Control: reusePortControl}
+	lc := &net.ListenConfig{Control: util.ReusePortControl}
 	listener, err = lc.Listen(context.Background(), "tcp", bindHostPort)
 	if err != nil {
 		return
@@ -169,12 +169,6 @@ func (d *Driver) StartServer() (err error) {
 	go d.runServer(tcpListener)
 
 	return
-}
-
-func reusePortControl(network string, address string, conn syscall.RawConn) error {
-	return conn.Control(func(descriptor uintptr) {
-		syscall.SetsockoptInt(int(descriptor), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-	})
 }
 
 func (d *Driver) runServer(listener *net.TCPListener) {
