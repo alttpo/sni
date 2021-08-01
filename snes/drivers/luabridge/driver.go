@@ -1,6 +1,7 @@
 package luabridge
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -9,6 +10,7 @@ import (
 	"sni/snes"
 	"sni/util/env"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -147,23 +149,32 @@ func (d *Driver) AllDeviceKeys() []string {
 }
 
 func (d *Driver) StartServer() (err error) {
-	var addr *net.TCPAddr
-	addr, err = net.ResolveTCPAddr("tcp", bindHostPort)
+	var tcpListener *net.TCPListener
+	var listener net.Listener
+	lc := &net.ListenConfig{Control: reusePortControl}
+	listener, err = lc.Listen(context.Background(), "tcp", bindHostPort)
 	if err != nil {
 		return
 	}
 
-	var listener *net.TCPListener
-	listener, err = net.ListenTCP(addr.Network(), addr)
-	if err != nil {
-		return
+	var ok bool
+	tcpListener, ok = listener.(*net.TCPListener)
+	if !ok {
+		listener.Close()
+		return fmt.Errorf("luabridge: could not cast from net.Listener to *net.TCPListener")
 	}
 
 	log.Printf("luabridge: listening on %s", bindHostPort)
 
-	go d.runServer(listener)
+	go d.runServer(tcpListener)
 
 	return
+}
+
+func reusePortControl(network string, address string, conn syscall.RawConn) error {
+	return conn.Control(func(descriptor uintptr) {
+		syscall.SetsockoptInt(int(descriptor), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+	})
 }
 
 func (d *Driver) runServer(listener *net.TCPListener) {

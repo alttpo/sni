@@ -40,6 +40,7 @@ func UpdateDeviceList(descriptors []snes.DeviceDescriptor) {
 func CreateSystray() {
 	// Start up a systray:
 	systray.Run(trayStart, trayExit)
+	log.Println("tray: exited main loop")
 }
 
 func quitSystray() {
@@ -47,7 +48,7 @@ func quitSystray() {
 }
 
 func trayExit() {
-	fmt.Println("Finished quitting")
+	log.Println("tray: finished quitting")
 }
 
 func trayStart() {
@@ -212,7 +213,7 @@ func trayStart() {
 	}
 
 	mQuit.ClickedFunc = func(item *systray.MenuItem) {
-		fmt.Println("Requesting quit")
+		log.Println("tray: requesting quit")
 		systray.Quit()
 	}
 

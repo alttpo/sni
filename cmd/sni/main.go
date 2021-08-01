@@ -71,4 +71,6 @@ func main() {
 
 	// start up a systray:
 	tray.CreateSystray()
+
+	log.Println("main: exit")
 }

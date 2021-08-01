@@ -21,6 +21,7 @@ import (
 	"sni/util/env"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -28,7 +29,7 @@ func StartHttpServer() {
 	// Parse env vars:
 	disabled := env.GetOrDefault("SNI_USB2SNES_DISABLE", "0")
 	if util.IsTruthy(disabled) {
-		log.Printf("usb2snes: server isabled due to env var %s=%s\n", "SNI_USB2SNES_DISABLE", disabled)
+		log.Printf("usb2snes: server disabled due to env var %s=%s\n", "SNI_USB2SNES_DISABLE", disabled)
 		return
 	}
 
@@ -48,8 +49,9 @@ func listenHttp(listenAddr string) {
 
 	// attempt to start the usb2snes server:
 	count := 0
+	lc := &net.ListenConfig{Control: reusePortControl}
 	for {
-		lis, err = net.Listen("tcp", listenAddr)
+		lis, err = lc.Listen(context.Background(), "tcp", listenAddr)
 		if err == nil {
 			break
 		}
@@ -66,7 +68,14 @@ func listenHttp(listenAddr string) {
 	}
 
 	log.Printf("usb2snes: listening on %s\n", listenAddr)
-	log.Println(http.Serve(lis, mux))
+	err = http.Serve(lis, mux)
+	log.Printf("usb2snes: exit listenHttp: %v\n", err)
+}
+
+func reusePortControl(network string, address string, conn syscall.RawConn) error {
+	return conn.Control(func(descriptor uintptr) {
+		syscall.SetsockoptInt(int(descriptor), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+	})
 }
 
 type wsReader struct {

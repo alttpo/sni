@@ -12,6 +12,7 @@ import (
 	"sni/protos/sni"
 	"sni/util/env"
 	"strconv"
+	"syscall"
 	"time"
 )
 
@@ -39,10 +40,12 @@ func StartGrpcServer() {
 	}
 
 	ListenAddr = net.JoinHostPort(ListenHost, strconv.Itoa(ListenPort))
-	lis, err := net.Listen("tcp", ListenAddr)
+	lc := &net.ListenConfig{Control: reusePortControl}
+	lis, err := lc.Listen(context.Background(), "tcp", ListenAddr)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatalf("grpc: failed to listen: %v", err)
 	}
+	log.Printf("grpc: listening on %s\n", ListenAddr)
 
 	// start gRPC server:
 	GrpcServer = grpc.NewServer(
@@ -57,9 +60,16 @@ func StartGrpcServer() {
 
 	go func() {
 		if err := GrpcServer.Serve(lis); err != nil {
-			log.Fatalf("failed to serve: %v", err)
+			log.Fatalf("grpc: failed to serve: %v", err)
 		}
+		log.Println("grpc: exit")
 	}()
+}
+
+func reusePortControl(network string, address string, conn syscall.RawConn) error {
+	return conn.Control(func(descriptor uintptr) {
+		syscall.SetsockoptInt(int(descriptor), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+	})
 }
 
 type methodRequestStringer interface {
