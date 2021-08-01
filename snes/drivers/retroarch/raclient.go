@@ -113,7 +113,11 @@ func (c *RAClient) HasVersion() bool { return c.version != "" }
 
 func (c *RAClient) DetermineVersion() (err error) {
 	var rsp []byte
-	rsp, err = c.WriteThenRead([]byte("VERSION\n"), time.Now().Add(c.readWriteTimeout))
+	req := []byte("VERSION\n")
+	if logDetector {
+		log.Printf("retroarch: > %s", req)
+	}
+	rsp, err = c.WriteThenRead(req, time.Now().Add(c.readWriteTimeout))
 	if err != nil {
 		return
 	}
@@ -122,8 +126,8 @@ func (c *RAClient) DetermineVersion() (err error) {
 		return
 	}
 
-	if config.VerboseLogging || logDetector {
-		log.Printf("retroarch: version %s", string(rsp))
+	if logDetector {
+		log.Printf("retroarch: < %s", rsp)
 	}
 	c.version = string(rsp)
 
@@ -481,7 +485,7 @@ func (c *RAClient) handleIncoming() {
 		}
 
 		if config.VerboseLogging {
-			log.Printf("retroarch: < %s\n", string(rsp))
+			log.Printf("retroarch: < %s\n", rsp)
 		}
 
 		err = c.parseCommandResponse(rsp, rwreq)
@@ -585,7 +589,11 @@ func (c *RAClient) ResetSystem(ctx context.Context) (err error) {
 		deadline = time.Now().Add(c.readWriteTimeout)
 	}
 
-	err = c.WriteWithDeadline([]byte("RESET\n"), deadline)
+	req := []byte("RESET\n")
+	if config.VerboseLogging {
+		log.Printf("retroarch: > %s", req)
+	}
+	err = c.WriteWithDeadline(req, deadline)
 	return
 }
 
@@ -599,6 +607,10 @@ func (c *RAClient) PauseToggle(ctx context.Context) (err error) {
 		deadline = time.Now().Add(c.readWriteTimeout)
 	}
 
-	err = c.WriteWithDeadline([]byte("PAUSE_TOGGLE\n"), deadline)
+	req := []byte("PAUSE_TOGGLE\n")
+	if config.VerboseLogging {
+		log.Printf("retroarch: > %s", req)
+	}
+	err = c.WriteWithDeadline(req, deadline)
 	return
 }
