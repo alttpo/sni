@@ -20,13 +20,18 @@ else
 end
 
 
-function readbyterange(addr, lenght, domain)
+function readbyterange(addr, length, domain)
     if is_snes9x then
-        return memory.readbyterange(addr, lenght)
+        return memory.readbyterange(addr, length)
     else
-        local mtable = memory.readbyterange(addr, lenght, domain)
+        -- jsd: wrap around address by domain size:
+        local domainsize = memory.getmemorydomainsize(domain)
+        while addr >= domainsize do
+            addr = addr - domainsize
+        end
+        local mtable = memory.readbyterange(addr, length, domain)
         local toret = {};
-        for i=0, (lenght - 1) do
+        for i=0, (length - 1) do
             table.insert(toret, mtable[i])
         end
         return toret
@@ -36,6 +41,11 @@ function writebyte(addr, value, domain)
   if is_snes9x then
     memory.writebyte(addr, value)
   else
+    -- jsd: wrap around address by domain size:
+    local domainsize = memory.getmemorydomainsize(domain)
+    while addr >= domainsize do
+        addr = addr - domainsize
+    end
     memory.writebyte(addr, value, domain)
   end
 end
@@ -81,7 +91,6 @@ local function onMessage(s)
     elseif parts[1] == "SetName" then
         name = parts[2]
         print("My name is " .. name .. "!")
-
     elseif parts[1] == "Message" then
         print(parts[2])
     elseif parts[1] == "Exit" then
@@ -149,11 +158,12 @@ local main = function()
         return
     end
 end
+
 if is_snes9x then
     emu.registerbefore(main)
-  else
+else
     while true do
-      main()
-      emu.frameadvance()
+        main()
+        emu.frameadvance()
     end
-  end
+end
