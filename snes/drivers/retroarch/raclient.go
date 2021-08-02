@@ -288,15 +288,9 @@ func (c *RAClient) MultiReadMemory(ctx context.Context, reads ...snes.MemoryRead
 	// await all responses:
 	err = nil
 	for _, rwreq := range outgoing {
-		tmperr := <-responses
-		if tmperr != nil {
-			if err == nil {
-				err = tmperr
-			}
-			if isCloseWorthy(tmperr) {
-				_ = c.Close()
-			}
-			continue
+		err = <-responses
+		if err != nil {
+			return
 		}
 
 		mrsp[rwreq.index].Data = rwreq.Read.ResponseData
@@ -406,15 +400,9 @@ func (c *RAClient) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWr
 	// await all responses:
 	err = nil
 	for _, rwreq := range outgoing {
-		tmperr := <-responses
-		if tmperr != nil {
-			if err == nil {
-				err = tmperr
-			}
-			if isCloseWorthy(tmperr) {
-				_ = c.Close()
-			}
-			continue
+		err = <-responses
+		if err != nil {
+			return
 		}
 
 		mrsp[rwreq.index].Size += rwreq.Write.ResponseSize
@@ -461,6 +449,9 @@ func (c *RAClient) handleOutgoing() {
 			if err != nil {
 				c.expectationLock.Unlock()
 				rwreq.R <- err
+				if isCloseWorthy(err) {
+					_ = c.Close()
+				}
 				return
 			}
 
@@ -481,7 +472,10 @@ func (c *RAClient) handleIncoming() {
 		rsp, err := c.ReadWithDeadline(rwreq.deadline)
 		if err != nil {
 			rwreq.R <- err
-			continue
+			if isCloseWorthy(err) {
+				_ = c.Close()
+			}
+			break
 		}
 
 		if config.VerboseLogging {
