@@ -50,6 +50,9 @@ func (d *Driver) Kind() string {
 var driverCapabilities = []sni.DeviceCapability{
 	sni.DeviceCapability_ReadMemory,
 	sni.DeviceCapability_WriteMemory,
+	sni.DeviceCapability_ResetSystem,
+	sni.DeviceCapability_PauseUnpauseEmulation,
+	sni.DeviceCapability_PauseToggleEmulation,
 }
 
 func (d *Driver) HasCapabilities(capabilities ...sni.DeviceCapability) (bool, error) {
