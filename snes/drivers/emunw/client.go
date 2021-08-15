@@ -105,7 +105,7 @@ func (c *Client) SendCommandWaitReply(cmd string, deadline time.Time) (bin []byt
 	}
 
 	bin, ascii, err = c.readResponse(deadline)
-	if ascii != nil {
+	if ascii != nil && len(ascii) > 0 {
 		if errText, ok := ascii[0]["error"]; ok {
 			err = fmt.Errorf("emunw: error=%s", errText)
 			return
@@ -377,7 +377,7 @@ func (c *Client) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWrit
 		if err != nil {
 			return
 		}
-		if ascii != nil {
+		if ascii != nil && len(ascii) > 0 {
 			if errText, ok := ascii[0]["error"]; ok {
 				errReplies.WriteString(errText)
 				errReplies.WriteByte('\n')
