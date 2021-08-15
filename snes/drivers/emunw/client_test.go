@@ -1,6 +1,8 @@
 package emunw
 
 import (
+	"bufio"
+	"bytes"
 	"reflect"
 	"testing"
 )
@@ -69,7 +71,11 @@ func Test_parseResponse(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotBin, gotAscii, err := parseResponse(tt.args.d)
+			var buf bytes.Buffer
+			buf.Write(tt.args.d)
+			r := bufio.NewReader(&buf)
+
+			gotBin, gotAscii, err := parseResponse(r)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseResponse() error = %v, wantErr %v", err, tt.wantErr)
 				return

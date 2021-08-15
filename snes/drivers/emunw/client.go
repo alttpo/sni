@@ -121,7 +121,7 @@ func (c *Client) readResponse(deadline time.Time) (bin []byte, ascii []map[strin
 		return
 	}
 
-	bin, ascii, err = c.parseResponse()
+	bin, ascii, err = parseResponse(c.r)
 	if err != nil {
 		_ = c.Close()
 		return
@@ -130,9 +130,9 @@ func (c *Client) readResponse(deadline time.Time) (bin []byte, ascii []map[strin
 	return
 }
 
-func (c *Client) parseResponse() (bin []byte, ascii []map[string]string, err error) {
+func parseResponse(r *bufio.Reader) (bin []byte, ascii []map[string]string, err error) {
 	var d byte
-	d, err = c.r.ReadByte()
+	d, err = r.ReadByte()
 	if err != nil {
 		return
 	}
@@ -140,13 +140,13 @@ func (c *Client) parseResponse() (bin []byte, ascii []map[string]string, err err
 	// parse binary reply:
 	if d == 0 {
 		var size uint32
-		err = binary.Read(c.r, binary.BigEndian, &size)
+		err = binary.Read(r, binary.BigEndian, &size)
 		if err != nil {
 			return
 		}
 
 		bin = make([]byte, size)
-		_, err = io.ReadFull(c.r, bin)
+		_, err = io.ReadFull(r, bin)
 		if err != nil {
 			return
 		}
@@ -165,16 +165,16 @@ func (c *Client) parseResponse() (bin []byte, ascii []map[string]string, err err
 
 	// parse ascii reply as array<map<string,string>>:
 	var b strings.Builder
-	var r io.Reader
+	var sr io.Reader
 	if config.VerboseLogging {
 		// copy all bytes read to a string builder so we can log it after all scanned data:
-		r = io.TeeReader(c.r, &b)
+		sr = io.TeeReader(r, &b)
 	} else {
-		r = c.r
+		sr = r
 	}
 
 	var s *bufio.Scanner
-	s = bufio.NewScanner(r)
+	s = bufio.NewScanner(sr)
 
 	ascii = make([]map[string]string, 0, 4)
 	item := make(map[string]string)
