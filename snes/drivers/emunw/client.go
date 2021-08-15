@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"sni/cmd/sni/config"
@@ -26,6 +27,8 @@ type Client struct {
 	c           *net.TCPConn
 	isConnected bool
 	isClosed    bool
+
+	r *bufio.Reader
 
 	readWriteTimeout time.Duration
 }
@@ -50,6 +53,8 @@ func (c *Client) Connect() (err error) {
 		c.isConnected = false
 		return
 	}
+
+	c.r = bufio.NewReaderSize(c.c, 4096)
 	c.isConnected = true
 	return
 }
@@ -82,19 +87,6 @@ func (c *Client) writeWithDeadline(bytes []byte, deadline time.Time) (err error)
 	return
 }
 
-func (c *Client) readWithDeadline(b []byte, deadline time.Time) (n int, err error) {
-	err = c.c.SetReadDeadline(deadline)
-	if err != nil {
-		return
-	}
-	n, err = c.c.Read(b)
-	if err != nil {
-		_ = c.Close()
-		return
-	}
-	return
-}
-
 func (c *Client) SendCommandWaitReply(cmd string, deadline time.Time) (bin []byte, ascii []map[string]string, err error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -104,7 +96,7 @@ func (c *Client) SendCommandWaitReply(cmd string, deadline time.Time) (bin []byt
 	b.WriteByte('\n')
 
 	if config.VerboseLogging {
-		log.Printf("emunw: > %s", b.Bytes())
+		log.Printf("emunw: cmd> %s", b.Bytes())
 	}
 
 	err = c.writeWithDeadline(b.Bytes(), deadline)
@@ -123,17 +115,13 @@ func (c *Client) SendCommandWaitReply(cmd string, deadline time.Time) (bin []byt
 }
 
 func (c *Client) readResponse(deadline time.Time) (bin []byte, ascii []map[string]string, err error) {
-	var n int
-	// TODO: hope that packets Read() don't contain multiple responses
-	b := make([]byte, 65536)
-	n, err = c.readWithDeadline(b, deadline)
+	err = c.c.SetReadDeadline(deadline)
 	if err != nil {
 		_ = c.Close()
 		return
 	}
-	d := b[:n]
 
-	bin, ascii, err = parseResponse(d)
+	bin, ascii, err = c.parseResponse()
 	if err != nil {
 		_ = c.Close()
 		return
@@ -142,36 +130,61 @@ func (c *Client) readResponse(deadline time.Time) (bin []byte, ascii []map[strin
 	return
 }
 
-func parseResponse(d []byte) (bin []byte, ascii []map[string]string, err error) {
+func (c *Client) parseResponse() (bin []byte, ascii []map[string]string, err error) {
+	var d byte
+	d, err = c.r.ReadByte()
+	if err != nil {
+		return
+	}
+
 	// parse binary reply:
-	if d[0] == 0 {
-		size := binary.BigEndian.Uint32(d[1 : 1+4])
-		bin = d[5 : 5+size]
+	if d == 0 {
+		var size uint32
+		err = binary.Read(c.r, binary.BigEndian, &size)
+		if err != nil {
+			return
+		}
+
+		bin = make([]byte, size)
+		_, err = io.ReadFull(c.r, bin)
+		if err != nil {
+			return
+		}
 
 		if config.VerboseLogging {
 			log.Printf("emunw: bin< %s", hex.Dump(bin))
 		}
 		return
 	}
+
 	// expect ascii reply otherwise:
-	if d[0] != '\n' {
-		err = fmt.Errorf("emunw: command reply expected starting with '\\0' or '\\n' but got '%c'", d[0])
+	if d != '\n' {
+		err = fmt.Errorf("emunw: command reply expected starting with '\\0' or '\\n' but got '%c'", d)
 		return
 	}
 
+	// parse ascii reply as array<map<string,string>>:
+	var b strings.Builder
+	var r io.Reader
 	if config.VerboseLogging {
-		log.Printf("emunw: asc< %s", d)
+		// copy all bytes read to a string builder so we can log it after all scanned data:
+		r = io.TeeReader(c.r, &b)
+	} else {
+		r = c.r
 	}
 
-	// parse ascii reply as array<map<string,string>>:
-	s := bufio.NewScanner(bytes.NewReader(d[1:]))
+	var s *bufio.Scanner
+	s = bufio.NewScanner(r)
+
 	ascii = make([]map[string]string, 0, 4)
 	item := make(map[string]string)
 	for s.Scan() {
 		l := s.Text()
+		// empty line:
 		if l == "" {
 			break
 		}
+
 		pair := strings.SplitN(l, ":", 2)
 		var key string = pair[0]
 		var value string
@@ -187,8 +200,13 @@ func parseResponse(d []byte) (bin []byte, ascii []map[string]string, err error) 
 
 		item[key] = value
 	}
+
 	if len(item) > 0 {
 		ascii = append(ascii, item)
+	}
+
+	if config.VerboseLogging {
+		log.Printf("emunw: asc<\n%s", b.String())
 	}
 
 	return
