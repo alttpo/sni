@@ -77,6 +77,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Generate Windows resources
+        if: ${{ matrix.goos == 'windows' }}
+        run: |
+          cd cmd/sni
+          go install github.com/tc-hib/go-winres@latest
+          go-winres simply --icon icon/sni.ico --product-version git-tag --file-version git-tag --product-name "Super Nintendo Interface" --copyright "© jsd1982 2021" --original-filename "sni"
+
       - run: |
           mkdir ${{env.basename}}
           cp README.md ${{env.basename}}
