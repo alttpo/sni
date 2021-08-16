@@ -289,8 +289,17 @@ func (c *Client) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 		regions := readGroups[memType]
 		offset := 0
 		for _, region := range regions {
-			copy(region.Data, bin[offset:offset+region.Size])
-			offset += region.Size
+		    var sz = len(bin) - offset
+		    if offset >= len(bin) {
+		        // out of bounds
+		    } else if region.Size > sz {
+		        // partial read
+		        copy(region.Data, bin[offset:offset+sz])
+		    } else {
+		        // full read
+		        copy(region.Data, bin[offset:offset+region.Size])
+		    }
+		    offset += region.Size
 		}
 	}
 
