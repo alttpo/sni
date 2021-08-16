@@ -26,6 +26,9 @@ func Detect(
 
 	if inHeaderBytes == nil {
 		outHeaderBytes, err = detectHeader(ctx, memory)
+		if err != nil {
+			return
+		}
 	} else {
 		if len(inHeaderBytes) < 0x30 {
 			err = fmt.Errorf("input ROM header must be at least $30 bytes")
