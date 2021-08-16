@@ -268,6 +268,9 @@ func (c *Client) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 			_, _ = fmt.Fprintf(&sb, ";$%x;$%x", region.Offset, region.Size)
 		}
 		sb.WriteByte('\n')
+		if config.VerboseLogging {
+			log.Printf("emunw: cmd> %s", sb.Bytes())
+		}
 		err = c.writeWithDeadline(sb.Bytes(), deadline)
 		if err != nil {
 			return
@@ -362,6 +365,9 @@ func (c *Client) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWrit
 			size += uint32(region.Size)
 		}
 		sb.WriteByte('\n')
+		if config.VerboseLogging {
+			log.Printf("emunw: cmd> %s", sb.Bytes())
+		}
 		err = c.writeWithDeadline(sb.Bytes(), deadline)
 		if err != nil {
 			return
@@ -372,6 +378,9 @@ func (c *Client) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWrit
 		sb.WriteByte(0)
 		_ = binary.Write(&sb, binary.BigEndian, size)
 		sb.Write(data.Bytes())
+		if config.VerboseLogging {
+			log.Printf("emunw: bin> %s", hex.Dump(sb.Bytes()))
+		}
 		err = c.writeWithDeadline(sb.Bytes(), deadline)
 		if err != nil {
 			return
