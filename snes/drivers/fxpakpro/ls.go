@@ -26,6 +26,7 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEn
 	// send the data to the USB port:
 	err = sendSerial(d.f, 512, sb)
 	if err != nil {
+		err = d.FatalError(err)
 		_ = d.Close()
 		return
 	}
@@ -33,26 +34,35 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEn
 	// await the first response packet for error status:
 	err = recvSerial(ctx, d.f, sb, 512)
 	if err != nil {
+		err = d.FatalError(err)
 		_ = d.Close()
 		return
 	}
 
 	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
 		_ = d.Close()
-		return nil, fmt.Errorf("mkdir: fxpakpro response packet does not contain USBA header")
+		files, err = nil, fmt.Errorf("mkdir: fxpakpro response packet does not contain USBA header")
+		err = d.FatalError(err)
+		return
 	}
 
 	// fxpakpro `ls` command always returns 1 for size:
 	if size := binary.BigEndian.Uint32(sb[252:256]); size != 1 {
 		_ = d.Close()
-		return nil, fmt.Errorf("ls: fxpakpro response size actual %d, expected 1", size)
+		files, err = nil, fmt.Errorf("ls: fxpakpro response size actual %d, expected 1", size)
+		err = d.FatalError(err)
+		return
 	}
 	if sb[4] != byte(OpRESPONSE) {
 		_ = d.Close()
-		return nil, fmt.Errorf("ls: wrong opcode in response packet; got $%02x", sb[4])
+		files, err = nil, fmt.Errorf("ls: wrong opcode in response packet; got $%02x", sb[4])
+		err = d.FatalError(err)
+		return
 	}
 	if ec := sb[5]; ec != 0 {
-		return nil, fmt.Errorf("ls: %w", fxpakproError(ec))
+		files, err = nil, fmt.Errorf("ls: %w", fxpakproError(ec))
+		err = d.NonFatalError(err)
+		return
 	}
 
 	files = make([]snes.DirEntry, 0, 10)

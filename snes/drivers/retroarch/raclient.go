@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"google.golang.org/grpc/codes"
 	"log"
 	"net"
 	"sni/cmd/sni/config"
@@ -65,19 +64,20 @@ type RAClient struct {
 	useRCR  bool
 }
 
+func (c *RAClient) FatalError(cause error) snes.DeviceError {
+	return snes.DeviceFatal(fmt.Sprintf("retroarch: %v", cause), cause)
+}
+
+func (c *RAClient) NonFatalError(cause error) snes.DeviceError {
+	return snes.DeviceNonFatal(fmt.Sprintf("retroarch: %v", cause), cause)
+}
+
 // isCloseWorthy returns true if the error should close the connection
 func isCloseWorthy(err error) bool {
-	var coded *snes.CodedError
-	if errors.As(err, &coded) {
-		if coded.Code == codes.Internal {
-			return true
-		}
-		return false
-	}
 	if errors.Is(err, net.ErrClosed) {
 		return false
 	}
-	return true
+	return snes.IsFatal(err)
 }
 
 func NewRAClient(addr *net.UDPAddr, name string, timeout time.Duration) *RAClient {
@@ -495,7 +495,7 @@ func (c *RAClient) parseCommandResponse(rsp []byte, rwreq *rwRequest) (err error
 	var n int
 	n, err = fmt.Fscanf(r, "%s %x", &cmd, &addr)
 	if n != 2 || cmd != rwreq.command || addr != rwreq.address {
-		err = fmt.Errorf("expected response starting with `%s %x` but got: `%s`", rwreq.command, rwreq.address, string(rsp))
+		err = c.FatalError(fmt.Errorf("expected response starting with `%s %x` but got: `%s`", rwreq.command, rwreq.address, string(rsp)))
 		return
 	}
 	err = nil
@@ -508,7 +508,7 @@ func (c *RAClient) parseCommandResponse(rsp []byte, rwreq *rwRequest) (err error
 		if n == 1 && test < 0 {
 			// read a -1:
 			if c.useRCR {
-				err = snes.WithCode(codes.FailedPrecondition, fmt.Errorf("%s responded with error", cmd))
+				err = c.NonFatalError(fmt.Errorf("%s responded with error", cmd))
 				return
 			} else {
 				// READ_CORE_MEMORY returns an error description after -1
@@ -516,19 +516,13 @@ func (c *RAClient) parseCommandResponse(rsp []byte, rwreq *rwRequest) (err error
 				var txt string
 				txt, err = bufio.NewReader(t).ReadString('\n')
 				if err != nil {
-					log.Printf("retroarch: could not read error text from %s response: %v; `%s`", cmd, err, string(rsp))
-					err = snes.WithCode(codes.FailedPrecondition, fmt.Errorf("retroarch: unknown error"))
+					log.Printf("could not read error text from %s response: %v; `%s`", cmd, err, string(rsp))
+					err = c.FatalError(err)
 					return
 				}
 
 				txt = strings.TrimSpace(txt)
-				err = fmt.Errorf("%s error '%s'", cmd, txt)
-				if txt == "no data for descriptor" {
-					err = snes.WithCode(codes.InvalidArgument, err)
-				} else {
-					// e.g. "no memory map defined" means no ROM loaded or emulator core doesn't support READ_CORE_MEMORY
-					err = snes.WithCode(codes.FailedPrecondition, err)
-				}
+				err = c.NonFatalError(fmt.Errorf("%s error '%s'", cmd, txt))
 				return
 			}
 		}
@@ -545,13 +539,13 @@ func (c *RAClient) parseCommandResponse(rsp []byte, rwreq *rwRequest) (err error
 		}
 
 		if wlen != len(rwreq.Write.RequestData) {
-			err = fmt.Errorf(
+			err = c.FatalError(fmt.Errorf(
 				"%s responded with unexpected length %d; expected %d; `%s`",
 				cmd,
 				wlen,
 				len(rwreq.Write.RequestData),
 				string(rsp),
-			)
+			))
 			return
 		}
 

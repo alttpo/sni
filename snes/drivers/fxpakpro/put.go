@@ -28,6 +28,7 @@ func (d *Device) put(ctx context.Context, space space, address uint32, data []by
 	// send the data to the USB port:
 	err = sendSerial(d.f, 512, sb)
 	if err != nil {
+		err = d.FatalError(err)
 		_ = d.Close()
 		return
 	}
@@ -43,6 +44,7 @@ func (d *Device) put(ctx context.Context, space space, address uint32, data []by
 
 		err = sendSerial(d.f, 512, sb)
 		if err != nil {
+			err = d.FatalError(err)
 			_ = d.Close()
 			return
 		}
@@ -51,19 +53,26 @@ func (d *Device) put(ctx context.Context, space space, address uint32, data []by
 	// await single response:
 	err = recvSerial(ctx, d.f, sb, 512)
 	if err != nil {
+		err = d.FatalError(err)
 		_ = d.Close()
 		return
 	}
 	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
 		_ = d.Close()
-		return fmt.Errorf("put: fxpakpro response packet does not contain USBA header")
+		err = fmt.Errorf("put: fxpakpro response packet does not contain USBA header")
+		err = d.FatalError(err)
+		return
 	}
 	if sb[4] != byte(OpRESPONSE) {
 		_ = d.Close()
-		return fmt.Errorf("put: wrong opcode in response packet; got $%02x", sb[4])
+		err = fmt.Errorf("put: wrong opcode in response packet; got $%02x", sb[4])
+		err = d.FatalError(err)
+		return
 	}
 	if ec := sb[5]; ec != 0 {
-		return fmt.Errorf("put: %w", fxpakproError(ec))
+		err = fmt.Errorf("put: %w", fxpakproError(ec))
+		err = d.NonFatalError(err)
+		return
 	}
 
 	return

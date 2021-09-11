@@ -33,6 +33,14 @@ type Client struct {
 	readWriteTimeout time.Duration
 }
 
+func (c *Client) FatalError(cause error) snes.DeviceError {
+	return snes.DeviceFatal(fmt.Sprintf("emunw: %v", cause), cause)
+}
+
+func (c *Client) NonFatalError(cause error) snes.DeviceError {
+	return snes.DeviceNonFatal(fmt.Sprintf("emunw: %v", cause), cause)
+}
+
 func NewClient(addr *net.TCPAddr, name string, timeout time.Duration) (c *Client) {
 	c = &Client{
 		addr:             addr,
@@ -77,10 +85,12 @@ func (c *Client) DefaultAddressSpace(context.Context) (sni.AddressSpace, error) 
 func (c *Client) writeWithDeadline(bytes []byte, deadline time.Time) (err error) {
 	err = c.c.SetWriteDeadline(deadline)
 	if err != nil {
+		err = c.FatalError(err)
 		return
 	}
 	_, err = c.c.Write(bytes)
 	if err != nil {
+		err = c.FatalError(err)
 		_ = c.Close()
 		return
 	}
@@ -117,12 +127,14 @@ func (c *Client) SendCommandWaitReply(cmd string, deadline time.Time) (bin []byt
 func (c *Client) readResponse(deadline time.Time) (bin []byte, ascii []map[string]string, err error) {
 	err = c.c.SetReadDeadline(deadline)
 	if err != nil {
+		err = c.FatalError(err)
 		_ = c.Close()
 		return
 	}
 
 	bin, ascii, err = parseResponse(c.r)
 	if err != nil {
+		err = c.FatalError(err)
 		_ = c.Close()
 		return
 	}
@@ -287,22 +299,24 @@ func (c *Client) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 		}
 		if ascii != nil {
 			err = fmt.Errorf("emunw: expecting binary reply but got ascii:\n%+v", ascii)
+			err = c.FatalError(err)
+			return
 		}
 
 		regions := readGroups[memType]
 		offset := 0
 		for _, region := range regions {
-		    var sz = len(bin) - offset
-		    if offset >= len(bin) {
-		        // out of bounds
-		    } else if region.Size > sz {
-		        // partial read
-		        copy(region.Data, bin[offset:offset+sz])
-		    } else {
-		        // full read
-		        copy(region.Data, bin[offset:offset+region.Size])
-		    }
-		    offset += region.Size
+			var sz = len(bin) - offset
+			if offset >= len(bin) {
+				// out of bounds
+			} else if region.Size > sz {
+				// partial read
+				copy(region.Data, bin[offset:offset+sz])
+			} else {
+				// full read
+				copy(region.Data, bin[offset:offset+region.Size])
+			}
+			offset += region.Size
 		}
 	}
 
@@ -405,6 +419,7 @@ func (c *Client) MultiWriteMemory(ctx context.Context, writes ...snes.MemoryWrit
 
 	if errReplies.Len() > 0 {
 		err = fmt.Errorf("emunw: error=%s", errReplies.String())
+		err = c.NonFatalError(err)
 		return
 	}
 

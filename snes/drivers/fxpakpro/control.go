@@ -19,22 +19,28 @@ func (d *Device) ResetSystem(ctx context.Context) (err error) {
 
 	err = sendSerial(d.f, 512, sb)
 	if err != nil {
+		err = d.FatalError(err)
 		_ = d.Close()
 		return
 	}
 
 	err = recvSerial(ctx, d.f, sb, 512)
 	if err != nil {
+		err = d.FatalError(err)
 		_ = d.Close()
 		return
 	}
 
 	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
 		_ = d.Close()
-		return fmt.Errorf("reset: fxpakpro response packet does not contain USBA header")
+		err = fmt.Errorf("reset: fxpakpro response packet does not contain USBA header")
+		err = d.FatalError(err)
+		return
 	}
 	if ec := sb[5]; ec != 0 {
-		return fmt.Errorf("reset: %w", fxpakproError(ec))
+		err = fmt.Errorf("reset: %w", fxpakproError(ec))
+		err = d.NonFatalError(err)
+		return
 	}
 
 	return

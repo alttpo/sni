@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"go.bug.st/serial"
+	"sni/snes"
 	"sync"
 )
 
@@ -12,6 +13,14 @@ type Device struct {
 	f    serial.Port
 
 	isClosed bool
+}
+
+func (d *Device) FatalError(cause error) snes.DeviceError {
+	return snes.DeviceFatal(fmt.Sprintf("fxpakpro: %v", cause), cause)
+}
+
+func (d *Device) NonFatalError(cause error) snes.DeviceError {
+	return snes.DeviceNonFatal(fmt.Sprintf("fxpakpro: %v", cause), cause)
 }
 
 func (d *Device) Init() error {

@@ -42,6 +42,7 @@ func (d *Device) vget(ctx context.Context, space space, chunks ...vgetChunk) (er
 
 	err = sendSerial(d.f, 64, sb)
 	if err != nil {
+		err = d.FatalError(err)
 		_ = d.Close()
 		return
 	}
@@ -58,6 +59,7 @@ func (d *Device) vget(ctx context.Context, space space, chunks ...vgetChunk) (er
 	rsp := make([]byte, expected)
 	err = recvSerial(ctx, d.f, rsp, expected)
 	if err != nil {
+		err = d.FatalError(err)
 		_ = d.Close()
 		return
 	}

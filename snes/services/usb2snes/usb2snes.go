@@ -117,7 +117,7 @@ func (w *wsWriter) Write(p []byte) (n int, err error) {
 	}
 
 	if w.written >= w.frameSize {
-		err = w.w.Flush()
+		err = w.w.FlushFragment()
 		w.written = 0
 	}
 	return
@@ -157,7 +157,7 @@ serverLoop:
 	for {
 		hdr, err := r.NextFrame()
 		if err == io.EOF {
-			log.Printf("usb2snes: %s: client closed connection\n", clientName)
+			log.Printf("usb2snes: %s: client closed connection with EOF\n", clientName)
 			break serverLoop
 		}
 		if err != nil {
@@ -165,7 +165,7 @@ serverLoop:
 			break serverLoop
 		}
 		if hdr.OpCode == ws.OpClose {
-			log.Printf("usb2snes: %s: client closed connection\n", clientName)
+			log.Printf("usb2snes: %s: client closed connection with OpClose\n", clientName)
 			break serverLoop
 		}
 		if hdr.OpCode == ws.OpPing {

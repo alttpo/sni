@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sni/snes"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +22,14 @@ type Device struct {
 	version    string
 	host       string
 	isBizHawk  bool
+}
+
+func (d *Device) FatalError(cause error) snes.DeviceError {
+	return snes.DeviceFatal(fmt.Sprintf("luabridge: %v", cause), cause)
+}
+
+func (d *Device) NonFatalError(cause error) snes.DeviceError {
+	return snes.DeviceNonFatal(fmt.Sprintf("luabridge: %v", cause), cause)
 }
 
 func NewDevice(conn *net.TCPConn, key string) *Device {
@@ -86,10 +95,12 @@ func (d *Device) CheckVersion() (err error) {
 	rspn := strings.Split(rsp, "|")
 	if len(rspn) < 3 {
 		err = fmt.Errorf("expected Version response")
+		err = d.FatalError(err)
 		return
 	}
 	if rspn[0] != "Version" {
 		err = fmt.Errorf("expected Version response")
+		err = d.FatalError(err)
 		return
 	}
 
@@ -114,11 +125,13 @@ func (d *Device) WriteDeadline(write []byte, deadline time.Time) (n int, err err
 
 	err = d.c.SetWriteDeadline(deadline)
 	if err != nil {
+		err = d.FatalError(err)
 		return
 	}
 
 	n, err = d.c.Write(write)
 	if err != nil {
+		err = d.FatalError(err)
 		return
 	}
 
@@ -131,11 +144,13 @@ func (d *Device) ReadDeadline(read []byte, deadline time.Time) (n int, err error
 
 	err = d.c.SetReadDeadline(deadline)
 	if err != nil {
+		err = d.FatalError(err)
 		return
 	}
 
 	n, err = d.c.Read(read)
 	if err != nil {
+		err = d.FatalError(err)
 		return
 	}
 
@@ -148,21 +163,25 @@ func (d *Device) WriteThenRead(write []byte, read []byte, deadline time.Time) (n
 
 	err = d.c.SetWriteDeadline(deadline)
 	if err != nil {
+		err = d.FatalError(err)
 		return
 	}
 
 	_, err = d.c.Write(write)
 	if err != nil {
+		err = d.FatalError(err)
 		return
 	}
 
 	err = d.c.SetReadDeadline(deadline)
 	if err != nil {
+		err = d.FatalError(err)
 		return
 	}
 
 	n, err = d.c.Read(read)
 	if err != nil {
+		err = d.FatalError(err)
 		return
 	}
 

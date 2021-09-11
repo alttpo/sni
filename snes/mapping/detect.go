@@ -141,8 +141,13 @@ func detectHeader(ctx context.Context, memory snes.DeviceMemory) (outHeaderBytes
 			// read the ROM header:
 			responses, err = memory.MultiReadMemory(ctx, readRequest)
 			if err != nil {
-				err = snes.WithCode(codes.FailedPrecondition, fmt.Errorf("detect: %w: %s", err, &tuple))
-				return
+				if snes.IsFatal(err) {
+					err = fmt.Errorf("detect: %w: %s", err, &tuple)
+					return
+				}
+				log.Printf("detect: ignoring non-fatal error: %v\n", err)
+				err = nil
+				continue
 			}
 
 			// score the header heuristically:
@@ -172,9 +177,7 @@ func detectHeader(ctx context.Context, memory snes.DeviceMemory) (outHeaderBytes
 	}
 
 	if bestScore <= 0 {
-		err = snes.WithCode(codes.FailedPrecondition, fmt.Errorf(
-			"detect: unable to detect valid ROM header",
-		))
+		err = snes.DeviceNonFatal("detect: unable to detect valid ROM header", nil)
 		return
 	}
 

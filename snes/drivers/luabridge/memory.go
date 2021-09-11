@@ -86,6 +86,7 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 		}
 		if actual, expected := len(tmp.Data), read.Size; actual != expected {
 			err = fmt.Errorf("response did not provide enough data to meet request size; actual $%x, expected $%x", actual, expected)
+			err = d.FatalError(err)
 			return
 		}
 

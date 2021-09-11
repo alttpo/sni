@@ -47,6 +47,7 @@ func (d *Device) vput(ctx context.Context, space space, chunks ...vputChunk) (er
 
 	err = sendSerial(d.f, 64, sb)
 	if err != nil {
+		err = d.FatalError(err)
 		_ = d.Close()
 		return
 	}
@@ -70,6 +71,7 @@ func (d *Device) vput(ctx context.Context, space space, chunks ...vputChunk) (er
 	// send the expected number of 64-byte packets:
 	err = sendSerial(d.f, 64, whole)
 	if err != nil {
+		err = d.FatalError(err)
 		_ = d.Close()
 		return
 	}
