@@ -42,6 +42,35 @@ func (d *DeviceControlService) ResetSystem(gctx context.Context, request *sni.Re
 	return
 }
 
+func (d *DeviceControlService) ResetToMenu(gctx context.Context, request *sni.ResetToMenuRequest) (grsp *sni.ResetToMenuResponse, gerr error) {
+	uri, err := url.Parse(request.GetUri())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	var driver snes.Driver
+	var device snes.AutoCloseableDevice
+	driver, device, gerr = snes.DeviceByUri(uri)
+	if gerr != nil {
+		return nil, grpcError(gerr)
+	}
+
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_ResetToMenu); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
+	}
+
+	gerr = device.ResetToMenu(gctx)
+	if gerr != nil {
+		return nil, grpcError(gerr)
+	}
+
+	grsp = &sni.ResetToMenuResponse{
+		Uri: request.Uri,
+	}
+
+	return
+}
+
 func (d *DeviceControlService) PauseUnpauseEmulation(gctx context.Context, request *sni.PauseEmulationRequest) (grsp *sni.PauseEmulationResponse, gerr error) {
 	uri, err := url.Parse(request.GetUri())
 	if err != nil {

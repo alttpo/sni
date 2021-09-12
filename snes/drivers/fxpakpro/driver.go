@@ -63,6 +63,7 @@ var driverCapabilities = []sni.DeviceCapability{
 	sni.DeviceCapability_ReadMemory,
 	sni.DeviceCapability_WriteMemory,
 	sni.DeviceCapability_ResetSystem,
+	sni.DeviceCapability_ResetToMenu,
 	sni.DeviceCapability_ExecuteASM,
 	// filesystem:
 	sni.DeviceCapability_ReadDirectory,

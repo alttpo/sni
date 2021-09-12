@@ -78,6 +78,14 @@ func (a *autoCloseableDevice) ResetSystem(ctx context.Context) (err error) {
 	return
 }
 
+func (a *autoCloseableDevice) ResetToMenu(ctx context.Context) (err error) {
+	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		err = device.ResetToMenu(ctx)
+		return
+	})
+	return
+}
+
 func (a *autoCloseableDevice) PauseUnpause(ctx context.Context, pausedState bool) (ok bool, err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
 		ok, err = device.PauseUnpause(ctx, pausedState)

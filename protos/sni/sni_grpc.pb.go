@@ -108,6 +108,8 @@ var Devices_ServiceDesc = grpc.ServiceDesc{
 type DeviceControlClient interface {
 	// only available if DeviceCapability ResetSystem is present
 	ResetSystem(ctx context.Context, in *ResetSystemRequest, opts ...grpc.CallOption) (*ResetSystemResponse, error)
+	// only available if DeviceCapability ResetToMenu is present
+	ResetToMenu(ctx context.Context, in *ResetToMenuRequest, opts ...grpc.CallOption) (*ResetToMenuResponse, error)
 	// only available if DeviceCapability PauseUnpauseEmulation is present
 	PauseUnpauseEmulation(ctx context.Context, in *PauseEmulationRequest, opts ...grpc.CallOption) (*PauseEmulationResponse, error)
 	// only available if DeviceCapability PauseToggleEmulation is present
@@ -125,6 +127,15 @@ func NewDeviceControlClient(cc grpc.ClientConnInterface) DeviceControlClient {
 func (c *deviceControlClient) ResetSystem(ctx context.Context, in *ResetSystemRequest, opts ...grpc.CallOption) (*ResetSystemResponse, error) {
 	out := new(ResetSystemResponse)
 	err := c.cc.Invoke(ctx, "/DeviceControl/ResetSystem", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deviceControlClient) ResetToMenu(ctx context.Context, in *ResetToMenuRequest, opts ...grpc.CallOption) (*ResetToMenuResponse, error) {
+	out := new(ResetToMenuResponse)
+	err := c.cc.Invoke(ctx, "/DeviceControl/ResetToMenu", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -155,6 +166,8 @@ func (c *deviceControlClient) PauseToggleEmulation(ctx context.Context, in *Paus
 type DeviceControlServer interface {
 	// only available if DeviceCapability ResetSystem is present
 	ResetSystem(context.Context, *ResetSystemRequest) (*ResetSystemResponse, error)
+	// only available if DeviceCapability ResetToMenu is present
+	ResetToMenu(context.Context, *ResetToMenuRequest) (*ResetToMenuResponse, error)
 	// only available if DeviceCapability PauseUnpauseEmulation is present
 	PauseUnpauseEmulation(context.Context, *PauseEmulationRequest) (*PauseEmulationResponse, error)
 	// only available if DeviceCapability PauseToggleEmulation is present
@@ -168,6 +181,9 @@ type UnimplementedDeviceControlServer struct {
 
 func (UnimplementedDeviceControlServer) ResetSystem(context.Context, *ResetSystemRequest) (*ResetSystemResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ResetSystem not implemented")
+}
+func (UnimplementedDeviceControlServer) ResetToMenu(context.Context, *ResetToMenuRequest) (*ResetToMenuResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResetToMenu not implemented")
 }
 func (UnimplementedDeviceControlServer) PauseUnpauseEmulation(context.Context, *PauseEmulationRequest) (*PauseEmulationResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PauseUnpauseEmulation not implemented")
@@ -202,6 +218,24 @@ func _DeviceControl_ResetSystem_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DeviceControlServer).ResetSystem(ctx, req.(*ResetSystemRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeviceControl_ResetToMenu_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResetToMenuRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceControlServer).ResetToMenu(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceControl/ResetToMenu",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceControlServer).ResetToMenu(ctx, req.(*ResetToMenuRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -252,6 +286,10 @@ var DeviceControl_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ResetSystem",
 			Handler:    _DeviceControl_ResetSystem_Handler,
+		},
+		{
+			MethodName: "ResetToMenu",
+			Handler:    _DeviceControl_ResetToMenu_Handler,
 		},
 		{
 			MethodName: "PauseUnpauseEmulation",

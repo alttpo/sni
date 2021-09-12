@@ -503,6 +503,19 @@ serverLoop:
 			}
 			break
 
+		case "Menu":
+			if device == nil {
+				log.Printf("usb2snes: %s: %s requires Attach first\n", clientName, cmd.Opcode)
+				break serverLoop
+			}
+
+			err = device.ResetToMenu(context.Background())
+			if err != nil {
+				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
+				break serverLoop
+			}
+			break
+
 		case "Boot":
 			if device == nil {
 				log.Printf("usb2snes: %s: %s requires Attach first\n", clientName, cmd.Opcode)

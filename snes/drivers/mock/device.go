@@ -91,6 +91,10 @@ func (d *Device) ResetSystem(ctx context.Context) error {
 	panic("implement me")
 }
 
+func (d *Device) ResetToMenu(ctx context.Context) error {
+	panic("implement me")
+}
+
 func (d *Device) PauseUnpause(ctx context.Context, pausedState bool) (bool, error) {
 	panic("implement me")
 }

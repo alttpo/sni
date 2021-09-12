@@ -15,6 +15,10 @@ func (d *Device) ResetSystem(ctx context.Context) (err error) {
 	return
 }
 
+func (d *Device) ResetToMenu(ctx context.Context) error {
+	panic("implement me")
+}
+
 func (d *Device) PauseUnpause(ctx context.Context, pausedState bool) (paused bool, err error) {
 	deadline, ok := ctx.Deadline()
 	if !ok {

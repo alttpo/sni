@@ -585,6 +585,10 @@ func (c *RAClient) ResetSystem(ctx context.Context) (err error) {
 	return
 }
 
+func (c *RAClient) ResetToMenu(ctx context.Context) error {
+	panic("implement me")
+}
+
 func (c *RAClient) PauseUnpause(ctx context.Context, pausedState bool) (bool, error) {
 	return false, fmt.Errorf("capability unavailable")
 }

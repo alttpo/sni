@@ -437,6 +437,10 @@ func (c *Client) ResetSystem(ctx context.Context) (err error) {
 	return
 }
 
+func (c *Client) ResetToMenu(ctx context.Context) error {
+	panic("implement me")
+}
+
 func (c *Client) PauseUnpause(ctx context.Context, pausedState bool) (newState bool, err error) {
 	deadline, ok := ctx.Deadline()
 	if !ok {

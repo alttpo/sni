@@ -15,6 +15,9 @@ service DeviceControl {
   // only available if DeviceCapability ResetSystem is present
   rpc ResetSystem(ResetSystemRequest) returns (ResetSystemResponse) {}
 
+  // only available if DeviceCapability ResetToMenu is present
+  rpc ResetToMenu(ResetToMenuRequest) returns (ResetToMenuResponse) {}
+
   // only available if DeviceCapability PauseUnpauseEmulation is present
   rpc PauseUnpauseEmulation(PauseEmulationRequest) returns (PauseEmulationResponse) {}
 
@@ -95,6 +98,7 @@ enum DeviceCapability {
   ResetSystem = 4;
   PauseUnpauseEmulation = 5;
   PauseToggleEmulation = 6;
+  ResetToMenu = 7;
   // TODO: query ROM name
   ReadDirectory = 10;
   MakeDirectory = 11;
@@ -144,6 +148,13 @@ message ResetSystemRequest {
   string uri = 1;
 }
 message ResetSystemResponse {
+  string uri = 1;
+}
+
+message ResetToMenuRequest {
+  string uri = 1;
+}
+message ResetToMenuResponse {
   string uri = 1;
 }
 
