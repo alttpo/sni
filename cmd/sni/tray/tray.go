@@ -141,7 +141,6 @@ func trayStart() {
 
 		for len(appsMenuItems) < len(appConfigs) {
 			i := len(appsMenuItems)
-			app := appConfigs[i]
 
 			menuItem := appsMenu.AddSubMenuItem("", "")
 			menuItem.ClickedFunc = func(item *systray.MenuItem) {
@@ -150,6 +149,7 @@ func trayStart() {
 					return
 				}
 
+				app := appConfigs[i]
 				launch(app)
 			}
 			appsMenuItems = append(appsMenuItems, menuItem)

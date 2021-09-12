@@ -106,7 +106,7 @@ func loadApps() {
 
 	Apps.OnConfigChange(func(_ fsnotify.Event) {
 		log.Printf("config: %s.yaml modified\n", appsFilename)
-		appsObservable.Set(Apps)
+		ReloadApps()
 	})
 	Apps.WatchConfig()
 
