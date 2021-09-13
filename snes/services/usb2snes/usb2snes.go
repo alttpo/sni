@@ -313,8 +313,11 @@ serverLoop:
 				break serverLoop
 			}
 
-			// TODO:
-			results.Results = []string{"1.9.0-usb-v9", "SD2SNES", "No Info"}
+			// results.Results = []string{"1.9.0-usb-v9", "SD2SNES", "No Info"}
+
+			var fields []string
+			fields, err = device.FetchFields(context.Background(), snes.Field_DeviceVersion, snes.Field_DeviceName, snes.Field_RomFileName)
+			results.Results = []string{fields[0], fields[1], fields[2]}
 
 			if !replyJson() {
 				break serverLoop

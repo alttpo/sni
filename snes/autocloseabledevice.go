@@ -16,6 +16,7 @@ type AutoCloseableDevice interface {
 	DeviceControl
 	DeviceMemory
 	DeviceFilesystem
+	DeviceInfo
 }
 
 type autoCloseableDevice struct {
@@ -121,6 +122,18 @@ func (a *autoCloseableDevice) MultiReadMemory(ctx context.Context, reads ...Memo
 func (a *autoCloseableDevice) MultiWriteMemory(ctx context.Context, writes ...MemoryWriteRequest) (rsp []MemoryWriteResponse, err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
 		rsp, err = device.MultiWriteMemory(ctx, writes...)
+		return
+	})
+	return
+}
+
+func (a *autoCloseableDevice) FetchFields(ctx context.Context, fields ...Field) (values []string, err error) {
+	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		inf, ok := device.(DeviceInfo)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceInfo not implemented"))
+		}
+		values, err = inf.FetchFields(ctx, fields...)
 		return
 	})
 	return
