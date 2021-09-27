@@ -317,7 +317,11 @@ serverLoop:
 
 			var fields []string
 			fields, err = device.FetchFields(context.Background(), snes.Field_DeviceVersion, snes.Field_DeviceName, snes.Field_RomFileName)
-			results.Results = []string{fields[0], fields[1], fields[2]}
+			if err != nil {
+				log.Printf("usb2snes: %s: %s error: %v\n", clientName, cmd.Opcode, err)
+			} else {
+				results.Results = []string{fields[0], fields[1], fields[2]}
+			}
 
 			if !replyJson() {
 				break serverLoop
