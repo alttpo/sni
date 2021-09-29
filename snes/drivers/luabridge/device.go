@@ -1,6 +1,7 @@
 package luabridge
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -116,6 +117,25 @@ func (d *Device) CheckVersion() (err error) {
 		d.host = ""
 		d.isBizHawk = false
 	}
+	return
+}
+
+func (d *Device) FetchFields(ctx context.Context, fields ...snes.Field) (values []string, err error) {
+	for _, field := range fields {
+		switch field {
+		case snes.Field_DeviceName:
+			values = append(values, d.clientName + "|" + d.host)
+			break
+		case snes.Field_DeviceVersion:
+			values = append(values, d.version)
+			break
+		default:
+			// unknown value; append empty string to maintain index association:
+			values = append(values, "")
+			break
+		}
+	}
+
 	return
 }
 
