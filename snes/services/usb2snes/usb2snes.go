@@ -313,12 +313,11 @@ serverLoop:
 				break serverLoop
 			}
 
-			// results.Results = []string{"1.9.0-usb-v9", "SD2SNES", "No Info"}
-
 			var fields []string
 			fields, err = device.FetchFields(context.Background(), snes.Field_DeviceVersion, snes.Field_DeviceName, snes.Field_RomFileName)
 			if err != nil {
-				log.Printf("usb2snes: %s: %s error: %v\n", clientName, cmd.Opcode, err)
+				log.Printf("usb2snes: %s: %s error: %v; falling back to default Info values\n", clientName, cmd.Opcode, err)
+				results.Results = []string{"1.9.0-usb-v9", "SD2SNES", "No Info"}
 			} else {
 				results.Results = []string{fields[0], fields[1], fields[2]}
 			}
