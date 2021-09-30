@@ -13,6 +13,7 @@ import (
 	"sni/snes"
 	"sni/snes/mapping"
 	"sni/udpclient"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -129,7 +130,7 @@ func (c *RAClient) DetermineVersion() (err error) {
 	if logDetector {
 		log.Printf("retroarch: < %s", rsp)
 	}
-	c.version = string(rsp)
+	c.version = strings.TrimSpace(string(rsp))
 
 	// parse the version string:
 	var n int
@@ -167,6 +168,110 @@ func (c *RAClient) DetermineVersion() (err error) {
 	}
 
 	// 1.9.1+
+	return
+}
+
+func (d *RAClient) GetStatus(ctx context.Context) (raStatus, coreName, romFileName string, romCRC32 uint32, err error) {
+	// v1.9.2:
+	//GET_STATUS
+	//GET_STATUS CONTENTLESS
+	//GET_STATUS
+	//GET_STATUS PLAYING bsnes-mercury,o2-lttphack-emu-13.6.0,crc32=dae58be6
+	//GET_STATUS
+	//GET_STATUS PAUSED bsnes-mercury,o2-lttphack-emu-13.6.0,crc32=dae58be6
+
+	// v1.9.0:
+	//GET_STATUS
+	//GET_STATUS PLAYING super_nes,o2-lttphack-emu-13.6.0,crc32=dae58be6
+
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(d.readWriteTimeout)
+	}
+
+	var rsp []byte
+	req := []byte("GET_STATUS\n")
+	if config.VerboseLogging {
+		log.Printf("retroarch: > %s", req)
+	}
+	rsp, err = d.WriteThenRead(req, deadline)
+	if err != nil {
+		return
+	}
+	if config.VerboseLogging {
+		log.Printf("retroarch: < %s", rsp)
+	}
+
+	// parse the response:
+	var args string
+	_, err = fmt.Fscanf(bytes.NewReader(rsp), "GET_STATUS %s %s", &raStatus, &args)
+	if err != nil {
+		return
+	}
+
+	// split the second arg by commas:
+	argsArr := strings.Split(args, ",")
+	if len(argsArr) >= 1 {
+		coreName = argsArr[0]
+	}
+	if len(argsArr) >= 2 {
+		romFileName = argsArr[1]
+	}
+	if len(argsArr) >= 3 {
+		// e.g. "crc32=dae58be6"
+		crc32 := argsArr[2]
+		if strings.HasPrefix(crc32, "crc32=") {
+			crc32 = crc32[len("crc32="):]
+
+			var crc32_u64 uint64
+			crc32_u64, err = strconv.ParseUint(crc32, 16, 32)
+			if err == nil {
+				romCRC32 = uint32(crc32_u64)
+			}
+		}
+	}
+
+	return
+}
+
+func (d *RAClient) FetchFields(ctx context.Context, fields ...snes.Field) (values []string, err error) {
+	var raStatus string
+	var coreName string
+	var romFileName string
+	var romCRC32 uint32
+
+	raStatus, coreName, romFileName, romCRC32, err = d.GetStatus(ctx)
+	if err != nil {
+		return
+	}
+
+	for _, field := range fields {
+		switch field {
+		case snes.Field_DeviceName:
+			values = append(values, "retroarch")
+			break
+		case snes.Field_DeviceVersion:
+			values = append(values, d.version)
+			break
+		case snes.Field_DeviceStatus:
+			values = append(values, raStatus)
+			break
+		case snes.Field_CoreName:
+			values = append(values, coreName)
+			break
+		case snes.Field_RomFileName:
+			values = append(values, romFileName)
+			break
+		case snes.Field_RomCRC32:
+			values = append(values, strconv.FormatUint(uint64(romCRC32), 16))
+			break
+		default:
+			// unknown value; append empty string to maintain index association:
+			values = append(values, "")
+			break
+		}
+	}
+
 	return
 }
 
@@ -479,7 +584,7 @@ func (c *RAClient) handleIncoming() {
 		}
 
 		if config.VerboseLogging {
-			log.Printf("retroarch: < %s\n", rsp)
+			log.Printf("retroarch: < %s", rsp)
 		}
 
 		err = c.parseCommandResponse(rsp, rwreq)
