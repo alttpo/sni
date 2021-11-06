@@ -17,7 +17,7 @@ func TestPakAddressToBus(t *testing.T) {
 			args: args{
 				pakAddr: 0x007FC0,
 			},
-			want: 0x00FFC0,
+			want: 0xC07FC0,
 		},
 		{
 			name: "ROM header bank $40",
@@ -46,7 +46,7 @@ func TestPakAddressToBus(t *testing.T) {
 			args: args{
 				pakAddr: 0x1FFFFF,
 			},
-			want: 0x3FFFFF,
+			want: 0xDFFFFF,
 		},
 		// ROM first page:
 		{
@@ -54,28 +54,28 @@ func TestPakAddressToBus(t *testing.T) {
 			args: args{
 				pakAddr: 0x000000,
 			},
-			want: 0x008000,
+			want: 0xC00000,
 		},
 		{
 			name: "ROM first page last byte bank $00",
 			args: args{
 				pakAddr: 0x007FFF,
 			},
-			want: 0x00FFFF,
+			want: 0xC07FFF,
 		},
 		{
 			name: "ROM second page last byte bank $00",
 			args: args{
 				pakAddr: 0x00FFFF,
 			},
-			want: 0x01FFFF,
+			want: 0xC0FFFF,
 		},
 		{
 			name: "ROM last page last byte bank $00",
 			args: args{
-				pakAddr: 0x1FFFFF,
+				pakAddr: 0x5FFFFF,
 			},
-			want: 0x3FFFFF,
+			want: 0xDFFFFF,
 		},
 		{
 			name: "ROM first page bank $20",

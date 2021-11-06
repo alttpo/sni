@@ -94,21 +94,14 @@ func PakAddressToBus(pakAddr uint32) (busAddr uint32, err error) {
 		bank := (busAddr >> 13) & 0x1F
 		busAddr = ((0xA0 + bank) << 16) + (offs + 0x6000)
 		return
-	} else if pakAddr >= 0x200000 && pakAddr < 0xE00000 {
+	} else if pakAddr < 0xE00000 {
+		// ROM access:
+		// HiROM is limited to $40 full banks
+
 		busAddr = pakAddr & 0x3FFFFF
 		// Accessing memory in banks $80-$FF is done at 3.58 MHz (120 ns) if the value at address $420D (hardware register) is set to 1.
 		// Starting at $C0 gets us the full linear mapping of ROM without having to cut up in $8000 sized chunks:
 		busAddr = 0xC00000 + busAddr
-		return
-	} else if pakAddr < 0x200000 {
-		// ROM access:
-		// HiROM is limited to $40 full banks
-
-		// use SlowROM banks $00-$3F:
-		busAddr = pakAddr & 0x3FFFFF
-		offs := busAddr & 0x7FFF
-		bank := busAddr >> 15
-		busAddr = ((0x00 + bank) << 16) + (offs | 0x8000)
 		return
 	}
 	return 0, util.ErrUnmappedAddress
