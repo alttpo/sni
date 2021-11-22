@@ -91,6 +91,8 @@ jobs:
           cp protos/sni/sni.proto ${{env.basename}}
           cp cmd/sni/apps.yaml ${{env.basename}}
           cp lua/Connector.lua ${{env.basename}}
+          cp lua/socket.dll ${{env.basename}}
+          cp lua/luasocket.LICENSE.txt ${{env.basename}}
 
       - run: >
           go build
