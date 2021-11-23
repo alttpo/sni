@@ -86,13 +86,20 @@ jobs:
 
       - run: |
           mkdir ${{env.basename}}
+          mkdir ${{env.basename}}/lua
+          mkdir ${{env.basename}}/lua/x64
+          mkdir ${{env.basename}}/lua/x86
           cp README.md ${{env.basename}}
           cp LICENSE ${{env.basename}}
           cp protos/sni/sni.proto ${{env.basename}}
           cp cmd/sni/apps.yaml ${{env.basename}}
-          cp lua/Connector.lua ${{env.basename}}
-          cp lua/socket.dll ${{env.basename}}
-          cp lua/luasocket.LICENSE.txt ${{env.basename}}
+          cp lua/Connector.lua ${{env.basename}}/lua
+
+      - name: Copy in lua socket.dll dependencies for Windows
+        if: ${{ matrix.goos == 'windows' }}
+        run: |
+          cp lua/x64/* ${{env.basename}}/lua/x64
+          cp lua/x86/* ${{env.basename}}/lua/x86
 
       - run: >
           go build
