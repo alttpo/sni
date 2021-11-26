@@ -281,13 +281,13 @@ func (d *Device) MultiWriteMemory(
 			)
 		}
 
-		// await 10 frames max for NMI EXE:
-		const timeout = timing.Frame * 10
+		// await 5 seconds in game-frames for NMI EXE:
+		const timeout = timing.Frame * 60 * 5
+		deadline := time.Now().Add(timeout)
 
 		// VGET to await NMI EXE availability:
 		{
 			var ok bool
-			deadline := time.Now().Add(timeout)
 			ok, err = d.awaitNMIEXE(subctx, deadline)
 			if err != nil {
 				return
@@ -307,7 +307,7 @@ func (d *Device) MultiWriteMemory(
 		// await NMI EXE availability to validate the write was completed:
 		{
 			var ok bool
-			deadline := time.Now().Add(timeout)
+			deadline.Add(time.Second)
 			ok, err = d.awaitNMIEXE(subctx, deadline)
 			if err != nil {
 				return
