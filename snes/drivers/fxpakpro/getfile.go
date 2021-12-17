@@ -63,7 +63,7 @@ func (d *Device) getFile(ctx context.Context, path string, w io.Writer, sizeRece
 	}
 
 	// read all remaining bytes in chunks of 512 bytes:
-	received, err = recvSerialProgress(d.f, w, size, 512, progress)
+	received, err = recvSerialProgress(ctx, d.f, w, size, 512, progress)
 	if err != nil {
 		err = d.FatalError(err)
 		return

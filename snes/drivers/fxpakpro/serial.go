@@ -7,29 +7,10 @@ import (
 	"go.bug.st/serial"
 	"io"
 	"sni/snes"
-	"sni/snes/timing"
 	"time"
 )
 
-const safeTimeout = timing.Frame * 16
-
-func readExact(r io.Reader, chunkSize int, buf []byte) (err error) {
-	p := 0
-	for p < chunkSize {
-		var n int
-		n, err = r.Read(buf[p:chunkSize])
-		if err != nil {
-			return
-		}
-		if n <= 0 {
-			err = fmt.Errorf("readExact: read returned %d", n)
-			return
-		}
-		p += n
-	}
-
-	return
-}
+const safeTimeout = time.Second * 15
 
 func sendSerial(f serial.Port, chunkSize int, buf []byte) (err error) {
 	_, err = sendSerialProgress(f, chunkSize, uint32(len(buf)), bytes.NewReader(buf), nil)
@@ -87,17 +68,44 @@ func sendSerialProgress(f serial.Port, chunkSize int, size uint32, r io.Reader, 
 	return
 }
 
-func recvSerial(ctx context.Context, f serial.Port, rsp []byte, expected int) (err error) {
-	var timeout time.Duration = serial.NoTimeout
-	if deadline, ok := ctx.Deadline(); ok {
-		timeout = deadline.Sub(time.Now())
-	}
-	err = f.SetReadTimeout(timeout)
-	if err != nil {
-		return
+func readExact(ctx context.Context, f serial.Port, chunkSize int, buf []byte) (err error) {
+	// determine a deadline from context or default:
+	var ok bool
+	var deadline time.Time
+	if deadline, ok = ctx.Deadline(); !ok {
+		deadline = time.Now().Add(safeTimeout)
 	}
 
-	err = readExact(f, expected, rsp)
+	p := 0
+	for p < chunkSize {
+		timeout := deadline.Sub(time.Now())
+		if timeout < 0 {
+			// deadline already exceeded so cause Read() to fail instantly:
+			timeout = 0
+		}
+		err = f.SetReadTimeout(timeout)
+		if err != nil {
+			err = fmt.Errorf("readExact: setReadTimeout returned %w", err)
+			return
+		}
+
+		var n int
+		n, err = f.Read(buf[p:chunkSize])
+		if err != nil {
+			return
+		}
+		if n <= 0 {
+			err = fmt.Errorf("readExact: read returned %d", n)
+			return
+		}
+		p += n
+	}
+
+	return
+}
+
+func recvSerial(ctx context.Context, f serial.Port, rsp []byte, expected int) (err error) {
+	err = readExact(ctx, f, expected, rsp)
 	if err != nil {
 		err = fmt.Errorf("recvSerial: %w", err)
 		return
@@ -105,7 +113,7 @@ func recvSerial(ctx context.Context, f serial.Port, rsp []byte, expected int) (e
 	return
 }
 
-func recvSerialProgress(f serial.Port, w io.Writer, size uint32, chunkSize int, progress snes.ProgressReportFunc) (received uint32, err error) {
+func recvSerialProgress(ctx context.Context, f serial.Port, w io.Writer, size uint32, chunkSize int, progress snes.ProgressReportFunc) (received uint32, err error) {
 	buf := make([]byte, chunkSize)
 
 	received = uint32(0)
@@ -114,13 +122,7 @@ func recvSerialProgress(f serial.Port, w io.Writer, size uint32, chunkSize int, 
 			progress(received, size)
 		}
 
-		err = f.SetReadTimeout(safeTimeout)
-		if err != nil {
-			err = fmt.Errorf("recvSerialProgress: %w", err)
-			return
-		}
-
-		err = readExact(f, chunkSize, buf)
+		err = readExact(ctx, f, chunkSize, buf)
 		if err != nil {
 			err = fmt.Errorf("recvSerialProgress: %w", err)
 			return

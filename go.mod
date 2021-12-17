@@ -10,8 +10,7 @@ require (
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.0.4
 	github.com/spf13/viper v1.8.1
-	go.bug.st/serial v1.3.0
-	golang.org/x/sys v0.0.0-20210603125802-9665404d3644 // indirect
+	go.bug.st/serial v1.3.3
 	google.golang.org/grpc v1.38.0
 	google.golang.org/protobuf v1.26.0
 )
@@ -19,3 +18,5 @@ require (
 replace github.com/getlantern/systray => github.com/alttpo/systray v1.3.0
 
 //replace github.com/getlantern/systray => ../systray
+
+//replace go.bug.st/serial => ../go-serial
