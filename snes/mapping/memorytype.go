@@ -52,14 +52,14 @@ func MemoryTypeForPakAddress(pakAddress uint32) (memoryType MemoryType, offset u
 	if pakAddress < 0xE0_0000 {
 		memoryType, offset = MemoryTypeROM, pakAddress
 	} else if pakAddress < 0xF0_0000 {
-		memoryType, offset = MemoryTypeSRAM, pakAddress - 0xE0_0000
+		memoryType, offset = MemoryTypeSRAM, pakAddress-0xE0_0000
 	} else if pakAddress < 0xF5_0000 {
-		memoryType, offset = MemoryTypeUnknown, pakAddress - 0xF0_0000
+		memoryType, offset = MemoryTypeUnknown, pakAddress-0xF0_0000
 	} else if pakAddress < 0xF7_0000 {
-		memoryType, offset = MemoryTypeWRAM, pakAddress - 0xF5_0000
+		memoryType, offset = MemoryTypeWRAM, pakAddress-0xF5_0000
 	} else {
 		// TODO: VRAM, APU, CGRAM, OAM, MISC, PPUREG, CPUREG, etc.
-		memoryType, offset = MemoryTypeUnknown, pakAddress - 0xF7_0000
+		memoryType, offset = MemoryTypeUnknown, pakAddress-0xF7_0000
 	}
 	return
 }

@@ -20,7 +20,9 @@ const (
 	spaceCMD  subspace = 1
 )
 
-func (d *Device) DefaultAddressSpace(context.Context) (sni.AddressSpace, error) { return defaultAddressSpace, nil }
+func (d *Device) DefaultAddressSpace(context.Context) (sni.AddressSpace, error) {
+	return defaultAddressSpace, nil
+}
 
 func (d *Device) MultiReadMemory(
 	ctx context.Context,

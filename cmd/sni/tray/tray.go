@@ -185,8 +185,6 @@ func trayStart() {
 		})
 	}
 
-
-
 	appsReload.ClickedFunc = func(item *systray.MenuItem) {
 		config.ReloadApps()
 	}

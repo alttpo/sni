@@ -124,7 +124,7 @@ func (d *Device) FetchFields(ctx context.Context, fields ...snes.Field) (values 
 	for _, field := range fields {
 		switch field {
 		case snes.Field_DeviceName:
-			values = append(values, d.clientName + "|" + d.host)
+			values = append(values, d.clientName+"|"+d.host)
 			break
 		case snes.Field_DeviceVersion:
 			values = append(values, d.version)

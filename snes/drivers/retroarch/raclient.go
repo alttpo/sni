@@ -294,7 +294,9 @@ func (c *RAClient) writeCommand() string {
 	}
 }
 
-func (c *RAClient) DefaultAddressSpace(context.Context) (sni.AddressSpace, error) { return defaultAddressSpace, nil }
+func (c *RAClient) DefaultAddressSpace(context.Context) (sni.AddressSpace, error) {
+	return defaultAddressSpace, nil
+}
 
 func (c *RAClient) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRequest) (mrsp []snes.MemoryReadResponse, err error) {
 	deadline, ok := ctx.Deadline()
