@@ -46,17 +46,21 @@ func sendSerialProgress(f serial.Port, chunkSize int, size uint32, r io.Reader, 
 		}
 
 		// write to serial port in chunkSize bytes every time:
-		var nw int
-		nw, err = f.Write(buf)
-		if err != nil {
-			return
-		}
-		if nw != nr {
-			err = fmt.Errorf("sendSerialProgress: read %d bytes but only write %d to serial port", nr, nw)
-			return
+		written := 0
+		for written < nr {
+			var nw int
+			nw, err = f.Write(buf[written:])
+			if err != nil {
+				return
+			}
+			if nw <= 0 {
+				err = fmt.Errorf("sendSerialProgress: write() returned %d", nw)
+				return
+			}
+			written += nw
 		}
 
-		sent += uint32(nw)
+		sent += uint32(written)
 	}
 	if sent > size {
 		sent = size
