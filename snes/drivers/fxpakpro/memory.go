@@ -284,14 +284,15 @@ func (d *Device) MultiWriteMemory(
 		}
 
 		// await 5 seconds in game-frames for NMI EXE:
-		const timeout = timing.Frame * 60 * 5
-		deadline := time.Now().Add(timeout)
+		awaitctx, awaitcancel := context.WithTimeout(subctx, timing.Frame*60*5)
+		defer awaitcancel()
 
 		// VGET to await NMI EXE availability:
 		{
 			var ok bool
-			ok, err = d.awaitNMIEXE(subctx, deadline)
+			ok, err = d.awaitNMIEXE(awaitctx)
 			if err != nil {
+				err = fmt.Errorf("fxpakpro: could not acquire NMI EXE pre-write: %w", err)
 				return
 			}
 			if !ok {
@@ -301,17 +302,18 @@ func (d *Device) MultiWriteMemory(
 		}
 
 		// VPUT command to CMD space:
-		err = d.vput(subctx, SpaceCMD, chunks...)
+		err = d.vput(awaitctx, SpaceCMD, chunks...)
 		if err != nil {
+			err = fmt.Errorf("fxpakpro: could not VPUT to NMI EXE: %w", err)
 			return
 		}
 
 		// await NMI EXE availability to validate the write was completed:
 		{
 			var ok bool
-			deadline.Add(time.Second)
-			ok, err = d.awaitNMIEXE(subctx, deadline)
+			ok, err = d.awaitNMIEXE(awaitctx)
 			if err != nil {
+				err = fmt.Errorf("fxpakpro: could not acquire NMI EXE post-write: %w", err)
 				return
 			}
 			if !ok {
@@ -324,19 +326,29 @@ func (d *Device) MultiWriteMemory(
 	return
 }
 
-func (d *Device) awaitNMIEXE(ctx context.Context, deadline time.Time) (ok bool, err error) {
+func (d *Device) awaitNMIEXE(ctx context.Context) (ok bool, err error) {
 	check := make([]byte, 1)
+
+	deadline, hasDeadline := ctx.Deadline()
+	if !hasDeadline {
+		deadline = time.Now().Add(time.Second * 5)
+	}
+
 	for time.Now().Before(deadline) {
-		err = d.vget(ctx, SpaceCMD, vgetChunk{addr: 0x2C00, size: 1, target: check})
+		tmpctx, tmpcancel := context.WithTimeout(ctx, time.Second)
+		err = d.vget(tmpctx, SpaceCMD, vgetChunk{addr: 0x2C00, size: 1, target: check})
+		tmpcancel()
 		if err != nil {
 			return
 		}
 		if check[0] == 0 {
 			ok = true
-			break
+			err = nil
+			return
 		}
 	}
 
+	err = context.DeadlineExceeded
 	return
 }
 
