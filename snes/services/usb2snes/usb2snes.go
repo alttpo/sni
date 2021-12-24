@@ -19,6 +19,7 @@ import (
 	"sni/snes/mapping"
 	"sni/util"
 	"sni/util/env"
+	"sni/util/hex"
 	"strconv"
 	"strings"
 	"time"
@@ -408,7 +409,24 @@ serverLoop:
 				}
 			}
 			if config.VerboseLogging {
-				log.Printf("usb2snes: %s: %s REPLY\n", clientName, cmd.Opcode)
+				rspStr := "REPLY"
+				if config.LogResponses {
+					sb := strings.Builder{}
+					ind := util.NewIndenter(&sb, []byte("  "), 0)
+					_, _ = ind.WriteString("REPLY [\n")
+					ind.IndentBy(1)
+					for _, r := range rsps {
+						_, _ = fmt.Fprintf(ind, "{request:%s,device:%s,length:0x%x}\n", r.RequestAddress.String(), r.DeviceAddress.String(), len(r.Data))
+						hd := hex.Dumper(ind, uint(r.DeviceAddress.Address))
+						_, _ = hd.Write(r.Data)
+						_ = hd.Close()
+					}
+					ind.UnindentBy(1)
+					_ = ind.WriteByte(']')
+					_ = ind.Close()
+					rspStr = sb.String()
+				}
+				log.Printf("usb2snes: %s: %s %s\n", clientName, cmd.Opcode, rspStr)
 			}
 
 			if err = wb.Flush(); err != nil {

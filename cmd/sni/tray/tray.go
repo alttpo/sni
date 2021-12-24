@@ -67,6 +67,7 @@ func trayStart() {
 	disconnectAll := systray.AddMenuItem("Disconnect SNES", "Disconnect from all connected SNES devices")
 	systray.AddSeparator()
 	toggleVerbose := systray.AddMenuItemCheckbox("Log all requests", "Enable logging of all incoming requests", config.VerboseLogging)
+	toggleLogResponses := systray.AddMenuItemCheckbox("Log all responses", "Enable logging of all outgoing response data", config.LogResponses)
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit", "Quit")
 
@@ -82,6 +83,13 @@ func trayStart() {
 			toggleVerbose.Check()
 		} else {
 			toggleVerbose.Uncheck()
+		}
+
+		config.LogResponses = v.GetBool("logResponses")
+		if config.LogResponses {
+			toggleLogResponses.Check()
+		} else {
+			toggleLogResponses.Uncheck()
 		}
 	}))
 
@@ -207,6 +215,19 @@ func trayStart() {
 		}
 		// update config file:
 		config.Config.Set("verboseLogging", config.VerboseLogging)
+		config.Save()
+	}
+	toggleLogResponses.ClickedFunc = func(item *systray.MenuItem) {
+		config.LogResponses = !config.LogResponses
+		if config.LogResponses {
+			log.Println("enable log responses")
+			toggleLogResponses.Check()
+		} else {
+			log.Println("disable log responses")
+			toggleLogResponses.Uncheck()
+		}
+		// update config file:
+		config.Config.Set("logResponses", config.LogResponses)
 		config.Save()
 	}
 

@@ -20,7 +20,12 @@ var (
 	AppsPath       string
 )
 
-var VerboseLogging bool = false
+// configuration state:
+
+var (
+	VerboseLogging bool = false
+	LogResponses   bool = true
+)
 
 var (
 	Config *viper.Viper = viper.New()
