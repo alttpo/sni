@@ -11,6 +11,7 @@ import (
 	"sni/snes/drivers/emunw"
 	"sni/snes/services/grpcimpl"
 	"sni/snes/services/usb2snes"
+	"sni/snes/services/webdav"
 )
 
 import _ "net/http/pprof"
@@ -68,6 +69,7 @@ func main() {
 	// start the servers:
 	grpcimpl.StartGrpcServer()
 	usb2snes.StartHttpServer()
+	webdav.StartHttpServer()
 
 	// start up a systray:
 	tray.CreateSystray()
