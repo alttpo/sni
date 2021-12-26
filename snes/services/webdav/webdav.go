@@ -37,7 +37,7 @@ func listenHttp(listenAddr string) {
 				log.Printf("%s %s: %v\n", req.Method, req.URL.String(), err)
 				return
 			}
-			log.Printf("%s %s\n", req.Method, req.URL.String())
+			log.Printf("%s %s {%+v}\n", req.Method, req.URL.String(), req.Header)
 		},
 	})
 
