@@ -39,10 +39,12 @@ jobs:
             goos: windows
             goarch: amd64
             exesuffix: .exe
+            ldflags: -H=windowsgui
           - os: windows-latest
             goos: windows
             goarch: "386"
             exesuffix: .exe
+            ldflags: -H=windowsgui
           - os: ubuntu-latest
             goos: linux
             goarch: amd64
@@ -106,7 +108,7 @@ jobs:
 
       - run: >
           go build
-          -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
+          -ldflags="${{ matrix.ldflags }} -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
           -o ./${{env.basename}}/sni${{matrix.exesuffix}}
           ./cmd/sni
 
