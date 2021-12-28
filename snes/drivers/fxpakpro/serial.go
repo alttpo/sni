@@ -33,6 +33,12 @@ func sendSerialProgress(f serial.Port, chunkSize int, size uint32, r io.Reader, 
 
 		var nr int
 		nr, err = r.Read(buf)
+		if err == io.EOF {
+			err = nil
+			if nr == 0 {
+				break
+			}
+		}
 		if err != nil {
 			err = fmt.Errorf("sendSerialProgress: read from io.Reader: %w", err)
 			return
