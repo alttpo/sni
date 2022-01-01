@@ -6,6 +6,9 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"path/filepath"
+	"sni/snes"
+	"strings"
 )
 
 // AdapterFileSystem adapts the underlying simplistic snes.DeviceFilesystem interface to the more flexible
@@ -40,8 +43,8 @@ func (a *AdapterFileSystem) OpenFile(ctx context.Context, name string, flag int,
 		return
 	} else {
 		// readable open:
-		var stat os.FileInfo
-		stat, err = a.Stat(ctx, name)
+		var stat *fileInfo
+		stat, err = a.stat(ctx, name)
 		if err != nil {
 			return
 		}
@@ -65,12 +68,33 @@ func (a *AdapterFileSystem) Rename(ctx context.Context, oldName, newName string)
 func (a *AdapterFileSystem) Stat(ctx context.Context, name string) (stat os.FileInfo, err error) {
 	log.Printf("stat(%#v)\n", name)
 
+	return a.stat(ctx, name)
+}
+
+func (a *AdapterFileSystem) stat(ctx context.Context, name string) (stat *fileInfo, err error) {
 	if name == "" {
+		// root of filesystem:
 		stat = &fileInfo{
-			name:  "",
-			isDir: true,
+			name:     "",
+			isDir:    true,
+			children: []fs.FileInfo{},
+		}
+		for _, drv := range snes.Drivers() {
+			stat.children = append(stat.children, &fileInfo{
+				name:     drv.Name,
+				isDir:    true,
+				children: nil,
+			})
 		}
 		return
+	}
+
+	// exclude MacOS Finder metadata files:
+	_, file := filepath.Split(name)
+	if strings.HasPrefix(file, "._") {
+		return nil, fs.ErrNotExist
+	} else if file == ".DS_Store" {
+		return nil, fs.ErrNotExist
 	}
 
 	return nil, fs.ErrNotExist

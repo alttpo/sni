@@ -45,7 +45,7 @@ func listenHttp(listenAddr string) {
 
 	mux := http.NewServeMux()
 	mux.Handle("/", &dav.Handler{
-		Prefix:     "/fxpakpro/0/",
+		Prefix:     "/",
 		FileSystem: adapterFileSystem,
 		LockSystem: dav.NewMemLS(),
 		Logger: func(req *http.Request, err error) {

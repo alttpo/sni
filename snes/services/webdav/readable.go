@@ -7,23 +7,25 @@ import (
 	"os"
 )
 
-var ErrSeekForbidden error = fmt.Errorf("seeking is forbidden")
+var ErrSeekForbidden = fmt.Errorf("seeking is forbidden")
 
 type readable struct {
 	a *AdapterFileSystem
 	//fs   snes.DeviceFilesystem
 
-	name string
-	stat os.FileInfo
-
+	name     string
+	stat     *fileInfo
 	children []fs.FileInfo
 }
 
-func NewReadable(a *AdapterFileSystem, name string, stat os.FileInfo) (f *readable) {
+func NewReadable(a *AdapterFileSystem, name string, stat *fileInfo) (f *readable) {
 	f = &readable{
 		a:    a,
 		name: name,
 		stat: stat,
+	}
+	if f.stat != nil {
+		f.children = f.stat.children
 	}
 	return
 }
@@ -47,8 +49,19 @@ func (f *readable) Seek(offset int64, whence int) (n int64, err error) {
 func (f *readable) Readdir(count int) (fis []fs.FileInfo, err error) {
 	log.Printf("%p.readdir(%#v)\n", f, count)
 
-	// TODO: Readdir is stateful and should page through the dir entries each call and then return EOF
-	return f.children[0:count], nil
+	// NOTE: Readdir is stateful and should page through the dir entries each call and then return EOF
+	if count <= 0 {
+		fis = f.children[:]
+		f.children = f.children[0:0]
+	} else {
+		if count >= len(f.children) {
+			count = len(f.children)
+		}
+		fis = f.children[0:count]
+		f.children = f.children[count:0]
+	}
+
+	return
 }
 
 func (f *readable) Stat() (fi fs.FileInfo, err error) {
