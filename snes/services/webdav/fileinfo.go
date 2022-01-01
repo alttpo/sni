@@ -11,31 +11,29 @@ type fileInfo struct {
 }
 
 func (f *fileInfo) Name() string {
-	//TODO implement me
-	panic("implement me")
+	return f.name
 }
 
 func (f *fileInfo) Size() int64 {
-	//TODO implement me
-	panic("implement me")
+	return 0
 }
 
-func (f *fileInfo) Mode() fs.FileMode {
-	//TODO implement me
-	panic("implement me")
+func (f *fileInfo) Mode() (mode fs.FileMode) {
+	mode = 0
+	if f.isDir {
+		mode |= fs.ModeDir
+	}
+	return
 }
 
 func (f *fileInfo) ModTime() time.Time {
-	//TODO implement me
-	panic("implement me")
+	return time.Time{}
 }
 
 func (f *fileInfo) IsDir() bool {
-	//TODO implement me
-	panic("implement me")
+	return f.isDir
 }
 
 func (f *fileInfo) Sys() interface{} {
-	//TODO implement me
-	panic("implement me")
+	return nil
 }

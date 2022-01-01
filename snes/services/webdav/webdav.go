@@ -27,10 +27,26 @@ func listenHttp(listenAddr string) {
 	var err error
 	var lis net.Listener
 
+	//var du *url.URL
+	//du, err = url.Parse("fxpakpro://./dev/cu.usbmodemDEMO000000001")
+	//if err != nil {
+	//	log.Println(err)
+	//}
+	//
+	//var dev snes.AutoCloseableDevice
+	//_, dev, err = snes.DeviceByUri(du)
+	//if err != nil {
+	//	log.Println(err)
+	//}
+
+	adapterFileSystem := &AdapterFileSystem{
+		//fs: dev,
+	}
+
 	mux := http.NewServeMux()
 	mux.Handle("/", &dav.Handler{
-		Prefix:     "/devices",
-		FileSystem: dav.NewMemFS(),
+		Prefix:     "/fxpakpro/0/",
+		FileSystem: adapterFileSystem,
 		LockSystem: dav.NewMemLS(),
 		Logger: func(req *http.Request, err error) {
 			if err != nil {
