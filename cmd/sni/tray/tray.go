@@ -13,26 +13,48 @@ import (
 	"sni/cmd/sni/logging"
 	"sni/snes"
 	"strings"
+	"sync"
 	"time"
 )
 
 const maxItems = 10
 
-var deviceMenuItems [maxItems]*systray.MenuItem
+var (
+	deviceMenuItemsMu sync.Mutex
+	deviceMenuItems   [maxItems]*systray.MenuItem
+	deviceDescriptors []snes.DeviceDescriptor
+)
 
 func UpdateDeviceList(descriptors []snes.DeviceDescriptor) {
-	n := len(descriptors)
+	deviceDescriptors = descriptors[:]
+
+	updateDeviceList()
+}
+
+func updateDeviceList() {
+	defer deviceMenuItemsMu.Unlock()
+	deviceMenuItemsMu.Lock()
+
+	n := len(deviceDescriptors)
 	if n > maxItems {
 		n = maxItems
 	}
 
-	for i, desc := range descriptors[0:n] {
+	for i, desc := range deviceDescriptors[0:n] {
+		if deviceMenuItems[i] == nil {
+			continue
+		}
+
 		deviceMenuItems[i].SetTitle(desc.DisplayName)
 		deviceMenuItems[i].SetTooltip(desc.Kind)
 		//deviceMenuItems[i].Check()
 		deviceMenuItems[i].Show()
 	}
 	for i := n; i < maxItems; i++ {
+		if deviceMenuItems[i] == nil {
+			continue
+		}
+
 		deviceMenuItems[i].Hide()
 	}
 }
@@ -101,6 +123,7 @@ func trayStart() {
 		deviceMenuItems[i] = devicesMenu.AddSubMenuItemCheckbox("_", "_", false)
 		deviceMenuItems[i].Hide()
 	}
+	updateDeviceList()
 
 	appsMenuItems := make([]*systray.MenuItem, 0, 10)
 	appConfigs := make([]*appConfig, 0, 10)
