@@ -6,9 +6,8 @@ import (
 )
 
 type fileInfo struct {
-	name     string
-	isDir    bool
-	children []fs.FileInfo
+	name  string
+	isDir bool
 }
 
 func (f *fileInfo) Name() string {
