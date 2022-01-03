@@ -7,8 +7,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sni/snes"
 	"strings"
+	"sync"
 )
 
 // AdapterFileSystem adapts the underlying simplistic snes.DeviceFilesystem interface to the more flexible
@@ -18,7 +18,10 @@ import (
 // must ensure that reading or writing is done sequentially and must not allow seeking after a read or write
 // has started.
 type AdapterFileSystem struct {
-	//fs snes.DeviceFilesystem
+	mu sync.Mutex
+
+	stats    map[string]*fileInfo
+	children map[string][]*fileInfo
 }
 
 func (a *AdapterFileSystem) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
@@ -75,16 +78,8 @@ func (a *AdapterFileSystem) stat(ctx context.Context, name string) (stat *fileIn
 	if name == "" {
 		// root of filesystem:
 		stat = &fileInfo{
-			name:     "",
-			isDir:    true,
-			children: []fs.FileInfo{},
-		}
-		for _, drv := range snes.Drivers() {
-			stat.children = append(stat.children, &fileInfo{
-				name:     drv.Name,
-				isDir:    true,
-				children: nil,
-			})
+			name:  "",
+			isDir: true,
 		}
 		return
 	}

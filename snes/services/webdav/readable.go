@@ -2,6 +2,7 @@ package webdav
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -23,9 +24,6 @@ func NewReadable(a *AdapterFileSystem, name string, stat *fileInfo) (f *readable
 		a:    a,
 		name: name,
 		stat: stat,
-	}
-	if f.stat != nil {
-		f.children = f.stat.children
 	}
 	return
 }
@@ -50,6 +48,16 @@ func (f *readable) Readdir(count int) (fis []fs.FileInfo, err error) {
 	log.Printf("%p.readdir(%#v)\n", f, count)
 
 	// NOTE: Readdir is stateful and should page through the dir entries each call and then return EOF
+	if f.children == nil {
+
+	}
+
+	if len(f.children) == 0 {
+		fis = f.children[0:0]
+		err = io.EOF
+		return
+	}
+
 	if count <= 0 {
 		fis = f.children[:]
 		f.children = f.children[0:0]
