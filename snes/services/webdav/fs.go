@@ -80,9 +80,11 @@ func (a *AdapterFileSystem) OpenFile(ctx context.Context, name string, flag int,
 		}
 
 		var children []fs.FileInfo
-		children, err = a.statChildren(ctx, name)
-		if err != nil {
-			return
+		if stat.IsDir() {
+			children, err = a.statChildren(ctx, name)
+			if err != nil {
+				return
+			}
 		}
 
 		f = NewReadable(a, name, stat, children)
