@@ -2,6 +2,7 @@ package webdav
 
 import (
 	"context"
+	"github.com/patrickmn/go-cache"
 	dav "golang.org/x/net/webdav"
 	"io/fs"
 	"log"
@@ -11,7 +12,7 @@ import (
 	"sni/snes"
 	"strconv"
 	"strings"
-	"sync"
+	"time"
 )
 
 // AdapterFileSystem adapts the underlying simplistic snes.DeviceFilesystem interface to the more flexible
@@ -21,19 +22,17 @@ import (
 // must ensure that reading or writing is done sequentially and must not allow seeking after a read or write
 // has started.
 type AdapterFileSystem struct {
-	mu sync.Mutex
-
-	stats    map[string]*fileInfo
-	children map[string][]fs.FileInfo
+	statsC    *cache.Cache
+	childrenC *cache.Cache
 
 	drivers map[string]snes.NamedDriver
 }
 
 func NewAdapterFileSystem() (a *AdapterFileSystem) {
 	a = &AdapterFileSystem{
-		stats:    make(map[string]*fileInfo),
-		children: make(map[string][]fs.FileInfo),
-		drivers:  make(map[string]snes.NamedDriver),
+		statsC:    cache.New(time.Second, time.Second*15),
+		childrenC: cache.New(time.Second, time.Second*15),
+		drivers:   make(map[string]snes.NamedDriver),
 	}
 
 	all := snes.Drivers()
@@ -48,6 +47,55 @@ func NewAdapterFileSystem() (a *AdapterFileSystem) {
 		a.drivers[key] = d
 	}
 
+	return
+}
+
+func (a *AdapterFileSystem) getStat(ctx context.Context, name string) (stat *fileInfo, err error) {
+	full, key := a.pathClean(name)
+
+	// attempt cache read:
+	o, ok := a.statsC.Get(key)
+	if ok {
+		// cache hit:
+		stat = o.(*fileInfo)
+		return
+	}
+
+	// compute result:
+	stat, err = a.stat(ctx, full)
+	if err != nil {
+		return
+	}
+
+	// cache result:
+	a.statsC.Set(key, stat, cache.DefaultExpiration)
+	return
+}
+
+func (a *AdapterFileSystem) getStatChildren(ctx context.Context, name string) (children []fs.FileInfo, err error) {
+	full, key := a.pathClean(name)
+
+	// attempt cache read:
+	o, ok := a.childrenC.Get(key)
+	if ok {
+		// cache hit:
+		children = o.([]fs.FileInfo)
+		return
+	}
+
+	// compute result:
+	children, err = a.statChildren(ctx, full)
+	if err != nil {
+		return
+	}
+
+	// cache result:
+	a.childrenC.Set(key, children, cache.DefaultExpiration)
+	for _, child := range children {
+		fullPath := path.Join(name, child.Name())
+		fullPathKey := strings.ToLower(fullPath)
+		a.statsC.Set(fullPathKey, child, cache.DefaultExpiration)
+	}
 	return
 }
 
@@ -75,14 +123,14 @@ func (a *AdapterFileSystem) OpenFile(ctx context.Context, name string, flag int,
 	} else {
 		// readable open:
 		var stat *fileInfo
-		stat, err = a.stat(ctx, name)
+		stat, err = a.getStat(ctx, name)
 		if err != nil {
 			return
 		}
 
 		var children []fs.FileInfo
 		if stat.IsDir() {
-			children, err = a.statChildren(ctx, name)
+			children, err = a.getStatChildren(ctx, name)
 			if err != nil {
 				return
 			}
@@ -106,24 +154,25 @@ func (a *AdapterFileSystem) Rename(ctx context.Context, oldName, newName string)
 func (a *AdapterFileSystem) Stat(ctx context.Context, name string) (stat os.FileInfo, err error) {
 	log.Printf("a.Stat(%#v)\n", name)
 
-	stat, err = a.stat(ctx, name)
-	return
+	return a.getStat(ctx, name)
 }
 
-func (a *AdapterFileSystem) pathParse(name string) (full, key, driverName, deviceName, remainder string) {
-	//defer func() {
-	//	log.Printf("a.pathParse(%#v) -> (%#v, %#v, %#v, %#v, %#v)\n", name, full, key, driverName, deviceName, remainder)
-	//}()
+type cleanedPath string
 
+func (a *AdapterFileSystem) pathClean(name string) (full cleanedPath, key string) {
 	// make sure we at least start with a /:
 	if name == "" {
 		name = "/"
 	}
 
-	full = path.Clean(name)
-	key = strings.ToLower(full)
+	full = cleanedPath(path.Clean(name))
+	key = strings.ToLower(string(full))
 
-	parts := strings.Split(full[1:], "/")
+	return
+}
+
+func (a *AdapterFileSystem) pathParse(full cleanedPath) (driverName, deviceName, remainder string) {
+	parts := strings.Split(string(full)[1:], "/")
 	if len(parts) >= 1 {
 		driverName = parts[0]
 	}
@@ -137,24 +186,13 @@ func (a *AdapterFileSystem) pathParse(name string) (full, key, driverName, devic
 	return
 }
 
-func (a *AdapterFileSystem) statChildren(ctx context.Context, name string) (children []fs.FileInfo, err error) {
-	log.Printf("a.statChildren(%#v) {\n", name)
+func (a *AdapterFileSystem) statChildren(ctx context.Context, full cleanedPath) (children []fs.FileInfo, err error) {
+	log.Printf("a.statChildren(%#v) {\n", full)
 	defer func() {
-		log.Printf("a.statChildren(%#v) } -> (%#v, %#v)\n", name, children, err)
+		log.Printf("a.statChildren(%#v) } -> (%#v, %#v)\n", full, children, err)
 	}()
-	defer a.mu.Unlock()
-	a.mu.Lock()
 
-	full, key, driverName, deviceName, remainder := a.pathParse(name)
-	_ = full
-	_ = remainder
-
-	var ok bool
-	children, ok = a.children[key]
-	if ok {
-		delete(a.children, key)
-		return
-	}
+	driverName, deviceName, remainder := a.pathParse(full)
 
 	if driverName == "" {
 		// root filesystem:
@@ -164,10 +202,8 @@ func (a *AdapterFileSystem) statChildren(ctx context.Context, name string) (chil
 				name:  d.Name,
 				isDir: true,
 			}
-			a.stats[fi.name] = fi
 			children = append(children, fi)
 		}
-		a.children[""] = children
 		return
 	}
 
@@ -233,28 +269,16 @@ func (a *AdapterFileSystem) statChildren(ctx context.Context, name string) (chil
 		})
 	}
 
-	a.children[key] = children
 	return
 }
 
-func (a *AdapterFileSystem) stat(ctx context.Context, name string) (stat *fileInfo, err error) {
-	log.Printf("a.stat(%#v) {\n", name)
+func (a *AdapterFileSystem) stat(ctx context.Context, full cleanedPath) (stat *fileInfo, err error) {
+	log.Printf("a.stat(%#v) {\n", full)
 	defer func() {
-		log.Printf("a.stat(%#v) } -> (%#v, %#v)\n", name, stat, err)
+		log.Printf("a.stat(%#v) } -> (%#v, %#v)\n", full, stat, err)
 	}()
-	defer a.mu.Unlock()
-	a.mu.Lock()
 
-	full, key, driverName, deviceName, remainder := a.pathParse(name)
-	_ = full
-	_ = remainder
-
-	var ok bool
-	stat, ok = a.stats[key]
-	if ok {
-		delete(a.stats, key)
-		return
-	}
+	driverName, deviceName, remainder := a.pathParse(full)
 
 	if driverName == "" {
 		// root of filesystem:
@@ -262,7 +286,6 @@ func (a *AdapterFileSystem) stat(ctx context.Context, name string) (stat *fileIn
 			name:  "",
 			isDir: true,
 		}
-		a.stats[""] = stat
 		return
 	}
 
@@ -311,14 +334,8 @@ func (a *AdapterFileSystem) stat(ctx context.Context, name string) (stat *fileIn
 		return
 	}
 
-	var device snes.AutoCloseableDevice
-	_, device, err = snes.DeviceByUri(&deviceDesc.Uri)
-	if err != nil {
-		return
-	}
-
 	// list from parent directory to find file:
-	parent, file := path.Split(remainder)
+	parent, file := path.Split(string(full))
 	if len(file) == 0 {
 		err = fs.ErrNotExist
 		return
@@ -328,21 +345,17 @@ func (a *AdapterFileSystem) stat(ctx context.Context, name string) (stat *fileIn
 		parent = parent[:len(parent)-1]
 	}
 
-	// return actual files on the device:
-	var entries []snes.DirEntry
-	entries, err = device.ReadDirectory(ctx, parent)
-	log.Printf("device.ReadDirectory(%#v) -> (%#v, %#v)\n", parent, entries, err)
+	// look up parent directory listing to verify filename:
+	var children []fs.FileInfo
+	children, err = a.getStatChildren(ctx, parent)
 	if err != nil {
 		return
 	}
 
-	for _, e := range entries {
+	for _, e := range children {
 		// found our file?
-		if strings.EqualFold(e.Name, file) {
-			stat = &fileInfo{
-				name:  e.Name,
-				isDir: e.Type == sni.DirEntryType_Directory,
-			}
+		if strings.EqualFold(e.Name(), file) {
+			stat = e.(*fileInfo)
 			return
 		}
 	}
