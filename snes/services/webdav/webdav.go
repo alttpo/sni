@@ -39,13 +39,11 @@ func listenHttp(listenAddr string) {
 	//	log.Println(err)
 	//}
 
-	adapterFileSystem := &AdapterFileSystem{
-		//fs: dev,
-	}
+	adapterFileSystem := NewAdapterFileSystem()
 
 	mux := http.NewServeMux()
 	mux.Handle("/", &dav.Handler{
-		Prefix:     "/",
+		Prefix:     "",
 		FileSystem: adapterFileSystem,
 		LockSystem: dav.NewMemLS(),
 		Logger: func(req *http.Request, err error) {
