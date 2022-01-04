@@ -41,7 +41,7 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEn
 
 	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
 		_ = d.Close()
-		files, err = nil, fmt.Errorf("mkdir: fxpakpro response packet does not contain USBA header")
+		files, err = nil, fmt.Errorf("ls: fxpakpro response packet does not contain USBA header")
 		err = d.FatalError(err)
 		return
 	}
@@ -60,7 +60,7 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEn
 		return
 	}
 	if ec := sb[5]; ec != 0 {
-		files, err = nil, fmt.Errorf("ls: %w", fxpakproError(ec))
+		files, err = nil, fmt.Errorf("ls: failed to list for path %#v: %w", path, fxpakproError(ec))
 		err = d.NonFatalError(err)
 		return
 	}
