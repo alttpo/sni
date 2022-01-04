@@ -9,6 +9,7 @@ require (
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.0.4
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/spf13/viper v1.8.1
 	go.bug.st/serial v1.3.3
 	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
