@@ -52,7 +52,7 @@ func NewAdapterFileSystem() (a *AdapterFileSystem) {
 }
 
 func (a *AdapterFileSystem) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
-	log.Printf("mkdir(%#v, %#v)\n", name, perm)
+	log.Printf("a.Mkdir(%#v, %#v)\n", name, perm)
 
 	_ = perm
 	//return a.fs.MakeDirectory(ctx, name)
@@ -60,8 +60,9 @@ func (a *AdapterFileSystem) Mkdir(ctx context.Context, name string, perm os.File
 }
 
 func (a *AdapterFileSystem) OpenFile(ctx context.Context, name string, flag int, perm os.FileMode) (f dav.File, err error) {
+	log.Printf("a.OpenFile(%#v, %#v, %#v) {\n", name, flag, perm)
 	defer func() {
-		log.Printf("%p = openFile(%#v, %#v, %#v)\n", f, name, flag, perm)
+		log.Printf("a.OpenFile(%#v, %#v, %#v) } -> (%#v, %#v)\n", name, flag, perm, f, err)
 	}()
 	if flag&os.O_RDWR != 0 {
 		// cannot open files in both read/write mode:
@@ -93,24 +94,27 @@ func (a *AdapterFileSystem) OpenFile(ctx context.Context, name string, flag int,
 }
 
 func (a *AdapterFileSystem) RemoveAll(ctx context.Context, name string) error {
-	log.Printf("removeAll(%#v)\n", name)
-	panic("implement me")
+	log.Printf("a.RemoveAll(%#v)\n", name)
+	return nil
 }
 
 func (a *AdapterFileSystem) Rename(ctx context.Context, oldName, newName string) error {
-	log.Printf("rename(%#v, %#v)\n", oldName, newName)
+	log.Printf("a.Rename(%#v, %#v)\n", oldName, newName)
 	return nil
-	//return a.fs.RenameFile(ctx, oldName, newName)
 }
 
 func (a *AdapterFileSystem) Stat(ctx context.Context, name string) (stat os.FileInfo, err error) {
-	log.Printf("stat(%#v)\n", name)
+	log.Printf("a.Stat(%#v)\n", name)
 
 	stat, err = a.stat(ctx, name)
 	return
 }
 
 func (a *AdapterFileSystem) pathParse(name string) (full, key, driverName, deviceName, remainder string) {
+	//defer func() {
+	//	log.Printf("a.pathParse(%#v) -> (%#v, %#v, %#v, %#v, %#v)\n", name, full, key, driverName, deviceName, remainder)
+	//}()
+
 	// make sure we at least start with a /:
 	if name == "" {
 		name = "/"
@@ -134,6 +138,10 @@ func (a *AdapterFileSystem) pathParse(name string) (full, key, driverName, devic
 }
 
 func (a *AdapterFileSystem) statChildren(ctx context.Context, name string) (children []fs.FileInfo, err error) {
+	log.Printf("a.statChildren(%#v) {\n", name)
+	defer func() {
+		log.Printf("a.statChildren(%#v) } -> (%#v, %#v)\n", name, children, err)
+	}()
 	defer a.mu.Unlock()
 	a.mu.Lock()
 
@@ -224,10 +232,16 @@ func (a *AdapterFileSystem) statChildren(ctx context.Context, name string) (chil
 			isDir: e.Type == sni.DirEntryType_Directory,
 		})
 	}
+
+	a.children[key] = children
 	return
 }
 
 func (a *AdapterFileSystem) stat(ctx context.Context, name string) (stat *fileInfo, err error) {
+	log.Printf("a.stat(%#v) {\n", name)
+	defer func() {
+		log.Printf("a.stat(%#v) } -> (%#v, %#v)\n", name, stat, err)
+	}()
 	defer a.mu.Unlock()
 	a.mu.Lock()
 
@@ -305,10 +319,19 @@ func (a *AdapterFileSystem) stat(ctx context.Context, name string) (stat *fileIn
 
 	// list from parent directory to find file:
 	parent, file := path.Split(remainder)
+	if len(file) == 0 {
+		err = fs.ErrNotExist
+		return
+	}
+	// remove trailing slash:
+	if len(parent) > 0 && parent[len(parent)-1] == '/' {
+		parent = parent[:len(parent)-1]
+	}
 
 	// return actual files on the device:
 	var entries []snes.DirEntry
 	entries, err = device.ReadDirectory(ctx, parent)
+	log.Printf("device.ReadDirectory(%#v) -> (%#v, %#v)\n", parent, entries, err)
 	if err != nil {
 		return
 	}
