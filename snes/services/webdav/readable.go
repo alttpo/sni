@@ -19,11 +19,12 @@ type readable struct {
 	children []fs.FileInfo
 }
 
-func NewReadable(a *AdapterFileSystem, name string, stat *fileInfo) (f *readable) {
+func NewReadable(a *AdapterFileSystem, name string, stat *fileInfo, children []fs.FileInfo) (f *readable) {
 	f = &readable{
-		a:    a,
-		name: name,
-		stat: stat,
+		a:        a,
+		name:     name,
+		stat:     stat,
+		children: children,
 	}
 	return
 }
@@ -48,10 +49,6 @@ func (f *readable) Readdir(count int) (fis []fs.FileInfo, err error) {
 	log.Printf("%p.readdir(%#v)\n", f, count)
 
 	// NOTE: Readdir is stateful and should page through the dir entries each call and then return EOF
-	if f.children == nil {
-
-	}
-
 	if len(f.children) == 0 {
 		fis = f.children[0:0]
 		err = io.EOF
