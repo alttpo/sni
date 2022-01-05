@@ -53,7 +53,6 @@ func (d *Device) info(ctx context.Context) (version, device, rom string, err err
 	err = sendSerial(d.f, 512, sb)
 	if err != nil {
 		err = d.FatalError(err)
-		_ = d.Close()
 		return
 	}
 
@@ -61,17 +60,14 @@ func (d *Device) info(ctx context.Context) (version, device, rom string, err err
 	err = recvSerial(ctx, d.f, sb, 512)
 	if err != nil {
 		err = d.FatalError(err)
-		_ = d.Close()
 		return
 	}
 	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
-		_ = d.Close()
 		err = fmt.Errorf("info: fxpakpro response packet does not contain USBA header")
 		err = d.FatalError(err)
 		return
 	}
 	if sb[4] != byte(OpRESPONSE) {
-		_ = d.Close()
 		err = fmt.Errorf("info: wrong opcode in response packet; got $%02x", sb[4])
 		err = d.FatalError(err)
 		return
