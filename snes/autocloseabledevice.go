@@ -17,6 +17,9 @@ type AutoCloseableDevice interface {
 	DeviceMemory
 	DeviceFilesystem
 	DeviceInfo
+
+	URI() *url.URL
+	DeviceKey() string
 }
 
 type autoCloseableDevice struct {
@@ -59,6 +62,14 @@ func (a *autoCloseableDevice) ensureOpened(ctx context.Context, use deviceUser) 
 		b.DeleteDevice(a.deviceKey)
 	}
 	return
+}
+
+func (a *autoCloseableDevice) URI() *url.URL {
+	return a.uri
+}
+
+func (a *autoCloseableDevice) DeviceKey() string {
+	return a.deviceKey
 }
 
 func (a *autoCloseableDevice) Close() error {

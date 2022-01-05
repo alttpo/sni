@@ -2,6 +2,7 @@ package snes
 
 import (
 	"fmt"
+	"log"
 	"net/url"
 	"sni/protos/sni"
 	"sync"
@@ -35,6 +36,10 @@ func NewDeviceDriverContainer(opener DeviceOpener) DeviceContainer {
 }
 
 func (b *deviceContainer) GetOrOpenDevice(deviceKey string, uri *url.URL) (device Device, err error) {
+	defer func() {
+		log.Printf("deviceContainer(%p).GetOrOpenDevice(%#v, %#v) -> (%#v, %#v)\n", b, deviceKey, uri, device, err)
+	}()
+
 	var ok bool
 	device, ok = b.GetDevice(deviceKey)
 	if !ok {
