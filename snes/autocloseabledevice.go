@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"google.golang.org/grpc/codes"
 	"io"
+	"log"
 	"net/url"
 	"sni/protos/sni"
 )
@@ -57,7 +58,16 @@ func (a *autoCloseableDevice) ensureOpened(ctx context.Context, use deviceUser) 
 
 	err = use(ctx, device)
 
-	// TODO: replace with errors.Is(err, snes.MustClose) check
+	// Check for fatal error and close device if so:
+	if derr, ok := err.(DeviceError); ok && derr.IsFatal() {
+		oerr := device.Close()
+		if oerr != nil {
+			log.Printf("autoCloseableDevice.ensureOpened(): device.Close(): %v\n", oerr)
+		}
+		b.DeleteDevice(a.deviceKey)
+		return
+	}
+
 	if device.IsClosed() {
 		b.DeleteDevice(a.deviceKey)
 	}
