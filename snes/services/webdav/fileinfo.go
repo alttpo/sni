@@ -8,6 +8,9 @@ import (
 type fileInfo struct {
 	name  string
 	isDir bool
+
+	driver    *driverDevices
+	deviceKey string
 }
 
 func (f *fileInfo) Name() string {

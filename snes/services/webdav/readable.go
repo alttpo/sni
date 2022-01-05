@@ -12,21 +12,10 @@ var ErrSeekForbidden = fmt.Errorf("seeking is forbidden")
 
 type readable struct {
 	a *AdapterFileSystem
-	//fs   snes.DeviceFilesystem
 
-	name     string
+	full     cleanedPath
 	stat     *fileInfo
 	children []fs.FileInfo
-}
-
-func NewReadable(a *AdapterFileSystem, name string, stat *fileInfo, children []fs.FileInfo) (f *readable) {
-	f = &readable{
-		a:        a,
-		name:     name,
-		stat:     stat,
-		children: children,
-	}
-	return
 }
 
 func (f *readable) Close() error {
