@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"path"
 	"sni/snes"
 )
 
@@ -37,6 +38,12 @@ func (f *writeable) Close() (err error) {
 		return
 	}
 	_ = n
+
+	// invalidate cache:
+	full := string(f.full)
+	f.a.statsC.Delete(full)
+	parent, _ := path.Split(full)
+	f.a.childrenC.Delete(parent)
 
 	return
 }
