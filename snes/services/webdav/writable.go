@@ -1,20 +1,54 @@
 package webdav
 
 import (
+	"bytes"
+	"context"
 	"io/fs"
 	"log"
 	"os"
+	"sni/snes"
 )
 
 type writeable struct {
-	//fs   snes.DeviceFilesystem
-	name string
-	stat fileInfo
+	a *AdapterFileSystem
+
+	full      cleanedPath
+	remainder string
+	stat      *fileInfo
+
+	driver *driverDevices
+	device snes.AutoCloseableDevice
+
+	buf []byte
 }
 
-func (f *writeable) Close() error {
+func (f *writeable) Close() (err error) {
 	log.Printf("%p.close()\n", f)
-	return nil
+
+	// put the file into the device:
+	var n uint32
+	n, err = f.device.PutFile(
+		context.Background(),
+		f.remainder,
+		uint32(len(f.buf)),
+		bytes.NewReader(f.buf),
+		nil)
+	if err != nil {
+		return
+	}
+	_ = n
+
+	return
+}
+
+func (f *writeable) Readdir(count int) (fis []fs.FileInfo, err error) {
+	log.Printf("%p.readdir(%#v)\n", f, count)
+	return nil, fs.ErrInvalid
+}
+
+func (f *writeable) Stat() (fi fs.FileInfo, err error) {
+	log.Printf("%p.stat()\n", f)
+	return f.stat, nil
 }
 
 func (f *writeable) Read(p []byte) (n int, err error) {
@@ -28,17 +62,8 @@ func (f *writeable) Seek(offset int64, whence int) (n int64, err error) {
 	return 0, ErrSeekForbidden
 }
 
-func (f *writeable) Readdir(count int) (fis []fs.FileInfo, err error) {
-	log.Printf("%p.readdir(%#v)\n", f, count)
-	return nil, fs.ErrInvalid
-}
-
-func (f *writeable) Stat() (fi fs.FileInfo, err error) {
-	log.Printf("%p.stat()\n", f)
-	return &f.stat, nil
-}
-
 func (f *writeable) Write(p []byte) (n int, err error) {
 	log.Printf("%p.write(%p)\n", f, p)
-	return 0, nil
+	f.buf = append(f.buf, p...)
+	return len(p), nil
 }
