@@ -116,9 +116,7 @@ func (dd *driverDevices) refreshDevices() (err error) {
 	return
 }
 
-func (a *AdapterFileSystem) getDevice(ctx context.Context, full cleanedPath) (dev snes.AutoCloseableDevice, err error) {
-	driverName, deviceName, _ := a.pathParse(full)
-
+func (a *AdapterFileSystem) getDevice(ctx context.Context, driverName, deviceName string) (dev snes.AutoCloseableDevice, err error) {
 	// look for driver:
 	var drv *driverDevices
 	var ok bool
@@ -194,7 +192,7 @@ func (a *AdapterFileSystem) getStatChildren(ctx context.Context, full cleanedPat
 }
 
 func (a *AdapterFileSystem) newWriteable(full cleanedPath, stat *fileInfo) (f *writeable, err error) {
-	driverName, deviceName, remainder := f.a.pathParse(full)
+	driverName, deviceName, remainder := a.pathParse(full)
 	if driverName == "" {
 		err = fs.ErrInvalid
 		return
@@ -227,12 +225,30 @@ func (a *AdapterFileSystem) newWriteable(full cleanedPath, stat *fileInfo) (f *w
 	return
 }
 
-func (a *AdapterFileSystem) newReadable(full cleanedPath, stat *fileInfo, children []fs.FileInfo) (f *readable) {
+func (a *AdapterFileSystem) newReadable(full cleanedPath, stat *fileInfo, children []fs.FileInfo) (f *readable, err error) {
+	var drv *driverDevices
+	var device snes.AutoCloseableDevice
+
+	driverName, deviceName, remainder := a.pathParse(full)
+	if driverName != "" && deviceName != "" {
+		drv = stat.driver
+
+		var ok bool
+		device, ok = drv.devices[deviceName]
+		if !ok {
+			err = fs.ErrInvalid
+			return
+		}
+	}
+
 	f = &readable{
-		a:        a,
-		full:     full,
-		stat:     stat,
-		children: children,
+		a:         a,
+		full:      full,
+		driver:    stat.driver,
+		device:    device,
+		remainder: remainder,
+		stat:      stat,
+		children:  children,
 	}
 	return
 }
@@ -252,12 +268,24 @@ func (a *AdapterFileSystem) OpenFile(ctx context.Context, name string, flag int,
 	}()
 	if flag&os.O_RDWR != 0 || flag&os.O_WRONLY != 0 {
 		// writable open:
-		full, key := a.pathClean(name)
+		full, _ := a.pathClean(name)
 
 		var stat *fileInfo
-		stat, err = a.getStat(ctx, full, key)
-		if err != nil {
+		driverName, deviceName, remainder := a.pathParse(full)
+
+		driver, ok := a.drivers[driverName]
+		if !ok {
+			err = fs.ErrInvalid
 			return
+		}
+
+		_, file := path.Split(remainder)
+
+		stat = &fileInfo{
+			name:      file,
+			isDir:     false,
+			driver:    driver,
+			deviceKey: deviceName,
 		}
 
 		f, err = a.newWriteable(full, stat)
@@ -280,7 +308,7 @@ func (a *AdapterFileSystem) OpenFile(ctx context.Context, name string, flag int,
 			}
 		}
 
-		f = a.newReadable(full, stat, children)
+		f, err = a.newReadable(full, stat, children)
 		return
 	}
 }
