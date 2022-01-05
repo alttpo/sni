@@ -27,14 +27,14 @@ type readable struct {
 }
 
 func (f *readable) Close() error {
-	log.Printf("%p.close()\n", f)
+	log.Printf("readable(%p).Close()\n", f)
 	f.buf = nil
 	f.reader = nil
 	return nil
 }
 
 func (f *readable) Read(p []byte) (n int, err error) {
-	log.Printf("%p.read(%p)\n", f, p)
+	log.Printf("readable(%p).Read(%#v bytes)\n", f, len(p))
 
 	ctx := context.Background()
 
@@ -59,7 +59,16 @@ func (f *readable) getFile(ctx context.Context) (err error) {
 			func(size uint32) { tmp.Grow(int(size)) },
 			nil)
 		if err != nil {
-			return
+			fatal := true
+			if derr, ok := err.(snes.DeviceError); ok {
+				fatal = derr.IsFatal()
+			}
+			if fatal {
+				return
+			} else {
+				log.Printf("readable(%p).getFile(): %v\n", f, err)
+				err = nil
+			}
 		}
 
 		f.buf = tmp.Bytes()
@@ -74,7 +83,7 @@ func (f *readable) getFile(ctx context.Context) (err error) {
 }
 
 func (f *readable) Seek(offset int64, whence int) (n int64, err error) {
-	log.Printf("%p.seek(%#v, %#v)\n", f, offset, whence)
+	log.Printf("readable(%p).Seek(%#v, %#v)\n", f, offset, whence)
 
 	ctx := context.Background()
 
@@ -87,7 +96,7 @@ func (f *readable) Seek(offset int64, whence int) (n int64, err error) {
 }
 
 func (f *readable) Readdir(count int) (fis []fs.FileInfo, err error) {
-	log.Printf("%p.readdir(%#v)\n", f, count)
+	log.Printf("readable(%p).Readdir(%#v)\n", f, count)
 
 	// NOTE: Readdir is stateful and should page through the dir entries each call and then return EOF
 	if len(f.children) == 0 {
@@ -111,11 +120,11 @@ func (f *readable) Readdir(count int) (fis []fs.FileInfo, err error) {
 }
 
 func (f *readable) Stat() (fi fs.FileInfo, err error) {
-	log.Printf("%p.stat()\n", f)
+	log.Printf("readable(%p).Stat()\n", f)
 	return f.stat, nil
 }
 
 func (f *readable) Write(p []byte) (n int, err error) {
-	log.Printf("%p.write(%p)\n", f, p)
+	log.Printf("readable(%p).Write(%#v bytes)\n", f, len(p))
 	return 0, fs.ErrInvalid
 }
