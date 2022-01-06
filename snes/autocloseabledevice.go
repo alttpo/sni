@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/url"
 	"sni/protos/sni"
+	"sni/util"
+	"sni/util/env"
 )
 
 // AutoCloseableDevice is a Device wrapper that ensures that a valid Device instance is always used for every
@@ -27,6 +29,8 @@ type autoCloseableDevice struct {
 	container DeviceContainer
 	uri       *url.URL
 	deviceKey string
+
+	logger *log.Logger
 }
 
 func NewAutoCloseableDevice(container DeviceContainer, uri *url.URL, deviceKey string) AutoCloseableDevice {
@@ -37,10 +41,21 @@ func NewAutoCloseableDevice(container DeviceContainer, uri *url.URL, deviceKey s
 		panic(fmt.Errorf("uri cannot be nil"))
 	}
 
+	var logger *log.Logger
+	if util.IsTruthy(env.GetOrDefault("SNI_DEBUG", "0")) {
+		defaultLogger := log.Default()
+		logger = log.New(
+			defaultLogger.Writer(),
+			fmt.Sprintf("autoCloseable[%s:%s]: ", uri.Scheme, deviceKey),
+			defaultLogger.Flags()|log.Lmsgprefix,
+		)
+	}
+
 	return &autoCloseableDevice{
 		container: container,
 		uri:       uri,
 		deviceKey: deviceKey,
+		logger:    logger,
 	}
 }
 
@@ -87,14 +102,26 @@ func (a *autoCloseableDevice) Close() error {
 	if !ok {
 		return nil
 	}
+	if a.logger != nil {
+		a.logger.Printf("Close() {\n")
+	}
 	err := d.Close()
+	if a.logger != nil {
+		a.logger.Printf("Close() } -> (%#v)\n", err)
+	}
 	a.container.DeleteDevice(a.deviceKey)
 	return err
 }
 
 func (a *autoCloseableDevice) ResetSystem(ctx context.Context) (err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		if a.logger != nil {
+			a.logger.Printf("ResetSystem() {\n")
+		}
 		err = device.ResetSystem(ctx)
+		if a.logger != nil {
+			a.logger.Printf("ResetSystem() } -> (%#v)\n", err)
+		}
 		return
 	})
 	return
@@ -102,7 +129,13 @@ func (a *autoCloseableDevice) ResetSystem(ctx context.Context) (err error) {
 
 func (a *autoCloseableDevice) ResetToMenu(ctx context.Context) (err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		if a.logger != nil {
+			a.logger.Printf("ResetToMenu() {\n")
+		}
 		err = device.ResetToMenu(ctx)
+		if a.logger != nil {
+			a.logger.Printf("ResetToMenu() } -> (%#v)\n", err)
+		}
 		return
 	})
 	return
@@ -110,7 +143,13 @@ func (a *autoCloseableDevice) ResetToMenu(ctx context.Context) (err error) {
 
 func (a *autoCloseableDevice) PauseUnpause(ctx context.Context, pausedState bool) (ok bool, err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		if a.logger != nil {
+			a.logger.Printf("PauseUnpause(%#v) {\n", pausedState)
+		}
 		ok, err = device.PauseUnpause(ctx, pausedState)
+		if a.logger != nil {
+			a.logger.Printf("PauseUnpause(%#v) } -> (%#v, %#v)\n", pausedState, ok, err)
+		}
 		return
 	})
 	return
@@ -118,7 +157,13 @@ func (a *autoCloseableDevice) PauseUnpause(ctx context.Context, pausedState bool
 
 func (a *autoCloseableDevice) PauseToggle(ctx context.Context) (err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		if a.logger != nil {
+			a.logger.Printf("PauseToggle() {\n")
+		}
 		err = device.PauseToggle(ctx)
+		if a.logger != nil {
+			a.logger.Printf("PauseToggle() } -> (%#v)\n", err)
+		}
 		return
 	})
 	return
@@ -126,7 +171,13 @@ func (a *autoCloseableDevice) PauseToggle(ctx context.Context) (err error) {
 
 func (a *autoCloseableDevice) DefaultAddressSpace(ctx context.Context) (space sni.AddressSpace, err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		if a.logger != nil {
+			a.logger.Printf("DefaultAddressSpace() {\n")
+		}
 		space, err = device.DefaultAddressSpace(ctx)
+		if a.logger != nil {
+			a.logger.Printf("DefaultAddressSpace() } -> (%#v, %#v)\n", space, err)
+		}
 		return
 	})
 	return
@@ -134,7 +185,13 @@ func (a *autoCloseableDevice) DefaultAddressSpace(ctx context.Context) (space sn
 
 func (a *autoCloseableDevice) MultiReadMemory(ctx context.Context, reads ...MemoryReadRequest) (rsp []MemoryReadResponse, err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		if a.logger != nil {
+			a.logger.Printf("MultiReadMemory(%#v) {\n", reads)
+		}
 		rsp, err = device.MultiReadMemory(ctx, reads...)
+		if a.logger != nil {
+			a.logger.Printf("MultiReadMemory(%#v) } -> (%#v, %#v)\n", reads, rsp, err)
+		}
 		return
 	})
 	return
@@ -142,7 +199,13 @@ func (a *autoCloseableDevice) MultiReadMemory(ctx context.Context, reads ...Memo
 
 func (a *autoCloseableDevice) MultiWriteMemory(ctx context.Context, writes ...MemoryWriteRequest) (rsp []MemoryWriteResponse, err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		if a.logger != nil {
+			a.logger.Printf("MultiWriteMemory(%#v) {\n", writes)
+		}
 		rsp, err = device.MultiWriteMemory(ctx, writes...)
+		if a.logger != nil {
+			a.logger.Printf("MultiWriteMemory(%#v) } -> (%#v, %#v)\n", writes, rsp, err)
+		}
 		return
 	})
 	return
@@ -154,7 +217,13 @@ func (a *autoCloseableDevice) FetchFields(ctx context.Context, fields ...Field) 
 		if !ok {
 			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceInfo not implemented"))
 		}
+		if a.logger != nil {
+			a.logger.Printf("FetchFields(%#v) {\n", fields)
+		}
 		values, err = inf.FetchFields(ctx, fields...)
+		if a.logger != nil {
+			a.logger.Printf("FetchFields(%#v) } -> (%#v, %#v)\n", fields, values, err)
+		}
 		return
 	})
 	return
@@ -166,7 +235,13 @@ func (a *autoCloseableDevice) ReadDirectory(ctx context.Context, path string) (r
 		if !ok {
 			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
 		}
+		if a.logger != nil {
+			a.logger.Printf("ReadDirectory(%#v) {\n", path)
+		}
 		rsp, err = fs.ReadDirectory(ctx, path)
+		if a.logger != nil {
+			a.logger.Printf("ReadDirectory(%#v) } -> (%#v, %#v)\n", path, rsp, err)
+		}
 		return
 	})
 	return
@@ -178,7 +253,13 @@ func (a *autoCloseableDevice) MakeDirectory(ctx context.Context, path string) (e
 		if !ok {
 			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
 		}
+		if a.logger != nil {
+			a.logger.Printf("MakeDirectory(%#v) {\n", path)
+		}
 		err = fs.MakeDirectory(ctx, path)
+		if a.logger != nil {
+			a.logger.Printf("MakeDirectory(%#v) } -> (%#v)\n", path, err)
+		}
 		return
 	})
 	return
@@ -190,7 +271,13 @@ func (a *autoCloseableDevice) RemoveFile(ctx context.Context, path string) (err 
 		if !ok {
 			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
 		}
+		if a.logger != nil {
+			a.logger.Printf("RemoveFile(%#v) {\n", path)
+		}
 		err = fs.RemoveFile(ctx, path)
+		if a.logger != nil {
+			a.logger.Printf("RemoveFile(%#v) } -> (%#v)\n", path, err)
+		}
 		return
 	})
 	return
@@ -202,7 +289,13 @@ func (a *autoCloseableDevice) RenameFile(ctx context.Context, path, newFilename 
 		if !ok {
 			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
 		}
+		if a.logger != nil {
+			a.logger.Printf("RenameFile(%#v, %#v) {\n", path, newFilename)
+		}
 		err = fs.RenameFile(ctx, path, newFilename)
+		if a.logger != nil {
+			a.logger.Printf("RenameFile(%#v, %#v) } -> (%#v)\n", path, newFilename, err)
+		}
 		return
 	})
 	return
@@ -214,7 +307,13 @@ func (a *autoCloseableDevice) PutFile(ctx context.Context, path string, size uin
 		if !ok {
 			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
 		}
+		if a.logger != nil {
+			a.logger.Printf("PutFile(%#v, %#v) {\n", path, size)
+		}
 		n, err = fs.PutFile(ctx, path, size, r, progress)
+		if a.logger != nil {
+			a.logger.Printf("PutFile(%#v, %#v) } -> (%#v, %#v)\n", path, size, n, err)
+		}
 		return
 	})
 	return
@@ -226,7 +325,13 @@ func (a *autoCloseableDevice) GetFile(ctx context.Context, path string, w io.Wri
 		if !ok {
 			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
 		}
+		if a.logger != nil {
+			a.logger.Printf("GetFile(%#v) {\n", path)
+		}
 		size, err = fs.GetFile(ctx, path, w, sizeReceived, progress)
+		if a.logger != nil {
+			a.logger.Printf("GetFile(%#v) } -> (%#v, %#v)\n", path, size, err)
+		}
 		return
 	})
 	return
@@ -238,7 +343,13 @@ func (a *autoCloseableDevice) BootFile(ctx context.Context, path string) (err er
 		if !ok {
 			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceFilesystem not implemented"))
 		}
+		if a.logger != nil {
+			a.logger.Printf("BootFile(%#v) {\n", path)
+		}
 		err = fs.BootFile(ctx, path)
+		if a.logger != nil {
+			a.logger.Printf("BootFile(%#v) } -> (%#v)\n", path, err)
+		}
 		return
 	})
 	return
