@@ -47,7 +47,7 @@ func (f *readable) Read(p []byte) (n int, err error) {
 }
 
 func (f *readable) getFile(ctx context.Context) (err error) {
-	if f.buf == nil {
+	if f.reader == nil {
 		// read entire file from device into memory:
 		tmp := bytes.Buffer{}
 
@@ -56,7 +56,9 @@ func (f *readable) getFile(ctx context.Context) (err error) {
 			ctx,
 			f.remainder,
 			&tmp,
-			func(size uint32) { tmp.Grow(int(size)) },
+			func(size uint32) {
+				tmp.Grow(int(size))
+			},
 			nil)
 		if err != nil {
 			fatal := true
@@ -73,9 +75,7 @@ func (f *readable) getFile(ctx context.Context) (err error) {
 
 		f.buf = tmp.Bytes()
 		f.stat.size = m
-	}
 
-	if f.reader == nil {
 		f.reader = bytes.NewReader(f.buf)
 	}
 

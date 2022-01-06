@@ -116,34 +116,12 @@ func (dd *driverDevices) refreshDevices() (err error) {
 	return
 }
 
-func (a *AdapterFileSystem) getDevice(ctx context.Context, driverName, deviceName string) (dev snes.AutoCloseableDevice, err error) {
-	// look for driver:
-	var drv *driverDevices
-	var ok bool
-	drv, ok = a.drivers[driverName]
-	if !ok {
-		return
-	}
-
-	// look for device:
-	dev, ok = drv.devices[deviceName]
-	if !ok {
-		dev = nil
-		// refresh devices:
-		err = drv.refreshDevices()
-		if err != nil {
-			return
-		}
-
-		// look again:
-		dev, ok = drv.devices[deviceName]
-		if !ok {
-			err = fs.ErrNotExist
-			return
-		}
-		return
-	}
-	return
+func (a *AdapterFileSystem) invalidateStat(full cleanedPath) {
+	// invalidate cache:
+	key := strings.ToLower(string(full))
+	a.statsC.Delete(key)
+	parent, _ := path.Split(key)
+	a.childrenC.Delete(parent)
 }
 
 func (a *AdapterFileSystem) getStat(ctx context.Context, full cleanedPath, key string) (stat *fileInfo, err error) {
@@ -225,6 +203,26 @@ func (a *AdapterFileSystem) newWriteable(full cleanedPath, stat *fileInfo) (f *w
 	return
 }
 
+func (a *AdapterFileSystem) getDevice(driverName, deviceName string) (device snes.AutoCloseableDevice, err error) {
+	if driverName != "" && deviceName != "" {
+		var ok bool
+		var drv *driverDevices
+		drv, ok = a.drivers[driverName]
+		if !ok {
+			err = fs.ErrInvalid
+			return
+		}
+
+		device, ok = drv.devices[deviceName]
+		if !ok {
+			err = fs.ErrInvalid
+			return
+		}
+	}
+
+	return
+}
+
 func (a *AdapterFileSystem) newReadable(full cleanedPath, stat *fileInfo, children []fs.FileInfo) (f *readable, err error) {
 	var drv *driverDevices
 	var device snes.AutoCloseableDevice
@@ -253,18 +251,10 @@ func (a *AdapterFileSystem) newReadable(full cleanedPath, stat *fileInfo, childr
 	return
 }
 
-func (a *AdapterFileSystem) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
-	log.Printf("a.Mkdir(%#v, %#v)\n", name, perm)
-
-	_ = perm
-	//return a.fs.MakeDirectory(ctx, name)
-	return fs.ErrInvalid
-}
-
 func (a *AdapterFileSystem) OpenFile(ctx context.Context, name string, flag int, perm os.FileMode) (f dav.File, err error) {
 	log.Printf("a.OpenFile(%#v, %#v, %#v) {\n", name, flag, perm)
 	defer func() {
-		log.Printf("a.OpenFile(%#v, %#v, %#v) } -> (%#v, %#v)\n", name, flag, perm, f, err)
+		log.Printf("a.OpenFile(%#v, %#v, %#v) } -> (%p, %#v)\n", name, flag, perm, f, err)
 	}()
 	if flag&os.O_RDWR != 0 || flag&os.O_WRONLY != 0 {
 		// writable open:
@@ -313,9 +303,42 @@ func (a *AdapterFileSystem) OpenFile(ctx context.Context, name string, flag int,
 	}
 }
 
-func (a *AdapterFileSystem) RemoveAll(ctx context.Context, name string) error {
+func (a *AdapterFileSystem) Mkdir(ctx context.Context, name string, perm os.FileMode) (err error) {
+	log.Printf("a.Mkdir(%#v, %#v)\n", name, perm)
+
+	_ = perm
+
+	full, _ := a.pathClean(name)
+
+	driverName, deviceName, remainder := a.pathParse(full)
+
+	var device snes.AutoCloseableDevice
+	device, err = a.getDevice(driverName, deviceName)
+	if err != nil {
+		return
+	}
+
+	err = device.MakeDirectory(ctx, remainder)
+	a.invalidateStat(full)
+	return
+}
+
+func (a *AdapterFileSystem) RemoveAll(ctx context.Context, name string) (err error) {
 	log.Printf("a.RemoveAll(%#v)\n", name)
-	return nil
+
+	full, _ := a.pathClean(name)
+
+	driverName, deviceName, remainder := a.pathParse(full)
+
+	var device snes.AutoCloseableDevice
+	device, err = a.getDevice(driverName, deviceName)
+	if err != nil {
+		return
+	}
+
+	err = device.RemoveFile(ctx, remainder)
+	a.invalidateStat(full)
+	return
 }
 
 func (a *AdapterFileSystem) Rename(ctx context.Context, oldName, newName string) error {
@@ -362,7 +385,7 @@ func (a *AdapterFileSystem) pathParse(full cleanedPath) (driverName, deviceName,
 func (a *AdapterFileSystem) statChildren(ctx context.Context, full cleanedPath) (children []fs.FileInfo, err error) {
 	log.Printf("a.statChildren(%#v) {\n", full)
 	defer func() {
-		log.Printf("a.statChildren(%#v) } -> (%#v, %#v)\n", full, children, err)
+		log.Printf("a.statChildren(%#v) } -> (%p, %#v)\n", full, children, err)
 	}()
 
 	driverName, deviceName, remainder := a.pathParse(full)
@@ -440,7 +463,7 @@ func (a *AdapterFileSystem) statChildren(ctx context.Context, full cleanedPath) 
 func (a *AdapterFileSystem) stat(ctx context.Context, full cleanedPath) (stat *fileInfo, err error) {
 	log.Printf("a.stat(%#v) {\n", full)
 	defer func() {
-		log.Printf("a.stat(%#v) } -> (%#v, %#v)\n", full, stat, err)
+		log.Printf("a.stat(%#v) } -> (%p, %#v)\n", full, stat, err)
 	}()
 
 	driverName, deviceName, remainder := a.pathParse(full)

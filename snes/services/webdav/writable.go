@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"log"
 	"os"
-	"path"
 	"sni/snes"
 )
 
@@ -26,34 +25,34 @@ type writeable struct {
 func (f *writeable) Close() (err error) {
 	log.Printf("writable(%p).Close()\n", f)
 
-	// put the file into the device:
-	var n uint32
-	n, err = f.device.PutFile(
-		context.Background(),
-		f.remainder,
-		uint32(len(f.buf)),
-		bytes.NewReader(f.buf),
-		nil)
-	if err != nil {
-		fatal := true
-		if derr, ok := err.(snes.DeviceError); ok {
-			fatal = derr.IsFatal()
+	if len(f.buf) > 0 {
+		// put the file into the device:
+		var n uint32
+		n, err = f.device.PutFile(
+			context.Background(),
+			f.remainder,
+			uint32(len(f.buf)),
+			bytes.NewReader(f.buf),
+			nil)
+		if err != nil {
+			fatal := true
+			if derr, ok := err.(snes.DeviceError); ok {
+				fatal = derr.IsFatal()
+			}
+			if fatal {
+				return
+			} else {
+				log.Printf("writable(%p).Close(): %v\n", f, err)
+				err = nil
+			}
 		}
-		if fatal {
-			return
-		} else {
-			log.Printf("writable(%p).Close(): %v\n", f, err)
-			err = nil
-		}
+		_ = n
+	} else {
+
 	}
-	_ = n
 
 	// invalidate cache:
-	full := string(f.full)
-	f.a.statsC.Delete(full)
-	parent, _ := path.Split(full)
-	f.a.childrenC.Delete(parent)
-
+	f.a.invalidateStat(f.full)
 	return
 }
 
