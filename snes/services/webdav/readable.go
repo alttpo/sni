@@ -1,11 +1,13 @@
 package webdav
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/fs"
 	"log"
-	"os"
+	"sni/snes"
 )
 
 var ErrSeekForbidden = fmt.Errorf("seeking is forbidden")
@@ -13,25 +15,75 @@ var ErrSeekForbidden = fmt.Errorf("seeking is forbidden")
 type readable struct {
 	a *AdapterFileSystem
 
-	full     cleanedPath
-	stat     *fileInfo
-	children []fs.FileInfo
+	full      cleanedPath
+	driver    *driverDevices
+	device    snes.AutoCloseableDevice
+	remainder string
+	stat      *fileInfo
+	children  []fs.FileInfo
+
+	buf    []byte
+	reader *bytes.Reader
 }
 
 func (f *readable) Close() error {
 	log.Printf("%p.close()\n", f)
+	f.buf = nil
+	f.reader = nil
 	return nil
 }
 
 func (f *readable) Read(p []byte) (n int, err error) {
 	log.Printf("%p.read(%p)\n", f, p)
-	err = os.ErrInvalid
+
+	ctx := context.Background()
+
+	err = f.getFile(ctx)
+	if err != nil {
+		return
+	}
+
+	return f.reader.Read(p)
+}
+
+func (f *readable) getFile(ctx context.Context) (err error) {
+	if f.buf == nil {
+		// read entire file from device into memory:
+		tmp := bytes.Buffer{}
+
+		var m uint32
+		m, err = f.device.GetFile(
+			ctx,
+			f.remainder,
+			&tmp,
+			func(size uint32) { tmp.Grow(int(size)) },
+			nil)
+		if err != nil {
+			return
+		}
+
+		f.buf = tmp.Bytes()
+		f.stat.size = m
+	}
+
+	if f.reader == nil {
+		f.reader = bytes.NewReader(f.buf)
+	}
+
 	return
 }
 
 func (f *readable) Seek(offset int64, whence int) (n int64, err error) {
 	log.Printf("%p.seek(%#v, %#v)\n", f, offset, whence)
-	return 0, ErrSeekForbidden
+
+	ctx := context.Background()
+
+	err = f.getFile(ctx)
+	if err != nil {
+		return
+	}
+
+	return f.reader.Seek(offset, whence)
 }
 
 func (f *readable) Readdir(count int) (fis []fs.FileInfo, err error) {

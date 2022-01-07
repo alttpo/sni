@@ -11,6 +11,7 @@ type fileInfo struct {
 
 	driver    *driverDevices
 	deviceKey string
+	size      uint32
 }
 
 func (f *fileInfo) Name() string {
@@ -18,7 +19,7 @@ func (f *fileInfo) Name() string {
 }
 
 func (f *fileInfo) Size() int64 {
-	return 0
+	return int64(f.size)
 }
 
 func (f *fileInfo) Mode() (mode fs.FileMode) {
