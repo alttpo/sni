@@ -14,17 +14,25 @@ SNI is designed and implemented by **jsd1982** and was started in May 2021.
 
 Simply start `sni.exe` and leave it running.
 
+If you wish to see a console window with realtime messages displayed indicating activity, start `sni-console.exe` instead of `sni.exe`.
+
 SNI is intended to be easy to use with little to no direct user interaction. It should always Just Work™.
 
 Once started, a systray icon will appear. Clicking it will reveal this menu:
 
-![image](https://user-images.githubusercontent.com/538152/124302378-c24d0600-db26-11eb-81f0-eada39f708ee.png)
+![image](https://user-images.githubusercontent.com/538152/148602819-3d11d4a2-70c5-4f01-aca7-daef56af6801.png)
 
-The top menu item is for informational purposes only; it shows the current version of SNI running.
+The top menu item is for informational purposes and shows the current version of SNI running. Clicking it will reveal the SNI logs/configuration folder, i.e. `%LOCALAPPDATA%\sni` on Windows, `~/.sni/` on MacOS/Linux.
+
+The "Devices" sub menu will reflect the currently detected list of devices. A "Refresh" menu item is available to refresh the list and detect any new devices.
+
+The "Applications" sub menu is driven by the `apps.yaml` configuration file as read from the SNI logs/configuration folder. See the example `apps.yaml` file distributed with SNI for documentation on how to configure custom app launchers. This file *MUST* be placed in the SNI logs/configuration folder (`%LOCALAPPDATA%\sni` or `~/.sni/`), *NOT* the current folder where `sni.exe` resides.
 
 The "Disconnect SNES" menu item is sort of like an emergency stop button if you need to disconnect SNI from your SNES devices. This feature is intended to release the SD2SNES / FX Pak Pro device temporarily so that other non-SNI applications may make use of it. Note that this feature will not disconnect SNI applications from SNI. If SNI applications are currently connected to SNI, this will only be a temporary measure as the next application request made will automatically reestablish a connection with your SNES device.
 
-The "Log all requests" is a checkbox menu item. Enabling it will enable detailed logging of all requests and responses made to SNI via either the gRPC service or the usb2snes WebSockets compatibility protocol. If disabled, only error responses are recorded in the log.
+The "Log all requests" is a checkbox menu item. Enabling it will enable detailed logging of all requests made to SNI via either the gRPC service or the usb2snes WebSockets compatibility protocol. If disabled, only error responses are recorded in the log.
+
+The "Log all responses" is a checkbox menu item. Enabling it will enable detailed logging of all responses and exact response data sent back for all requests.
 
 Currently supported SNES devices are:
 
@@ -42,6 +50,7 @@ The following environment variables are defined:
 
 | Name | Default | Purpose |
 | --- | --- | --- |
+| SNI_DEBUG | 0 | enable debug logging |
 | SNI_GRPC_LISTEN_HOST | 0.0.0.0 | host to listen on for gRPC connections |
 | SNI_GRPC_LISTEN_PORT | 8191 | port to listen on for gRPC connections |
 | SNI_USB2SNES_DISABLE | 0 | usb2snes: set to 1 to disable usb2snes server |
@@ -57,14 +66,14 @@ The following environment variables are defined:
 SNI logs important activity to a log file found in your system's temporary
 folder.
 
-On Windows, this temporary folder is `%APPDATA%\Local\Temp`.
+On Windows, this folder is `%LOCALAPPDATA%\sni`.
 
-On MacOS, this temporary folder may be `/var/folders/1q/.../T/`.
+On MacOS, this folder is `~/.sni/`.
 
 During start-up, in the console window, SNI will output where the current log
 file is located at:
 ```
-2021/06/25 22:45:57.049004 logging to '/var/folders/1q/0q0chpwx4j795vg322m8y20rcdxpg6/T/sni-2021-06-25T17-45-57-048Z.log'
+2022/01/07 20:33:28.378428 logging to '/Users/username/.sni/sni-2022-01-07T14-33-28-377Z.log'
 ```
 
 # For Developers
