@@ -3,6 +3,7 @@ package fxpakpro
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"go.bug.st/serial"
 	"io"
@@ -56,6 +57,9 @@ func sendSerialProgress(f serial.Port, chunkSize int, size uint32, r io.Reader, 
 		for written < nr {
 			var nw int
 			nw, err = f.Write(buf[written:])
+			if debugLog != nil {
+				debugLog.Printf("sendSerial: wrote %#v bytes\n%s", nw, hex.Dump(buf[written:written+nw]))
+			}
 			if err != nil {
 				return
 			}
@@ -101,6 +105,9 @@ func readExact(ctx context.Context, f serial.Port, chunkSize int, buf []byte) (e
 
 		var n int
 		n, err = f.Read(buf[p:chunkSize])
+		if debugLog != nil {
+			debugLog.Printf("readExact: %#v bytes read\n%s", n, hex.Dump(buf[p:p+n]))
+		}
 		if err != nil {
 			return
 		}
