@@ -46,3 +46,21 @@ func TestDevice_get(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkDevice_get(b *testing.B) {
+	d := openExactDevice(b)
+	defer d.Close()
+
+	b.Run("GET", func(b *testing.B) {
+		const byteCount = 0x2000
+		b.SetBytes(int64(byteCount + 0x200))
+		ctx := context.Background()
+		for n := 0; n < b.N; n++ {
+			_, err := d.get(ctx, SpaceSNES, 0xF50000, uint32(byteCount))
+			if err != nil {
+				b.Error(err)
+				return
+			}
+		}
+	})
+}
