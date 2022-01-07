@@ -31,6 +31,7 @@ type Client struct {
 	r *bufio.Reader
 
 	readWriteTimeout time.Duration
+	dialer           *net.Dialer
 }
 
 func (c *Client) FatalError(cause error) snes.DeviceError {
@@ -46,6 +47,7 @@ func NewClient(addr *net.TCPAddr, name string, timeout time.Duration) (c *Client
 		addr:             addr,
 		name:             name,
 		readWriteTimeout: timeout,
+		dialer:           &net.Dialer{Timeout: timeout},
 	}
 
 	return
@@ -56,11 +58,15 @@ func (c *Client) IsClosed() bool    { return c.isClosed }
 
 func (c *Client) Connect() (err error) {
 	c.isClosed = false
-	c.c, err = net.DialTCP("tcp", nil, c.addr)
+
+	var conn net.Conn
+	netAddr := net.Addr(c.addr)
+	conn, err = c.dialer.Dial("tcp", netAddr.String())
 	if err != nil {
 		c.isConnected = false
 		return
 	}
+	c.c = conn.(*net.TCPConn)
 
 	c.r = bufio.NewReaderSize(c.c, 4096)
 	c.isConnected = true
