@@ -63,6 +63,15 @@ func (d *Device) putFile(ctx context.Context, path string, size uint32, r io.Rea
 	}
 
 	if size == 0 {
+		{
+			tmp := make([]byte, 512)
+			var m int
+			m, err = d.f.Write(tmp)
+			if debugLog != nil {
+				debugLog.Printf("putFile: extra write: %#v, %#v\n", m, err)
+			}
+			_ = m
+		}
 		n = 0
 		err = nil
 		return
