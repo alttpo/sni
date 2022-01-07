@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const safeTimeout = time.Second * 15
+const safeTimeout = time.Second * 1
 
 func sendSerial(f serial.Port, chunkSize int, buf []byte) (err error) {
 	_, err = sendSerialProgress(f, chunkSize, uint32(len(buf)), bytes.NewReader(buf), nil)
