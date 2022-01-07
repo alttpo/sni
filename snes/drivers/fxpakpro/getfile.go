@@ -60,6 +60,14 @@ func (d *Device) getFile(ctx context.Context, path string, w io.Writer, sizeRece
 	}
 
 	if size == 0 {
+		// FXPAKPRO BUG: GET for 0-byte file causes all subsequent reads to fail!
+		//{
+		//	tmp := make([]byte, 512)
+		//	var m int
+		//	m, err = d.f.Read(tmp)
+		//	log.Printf("getFile: extra read: %#v, %#v\n", m, err)
+		//}
+		// no extra data to expect:
 		received = 0
 		err = nil
 		return

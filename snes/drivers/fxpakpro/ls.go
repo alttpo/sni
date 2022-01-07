@@ -72,7 +72,8 @@ recvLoop:
 			return
 		}
 
-		for i := 0; i < 512; {
+		i := 0
+		for i < 512 {
 			// FF means no more data expected:
 			if sb[i] == 0xFF {
 				break recvLoop
@@ -108,6 +109,9 @@ recvLoop:
 
 			// file size does not come in this response
 			files = append(files, file)
+		}
+		if i >= 512 {
+			return nil, fmt.Errorf("ls: went through too many iterations")
 		}
 	}
 

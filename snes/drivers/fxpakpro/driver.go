@@ -208,11 +208,23 @@ func (d *Driver) Device(uri *url.URL) snes.AutoCloseableDevice {
 	)
 }
 
+var debugLog *log.Logger
+
 func DriverInit() {
 	if util.IsTruthy(env.GetOrDefault("SNI_FXPAKPRO_DISABLE", "0")) {
 		log.Printf("disabling fxpakpro snes driver\n")
 		return
 	}
+
+	if util.IsTruthy(env.GetOrDefault("SNI_DEBUG", "0")) {
+		defaultLogger := log.Default()
+		debugLog = log.New(
+			defaultLogger.Writer(),
+			fmt.Sprintf("fxpakpro: "),
+			defaultLogger.Flags()|log.Lmsgprefix,
+		)
+	}
+
 	driver = &Driver{}
 	driver.container = snes.NewDeviceDriverContainer(driver.openDevice)
 	snes.Register(driverName, driver)
