@@ -28,7 +28,6 @@ func (d *Device) mv(ctx context.Context, path, newFilename string) (err error) {
 	err = sendSerial(d.f, 512, sb)
 	if err != nil {
 		err = d.FatalError(err)
-		_ = d.Close()
 		return
 	}
 
@@ -36,24 +35,21 @@ func (d *Device) mv(ctx context.Context, path, newFilename string) (err error) {
 	err = recvSerial(ctx, d.f, sb, 512)
 	if err != nil {
 		err = d.FatalError(err)
-		_ = d.Close()
 		return
 	}
 	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
-		_ = d.Close()
 		err = fmt.Errorf("mv: fxpakpro response packet does not contain USBA header")
 		err = d.FatalError(err)
 		return
 	}
 	if sb[4] != byte(OpRESPONSE) {
-		_ = d.Close()
 		err = fmt.Errorf("mv: wrong opcode in response packet; got $%02x", sb[4])
 		err = d.FatalError(err)
 		return
 	}
 	if ec := sb[5]; ec != 0 {
 		err = fmt.Errorf("mv: %w", fxpakproError(ec))
-		err = d.FatalError(err)
+		err = d.NonFatalError(err)
 		return
 	}
 

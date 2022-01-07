@@ -27,7 +27,6 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEn
 	err = sendSerial(d.f, 512, sb)
 	if err != nil {
 		err = d.FatalError(err)
-		_ = d.Close()
 		return
 	}
 
@@ -35,12 +34,10 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEn
 	err = recvSerial(ctx, d.f, sb, 512)
 	if err != nil {
 		err = d.FatalError(err)
-		_ = d.Close()
 		return
 	}
 
 	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
-		_ = d.Close()
 		files, err = nil, fmt.Errorf("ls: fxpakpro response packet does not contain USBA header")
 		err = d.FatalError(err)
 		return
@@ -48,13 +45,11 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []snes.DirEn
 
 	// fxpakpro `ls` command always returns 1 for size:
 	if size := binary.BigEndian.Uint32(sb[252:256]); size != 1 {
-		_ = d.Close()
 		files, err = nil, fmt.Errorf("ls: fxpakpro response size actual %d, expected 1", size)
 		err = d.FatalError(err)
 		return
 	}
 	if sb[4] != byte(OpRESPONSE) {
-		_ = d.Close()
 		files, err = nil, fmt.Errorf("ls: wrong opcode in response packet; got $%02x", sb[4])
 		err = d.FatalError(err)
 		return
@@ -73,7 +68,7 @@ recvLoop:
 		err = recvSerial(iterCtx, d.f, sb, 512)
 		iterCancel()
 		if err != nil {
-			_ = d.Close()
+			err = d.FatalError(err)
 			return
 		}
 
