@@ -74,10 +74,62 @@ func (d *Device) getFile(ctx context.Context, path string, w io.Writer, sizeRece
 	}
 
 	// read all remaining bytes in chunks of 512 bytes:
-	received, err = recvSerialProgress(ctx, d.f, w, size, 512, progress)
-	if err != nil {
-		err = d.FatalError(err)
-		return
+	chunk := make([]byte, 512)
+	chunkCount := size / 512
+
+	received = 0
+	if progress != nil {
+		progress(received, size)
+	}
+	for i := uint32(0); i < chunkCount; i++ {
+		err = readExact(ctx, d.f, 512, chunk)
+		if err != nil {
+			received = 0
+			err = d.FatalError(err)
+			return
+		}
+
+		var n int
+		n, err = w.Write(chunk)
+		if err != nil {
+			err = d.NonFatalError(err)
+			return
+		}
+		if n != 512 {
+			err = d.NonFatalError(fmt.Errorf("fxpakpro: getFile: wrote only %d bytes out of %d byte chunk to io.Writer", n, 512))
+			return
+		}
+		received += 512
+
+		if progress != nil {
+			progress(received, size)
+		}
+	}
+
+	remainder := int(size & 511)
+	if remainder != 0 {
+		err = readExact(ctx, d.f, 512, chunk)
+		if err != nil {
+			received = 0
+			err = d.FatalError(err)
+			return
+		}
+
+		var n int
+		n, err = w.Write(chunk[:remainder])
+		if err != nil {
+			err = d.NonFatalError(err)
+			return
+		}
+		if n != remainder {
+			err = d.NonFatalError(fmt.Errorf("fxpakpro: getFile: wrote only %d bytes out of %d byte chunk to io.Writer", n, remainder))
+			return
+		}
+		received += uint32(remainder)
+
+		if progress != nil {
+			progress(received, size)
+		}
 	}
 
 	return
