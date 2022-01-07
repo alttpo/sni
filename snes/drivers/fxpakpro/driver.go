@@ -12,6 +12,7 @@ import (
 	"sni/util"
 	"sni/util/env"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -158,8 +159,19 @@ func (d *Driver) openPort(portName string, baudRequest int) (f serial.Port, err 
 	return
 }
 
-func (d *Driver) DeviceKey(uri *url.URL) string {
-	return uri.Path
+func (d *Driver) DeviceKey(uri *url.URL) (key string) {
+	key = uri.Path
+	// macos/linux paths:
+	if strings.HasPrefix(key, "/dev/") {
+		key = key[len("/dev/"):]
+	}
+	if strings.HasPrefix(key, "cu.usbmodem") {
+		key = key[len("cu.usbmodem"):]
+	}
+	// macos   key should look like `DEMO000000001` with the final `1` suffix being the device index if multiple are connected.
+	// windows key should look like `COM4` with the port number varying
+	// linux   no idea what these devices look like yet, likely `/dev/...` possibly `ttyUSB0`?
+	return
 }
 
 func (d *Driver) openDevice(uri *url.URL) (device snes.Device, err error) {
