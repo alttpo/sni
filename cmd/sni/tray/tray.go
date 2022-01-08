@@ -25,6 +25,11 @@ var (
 	deviceDescriptors []snes.DeviceDescriptor
 )
 
+func Init() (err error) {
+	err = initConsole()
+	return
+}
+
 func UpdateDeviceList(descriptors []snes.DeviceDescriptor) {
 	deviceDescriptors = descriptors[:]
 
@@ -91,6 +96,35 @@ func trayStart() {
 	toggleVerbose := systray.AddMenuItemCheckbox("Log all requests", "Enable logging of all incoming requests", config.VerboseLogging)
 	toggleLogResponses := systray.AddMenuItemCheckbox("Log all responses", "Enable logging of all outgoing response data", config.LogResponses)
 	systray.AddSeparator()
+
+	var toggleShowConsole *systray.MenuItem
+	var updateConsole = func() {
+		if toggleShowConsole != nil {
+			if config.ShowConsole {
+				toggleShowConsole.Check()
+			} else {
+				toggleShowConsole.Uncheck()
+			}
+		}
+
+		var err error
+		err = consoleVisible(config.ShowConsole)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+
+	if consoleIsDynamic() {
+		toggleShowConsole = systray.AddMenuItemCheckbox("Show Console", "Toggles visibility of console window", config.ShowConsole)
+		toggleShowConsole.ClickedFunc = func(item *systray.MenuItem) {
+			config.ShowConsole = !config.ShowConsole
+			// update config file:
+			config.Config.Set("showConsole", config.ShowConsole)
+			config.Save()
+			updateConsole()
+		}
+		systray.AddSeparator()
+	}
 	mQuit := systray.AddMenuItem("Quit", "Quit")
 
 	// subscribe to configuration changes:
@@ -113,6 +147,9 @@ func trayStart() {
 		} else {
 			toggleLogResponses.Uncheck()
 		}
+
+		config.ShowConsole = v.GetBool("showConsole")
+		updateConsole()
 	}))
 
 	refresh := devicesMenu.AddSubMenuItem("Refresh", "Refresh list of devices")

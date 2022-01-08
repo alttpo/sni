@@ -44,6 +44,14 @@ func main() {
 		builtBy,
 	)
 
+	// initialize tray, i.e. the Console window functionality:
+	var err error
+	err = tray.Init()
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
+
 	// initialize logging subsystem:
 	logging.Init()
 

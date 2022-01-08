@@ -25,6 +25,7 @@ var (
 var (
 	VerboseLogging bool = false
 	LogResponses   bool = true
+	ShowConsole    bool = false
 )
 
 var (

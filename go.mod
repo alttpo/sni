@@ -11,6 +11,7 @@ require (
 	github.com/gobwas/ws v1.0.4
 	github.com/spf13/viper v1.8.1
 	go.bug.st/serial v1.3.3
+	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf
 	google.golang.org/grpc v1.38.0
 	google.golang.org/protobuf v1.26.0
 )
