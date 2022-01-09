@@ -14,8 +14,6 @@ SNI is designed and implemented by **jsd1982** and was started in May 2021.
 
 Simply start `sni.exe` and leave it running.
 
-If you wish to see a console window with realtime messages displayed indicating activity, start `sni-console.exe` instead of `sni.exe`.
-
 SNI is intended to be easy to use with little to no direct user interaction. It should always Just Work™.
 
 Once started, a systray icon will appear. Clicking it will reveal this menu:
@@ -33,6 +31,8 @@ The "Disconnect SNES" menu item is sort of like an emergency stop button if you 
 The "Log all requests" is a checkbox menu item. Enabling it will enable detailed logging of all requests made to SNI via either the gRPC service or the usb2snes WebSockets compatibility protocol. If disabled, only error responses are recorded in the log.
 
 The "Log all responses" is a checkbox menu item. Enabling it will enable detailed logging of all responses and exact response data sent back for all requests.
+
+The "Show Console" is a checkbox menu item. Enabling/disabling it will show/hide the console window which displays diagnostic messages and log messages.
 
 Currently supported SNES devices are:
 
