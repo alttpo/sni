@@ -74,6 +74,7 @@ jobs:
         if: ${{ matrix.goos == 'windows' }}
 
       - uses: actions/checkout@v2
+        name: Checkout
         with:
           fetch-depth: 0
 
@@ -84,7 +85,8 @@ jobs:
           go install github.com/tc-hib/go-winres@latest
           go-winres simply --icon icon/sni.ico --product-version git-tag --file-version git-tag --product-name "Super Nintendo Interface" --copyright "© jsd1982 2021" --original-filename "sni"
 
-      - run: |
+      - name: Package Lua Bridge for distribution
+        run: |
           mkdir ${{env.basename}}
           mkdir ${{env.basename}}/lua
           mkdir ${{env.basename}}/lua/x64
@@ -105,13 +107,13 @@ jobs:
           cp lua/x86/* ${{env.basename}}/lua/x86
 
       - if: ${{ matrix.goos == 'windows' }}
+        name: Build SNI
         run: |
           SET GOARCH=${{matrix.goarch}}
           go build -ldflags="-H=windowsgui -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'" -o ./${{env.basename}}/sni${{matrix.exesuffix}} ./cmd/sni
-          SET GOARCH=${{matrix.goarch}}
-          go build -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'" -o ./${{env.basename}}/sni-console${{matrix.exesuffix}} ./cmd/sni
 
       - if: ${{ matrix.goos != 'windows' }}
+        name: Build SNI
         run: >
           GOARCH=${{matrix.goarch}} go build
           -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
