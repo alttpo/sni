@@ -94,8 +94,7 @@ func (d *Driver) DisconnectAll() {
 func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 	var ports []*enumerator.PortDetails
 
-	// It would be surprising to see more than one FX Pak Pro connected to a PC.
-	devices = make([]snes.DeviceDescriptor, 0, 1)
+	devices = make([]snes.DeviceDescriptor, 0, 2)
 
 	ports, err = enumerator.GetDetailedPortsList()
 	if err != nil {
@@ -107,7 +106,9 @@ func (d *Driver) Detect() (devices []snes.DeviceDescriptor, err error) {
 			continue
 		}
 
-		if port.SerialNumber == "DEMO00000000" {
+		// When more than one fxpakpro is connected only one of the devices gets the SerialNumber="DEMO00000000";
+		// This is likely a bug in serial library.
+		if (port.SerialNumber == "DEMO00000000") || (port.VID == "1209" && port.PID == "5A22") {
 			devices = append(devices, snes.DeviceDescriptor{
 				Uri:                 url.URL{Scheme: driverName, Host: ".", Path: port.Name},
 				DisplayName:         fmt.Sprintf("%s (%s:%s)", port.Name, port.VID, port.PID),
