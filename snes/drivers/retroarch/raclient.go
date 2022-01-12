@@ -397,7 +397,19 @@ func (c *RAClient) MultiReadMemory(ctx context.Context, reads ...snes.MemoryRead
 	for _, rwreq := range outgoing {
 		err = <-responses
 		if err != nil {
-			return
+			if derr, ok := err.(*readResponseError); ok {
+				log.Printf("retroarch: read %#v returned error '%s'; filling response with $00\n", derr.Address, derr.Response)
+				// fill response with 00 bytes:
+				rwreq.Read.ResponseData = rwreq.Read.ResponseData[0:rwreq.Read.RequestSize]
+				d := rwreq.Read.ResponseData
+				for i := range d {
+					d[i] = 0
+				}
+				err = nil
+			}
+			if err != nil {
+				return
+			}
 		}
 
 		mrsp[rwreq.index].Data = rwreq.Read.ResponseData
@@ -594,6 +606,19 @@ func (c *RAClient) handleIncoming() {
 	}
 }
 
+type readResponseError struct {
+	Address  uint32
+	Response string
+}
+
+func (r *readResponseError) Error() string {
+	return r.Response
+}
+
+func (r *readResponseError) IsFatal() bool {
+	return false
+}
+
 func (c *RAClient) parseCommandResponse(rsp []byte, rwreq *rwRequest) (err error) {
 	r := bytes.NewReader(rsp)
 
@@ -615,7 +640,7 @@ func (c *RAClient) parseCommandResponse(rsp []byte, rwreq *rwRequest) (err error
 		if n == 1 && test < 0 {
 			// read a -1:
 			if c.useRCR {
-				err = c.NonFatalError(fmt.Errorf("%s responded with error", cmd))
+				err = &readResponseError{addr, ""}
 				return
 			} else {
 				// READ_CORE_MEMORY returns an error description after -1
@@ -629,7 +654,7 @@ func (c *RAClient) parseCommandResponse(rsp []byte, rwreq *rwRequest) (err error
 				}
 
 				txt = strings.TrimSpace(txt)
-				err = c.NonFatalError(fmt.Errorf("%s error '%s'", cmd, txt))
+				err = &readResponseError{addr, txt}
 				return
 			}
 		}
