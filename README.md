@@ -14,11 +14,13 @@ SNI is designed and implemented by **jsd1982** and was started in May 2021.
 
 Simply start `sni.exe` (Windows) or `./SNI` (MacOS/Linux) and leave it running.
 
-If you are using Linux and an SD2SNES hardware USB-enabled SNES cartridge, you will need to install the udev rule in `linux/udev/rules.d` and either reboot or reload udev.
+If you are using Linux and an SD2SNES hardware USB-enabled SNES cartridge, you will need to install the udev rule in `linux/udev/rules.d` and either reboot or reload udev. You will need root to do this.
 
-```$ sudo cp linux/udev/rules.d/51-fxpak.rules /etc/udev/rules.d/.
+```
+$ sudo cp linux/udev/rules.d/51-fxpak.rules /etc/udev/rules.d/.
 $ sudo udevadm control --reload
-$ sudo udevadm trigger```
+$ sudo udevadm trigger
+```
 
 SNI is intended to be easy to use with little to no direct user interaction. It should always Just Work™.
 
