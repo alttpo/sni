@@ -9,9 +9,9 @@ require (
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.0.4
+	github.com/improbable-eng/grpc-web v0.15.0
 	github.com/spf13/viper v1.8.1
 	go.bug.st/serial v1.3.3
-	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf
 	google.golang.org/grpc v1.38.0
 	google.golang.org/protobuf v1.26.0
 )

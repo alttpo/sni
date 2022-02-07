@@ -3,11 +3,13 @@ package grpcimpl
 import (
 	"context"
 	"fmt"
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
 	"log"
 	"net"
+	"net/http"
 	"sni/cmd/sni/config"
 	"sni/protos/sni"
 	"sni/util"
@@ -63,6 +65,42 @@ func StartGrpcServer() {
 			log.Fatalf("grpc: failed to serve: %v", err)
 		}
 		log.Println("grpc: exit")
+	}()
+
+	go func() {
+		// wrap the GrpcServer with a GrpcWebServer:
+		wrappedGrpc := grpcweb.WrapServer(GrpcServer)
+
+		webListenPort := env.GetOrDefault("SNI_GRPCWEB_LISTEN_PORT", "8190")
+		webListenAddr := net.JoinHostPort(ListenHost, webListenPort)
+
+		// attempt to start the usb2snes server:
+		count := 0
+		var err error
+		var lis net.Listener
+
+		//lc := &net.ListenConfig{Control: util.ReusePortControl}
+		lc := &net.ListenConfig{}
+		for {
+			lis, err = lc.Listen(context.Background(), "tcp", webListenAddr)
+			if err == nil {
+				break
+			}
+
+			if count == 0 {
+				log.Printf("grpcweb: failed to listen on %s: %v\n", webListenAddr, err)
+			}
+			count++
+			if count >= 30 {
+				count = 0
+			}
+
+			time.Sleep(time.Second)
+		}
+
+		log.Printf("grpcweb: listening on %s\n", webListenAddr)
+		err = http.Serve(lis, wrappedGrpc)
+		log.Printf("grpcweb: exit listenHttp: %v\n", err)
 	}()
 }
 

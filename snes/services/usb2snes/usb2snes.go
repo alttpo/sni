@@ -45,7 +45,7 @@ func listenHttp(listenAddr string) {
 	var lis net.Listener
 
 	mux := http.NewServeMux()
-	mux.Handle("/", http.HandlerFunc(clientWebsocketHandler))
+	mux.Handle("/", http.HandlerFunc(WebsocketHandler))
 
 	// attempt to start the usb2snes server:
 	count := 0
@@ -124,7 +124,7 @@ func (w *wsWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-func clientWebsocketHandler(rw http.ResponseWriter, req *http.Request) {
+func WebsocketHandler(rw http.ResponseWriter, req *http.Request) {
 	conn, _, _, err := ws.UpgradeHTTP(req, rw)
 	if err != nil {
 		log.Println(err)
