@@ -14,7 +14,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16
+          go-version: 1.17
 
       - name: Set up linux dependencies
         run: sudo apt-get update && sudo apt-get install -y gcc libgtk-3-dev libappindicator3-dev
@@ -27,16 +27,15 @@ jobs:
 
   release-matrix:
     strategy:
-      # we want to be notified of main build failures as soon as possible
       fail-fast: true
       matrix:
         include:
           - os: macos-latest
             goos: darwin
             goarch: amd64
-          - os: macos-latest
-            goos: darwin
-            goarch: arm64
+          #- os: macos-latest
+          #  goos: darwin
+          #  goarch: arm64
           - os: windows-latest
             goos: windows
             goarch: amd64
@@ -48,12 +47,12 @@ jobs:
           - os: ubuntu-latest
             goos: linux
             goarch: amd64
-          - os: ubuntu-latest
-            goos: linux
-            goarch: "386"
-          - os: ubuntu-latest
-            goos: linux
-            goarch: arm64
+          #- os: ubuntu-latest
+          #  goos: linux
+          #  goarch: "386"
+          #- os: ubuntu-latest
+          #  goos: linux
+          #  goarch: arm64
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -63,7 +62,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16
+          go-version: 1.17
 
       - name: Set up linux dependencies
         if: ${{ matrix.goos == 'linux' }}
@@ -76,19 +75,48 @@ jobs:
         if: ${{ matrix.goos == 'windows' }}
 
       - uses: actions/checkout@v2
+        name: Checkout
         with:
           fetch-depth: 0
 
-      - run: |
+      - name: Generate Windows resources
+        if: ${{ matrix.goos == 'windows' }}
+        run: |
+          cd cmd/sni
+          go install github.com/tc-hib/go-winres@latest
+          go-winres simply --icon icon/sni.ico --product-version git-tag --file-version git-tag --product-name "Super Nintendo Interface" --copyright "© jsd1982 2021" --original-filename "sni"
+
+      - name: Package Lua Bridge for distribution
+        run: |
           mkdir ${{env.basename}}
+          mkdir ${{env.basename}}/lua
+          mkdir ${{env.basename}}/lua/x64
+          mkdir ${{env.basename}}/lua/x86
           cp README.md ${{env.basename}}
           cp LICENSE ${{env.basename}}
           cp protos/sni/sni.proto ${{env.basename}}
           cp cmd/sni/apps.yaml ${{env.basename}}
-          cp lua/Connector.lua ${{env.basename}}
+          cp lua/Connector.lua ${{env.basename}}/lua
 
-      - run: >
-          go build
+      - name: Copy in lua socket.dll dependencies for Windows
+        if: ${{ matrix.goos == 'windows' }}
+        run: |
+          rm ${{env.basename}}/lua/Connector.lua
+          cp lua/Connector.lua ${{env.basename}}/lua/x64
+          cp lua/Connector.lua ${{env.basename}}/lua/x86
+          cp lua/x64/* ${{env.basename}}/lua/x64
+          cp lua/x86/* ${{env.basename}}/lua/x86
+
+      - if: ${{ matrix.goos == 'windows' }}
+        name: Build SNI
+        run: |
+          SET GOARCH=${{matrix.goarch}}
+          go build -ldflags="-H=windowsgui -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')' -X 'main.builtBy=$(go version | cut -f3 -d ' ')'" -o ./${{env.basename}}/sni${{matrix.exesuffix}} ./cmd/sni
+
+      - if: ${{ matrix.goos != 'windows' }}
+        name: Build SNI
+        run: >
+          GOARCH=${{matrix.goarch}} go build
           -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
           -o ./${{env.basename}}/sni${{matrix.exesuffix}}
           ./cmd/sni
