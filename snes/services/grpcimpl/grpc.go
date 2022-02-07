@@ -69,7 +69,11 @@ func StartGrpcServer() {
 
 	go func() {
 		// wrap the GrpcServer with a GrpcWebServer:
-		wrappedGrpc := grpcweb.WrapServer(GrpcServer)
+		wrappedGrpc := grpcweb.WrapServer(
+			GrpcServer,
+			grpcweb.WithWebsockets(true),
+			grpcweb.WithOriginFunc(func(origin string) bool { return true }),
+		)
 
 		webListenPort := env.GetOrDefault("SNI_GRPCWEB_LISTEN_PORT", "8190")
 		webListenAddr := net.JoinHostPort(ListenHost, webListenPort)
