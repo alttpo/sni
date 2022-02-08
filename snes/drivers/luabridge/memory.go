@@ -67,26 +67,62 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 			log.Printf("luabridge: > %s", sb.Bytes())
 		}
 
-		var data []byte
-		data, err = d.WriteThenReadUntilNewline(sb.Bytes(), deadline)
+		var hexstr []byte
+		hexstr, err = d.WriteThenReadUntilNewline(sb.Bytes(), deadline)
 		if err != nil {
 			return
 		}
 
 		if config.LogResponses {
-			log.Printf("luabridge: < %s", data)
+			log.Printf("luabridge: < %s", hexstr)
 		}
 
-		// parse response as json:
-		type tmpResultJson struct {
-			Data []byte `json:"data"`
-		}
-		tmp := tmpResultJson{}
-		err = json.Unmarshal(data, &tmp)
-		if err != nil {
+		// parse response as hex bytes:
+		err = nil
+		tnl := bytes.LastIndexByte(hexstr, '\n')
+		if tnl < 0 {
+			err = fmt.Errorf("invalid response: no newline terminator found")
+			err = d.FatalError(err)
 			return
 		}
-		if actual, expected := len(tmp.Data), read.Size; actual != expected {
+
+		data := make([]byte, tnl/2)
+		for i := range data {
+			v := byte(0)
+
+			c := hexstr[i*2+0]
+			if 'A' <= c && c <= 'F' {
+				v += c - 'A' + 10
+			} else if 'a' <= c && c <= 'f' {
+				v += c - 'a' + 10
+			} else if '0' <= c && c <= '9' {
+				v += c - '0'
+			} else {
+				err = fmt.Errorf("invalid character '%c' seen in hex byte stream position %d", c, i*2+0)
+				break
+			}
+			v <<= 4
+
+			c = hexstr[i*2+1]
+			if 'A' <= c && c <= 'F' {
+				v += c - 'A' + 10
+			} else if 'a' <= c && c <= 'f' {
+				v += c - 'a' + 10
+			} else if '0' <= c && c <= '9' {
+				v += c - '0'
+			} else {
+				err = fmt.Errorf("invalid character '%c' seen in hex byte stream position %d", c, i*2+1)
+				break
+			}
+
+			data[i] = v
+		}
+		if err != nil {
+			err = d.FatalError(err)
+			return
+		}
+
+		if actual, expected := len(data), read.Size; actual != expected {
 			err = fmt.Errorf("response did not provide enough data to meet request size; actual $%x, expected $%x", actual, expected)
 			err = d.FatalError(err)
 			return
@@ -99,7 +135,7 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 				AddressSpace:  addressSpace,
 				MemoryMapping: read.RequestAddress.MemoryMapping,
 			},
-			Data: tmp.Data,
+			Data: data,
 		}
 	}
 

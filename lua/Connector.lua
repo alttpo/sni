@@ -1,5 +1,6 @@
 -- original file found in a GPLv3 code repository, unclear if this is the intended license nor who the authors are
--- SNI modifications by Berserker, modifications licensed under MIT License
+-- SNI modifications by Berserker, jsd1982; modifications licensed under MIT License
+-- version 3 changes Read from JSON to HEX response
 
 if not event then
     is_snes9x = true
@@ -21,21 +22,30 @@ end
 
 
 function readbyterange(addr, length, domain)
+    local mtable;
+    local mstart = 0;
+    local mend = length - 1;
     if is_snes9x then
-        return memory.readbyterange(addr, length)
+        mtable = memory.readbyterange(addr, length);
+        mstart = 1
+        mend = length
     else
         -- jsd: wrap around address by domain size:
         local domainsize = memory.getmemorydomainsize(domain)
         while addr >= domainsize do
             addr = addr - domainsize
         end
-        local mtable = memory.readbyterange(addr, length, domain)
-        local toret = {};
-        for i=0, (length - 1) do
-            table.insert(toret, mtable[i])
-        end
-        return toret
+        mtable = memory.readbyterange(addr, length, domain)
+        mstart = 0;
+        mend = length - 1;
     end
+
+    -- jsd: format output in 2-char hex per byte:
+    local toret = {};
+    for i=mstart, mend do
+        table.insert(toret, string.format("%02x", mtable[i]))
+    end
+    return toret
 end
 function writebyte(addr, value, domain)
   if is_snes9x then
@@ -74,7 +84,7 @@ local function onMessage(s)
           domain = parts[4]
         end
         local byteRange = readbyterange(adr, length, domain)
-        connection:send("{\"data\": [" .. table.concat(byteRange, ",") .. "]}\n")
+        connection:send(table.concat(byteRange) .. "\n")
     elseif parts[1] == "Write" then
         local adr = tonumber(parts[2])
         local domain
@@ -98,9 +108,9 @@ local function onMessage(s)
         stopped = true
     elseif parts[1] == "Version" then
         if is_snes9x then
-            connection:send("Version|SNI Connector|2|Snes9x\n")
+            connection:send("Version|SNI Connector|3|Snes9x\n")
         else
-            connection:send("Version|SNI Connector|2|Bizhawk\n")
+            connection:send("Version|SNI Connector|3|Bizhawk\n")
         end
     elseif is_snes9x ~= true then
         if parts[1] == "Reset" then
