@@ -1,6 +1,7 @@
 package luabridge
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
@@ -18,6 +19,8 @@ type Device struct {
 	deviceKey string
 
 	isClosed bool
+
+	lineReader *bufio.Reader
 
 	clientName string
 	version    string
@@ -41,6 +44,7 @@ func NewDevice(conn *net.TCPConn, key string) *Device {
 		clientName: "Unknown",
 		version:    "0",
 	}
+	d.lineReader = bufio.NewReaderSize(d.c, 65536)
 	return d
 }
 
@@ -82,15 +86,13 @@ func (d *Device) initConnection() {
 }
 
 func (d *Device) CheckVersion() (err error) {
-	b := make([]byte, 65535)
-
-	var n int
-	n, err = d.WriteThenRead([]byte("Version\n"), b, time.Now().Add(time.Second*15))
+	var b []byte
+	b, err = d.WriteThenReadUntilNewline([]byte("Version\n"), time.Now().Add(time.Second*15))
 	if err != nil {
 		return
 	}
 
-	rsp := string(b[:n])
+	rsp := string(b[:])
 	rsp = strings.TrimRight(rsp, "\r\n ")
 
 	rspn := strings.Split(rsp, "|")
@@ -158,26 +160,7 @@ func (d *Device) WriteDeadline(write []byte, deadline time.Time) (n int, err err
 	return
 }
 
-func (d *Device) ReadDeadline(read []byte, deadline time.Time) (n int, err error) {
-	defer d.lock.Unlock()
-	d.lock.Lock()
-
-	err = d.c.SetReadDeadline(deadline)
-	if err != nil {
-		err = d.FatalError(err)
-		return
-	}
-
-	n, err = d.c.Read(read)
-	if err != nil {
-		err = d.FatalError(err)
-		return
-	}
-
-	return
-}
-
-func (d *Device) WriteThenRead(write []byte, read []byte, deadline time.Time) (n int, err error) {
+func (d *Device) WriteThenReadUntilNewline(write []byte, deadline time.Time) (line []byte, err error) {
 	defer d.lock.Unlock()
 	d.lock.Lock()
 
@@ -199,7 +182,7 @@ func (d *Device) WriteThenRead(write []byte, read []byte, deadline time.Time) (n
 		return
 	}
 
-	n, err = d.c.Read(read)
+	line, err = d.lineReader.ReadBytes('\n')
 	if err != nil {
 		err = d.FatalError(err)
 		return

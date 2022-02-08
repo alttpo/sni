@@ -63,14 +63,12 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 			log.Printf("luabridge: > %s", sb.Bytes())
 		}
 
-		data := make([]byte, 65536)
-		var n int
-		n, err = d.WriteThenRead(sb.Bytes(), data, deadline)
+		var data []byte
+		data, err = d.WriteThenReadUntilNewline(sb.Bytes(), deadline)
 		if err != nil {
 			return
 		}
 
-		data = data[:n]
 		if config.VerboseLogging {
 			log.Printf("luabridge: < %s", data)
 		}
