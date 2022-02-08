@@ -3,7 +3,6 @@ package luabridge
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"sni/cmd/sni/config"
@@ -12,6 +11,11 @@ import (
 	"sni/snes/mapping"
 	"time"
 )
+import jsoniter "github.com/json-iterator/go"
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
+
+//var json = jsoniter.ConfigFastest
 
 const readWriteTimeout = time.Second * 15
 
