@@ -59,6 +59,7 @@ func main() {
 	if *cpuprofile != "" {
 		go func() {
 			// "localhost:6060"
+			// /debug/pprof/
 			log.Println(http.ListenAndServe(*cpuprofile, nil))
 		}()
 	}

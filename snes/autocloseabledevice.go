@@ -33,6 +33,11 @@ type autoCloseableDevice struct {
 	logger *log.Logger
 }
 
+var (
+	sniDebug       bool
+	sniDebugParsed bool
+)
+
 func NewAutoCloseableDevice(container DeviceContainer, uri *url.URL, deviceKey string) AutoCloseableDevice {
 	if container == nil {
 		panic(fmt.Errorf("container cannot be nil"))
@@ -41,8 +46,13 @@ func NewAutoCloseableDevice(container DeviceContainer, uri *url.URL, deviceKey s
 		panic(fmt.Errorf("uri cannot be nil"))
 	}
 
+	if !sniDebugParsed {
+		sniDebug = util.IsTruthy(env.GetOrDefault("SNI_DEBUG", "0"))
+		sniDebugParsed = true
+	}
+
 	var logger *log.Logger
-	if util.IsTruthy(env.GetOrDefault("SNI_DEBUG", "0")) {
+	if sniDebug {
 		defaultLogger := log.Default()
 		logger = log.New(
 			defaultLogger.Writer(),
