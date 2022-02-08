@@ -69,7 +69,7 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 			return
 		}
 
-		if config.VerboseLogging {
+		if config.LogResponses {
 			log.Printf("luabridge: < %s", data)
 		}
 

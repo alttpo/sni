@@ -80,6 +80,7 @@ func (d *Device) initConnection() {
 
 		err = d.CheckVersion()
 		if err != nil {
+			log.Printf("luabridge: error while checking version: %v\n", err)
 			return
 		}
 	}
