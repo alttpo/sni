@@ -9,6 +9,7 @@ import (
 	"sni/protos/sni"
 	"sni/snes"
 	"sni/snes/mapping"
+	"strconv"
 	"time"
 )
 import jsoniter "github.com/json-iterator/go"
@@ -67,55 +68,29 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 			log.Printf("luabridge: > %s", sb.Bytes())
 		}
 
-		var hexstr []byte
-		hexstr, err = d.WriteThenReadUntilNewline(sb.Bytes(), deadline)
+		var rspstr []byte
+		rspstr, err = d.WriteThenReadUntilNewline(sb.Bytes(), deadline)
 		if err != nil {
 			return
 		}
 
 		if config.LogResponses {
-			log.Printf("luabridge: < %s", hexstr)
+			log.Printf("luabridge: < %s", rspstr)
 		}
 
-		// parse response as hex bytes:
-		err = nil
-		tnl := bytes.LastIndexByte(hexstr, '\n')
-		if tnl < 0 {
-			err = fmt.Errorf("invalid response: no newline terminator found")
-			err = d.FatalError(err)
-			return
-		}
-
-		data := make([]byte, tnl/2)
-		for i := range data {
-			v := byte(0)
-
-			c := hexstr[i*2+0]
-			if 'A' <= c && c <= 'F' {
-				v += c - 'A' + 10
-			} else if 'a' <= c && c <= 'f' {
-				v += c - 'a' + 10
-			} else if '0' <= c && c <= '9' {
-				v += c - '0'
+		var data []byte
+		if d.clientName == "SNI Connector" {
+			version, _ := strconv.Atoi(d.version)
+			if version >= 3 {
+				// parse response as hex bytes:
+				data, err = d.parseHexResponse(rspstr)
 			} else {
-				err = fmt.Errorf("invalid character '%c' seen in hex byte stream position %d", c, i*2+0)
-				break
+				// parse response as json:
+				data, err = d.parseJsonResponse(rspstr)
 			}
-			v <<= 4
-
-			c = hexstr[i*2+1]
-			if 'A' <= c && c <= 'F' {
-				v += c - 'A' + 10
-			} else if 'a' <= c && c <= 'f' {
-				v += c - 'a' + 10
-			} else if '0' <= c && c <= '9' {
-				v += c - '0'
-			} else {
-				err = fmt.Errorf("invalid character '%c' seen in hex byte stream position %d", c, i*2+1)
-				break
-			}
-
-			data[i] = v
+		} else {
+			// parse response as json:
+			data, err = d.parseJsonResponse(rspstr)
 		}
 		if err != nil {
 			err = d.FatalError(err)
@@ -139,6 +114,64 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...snes.MemoryReadRe
 		}
 	}
 
+	return
+}
+
+func (d *Device) parseHexResponse(hexstr []byte) (data []byte, err error) {
+	err = nil
+	tnl := bytes.LastIndexByte(hexstr, '\n')
+	if tnl < 0 {
+		err = fmt.Errorf("invalid response: no newline terminator found")
+		return
+	}
+
+	data = make([]byte, tnl/2)
+	for i := range data {
+		v := byte(0)
+
+		c := hexstr[i*2+0]
+		if 'A' <= c && c <= 'F' {
+			v += c - 'A' + 10
+		} else if 'a' <= c && c <= 'f' {
+			v += c - 'a' + 10
+		} else if '0' <= c && c <= '9' {
+			v += c - '0'
+		} else {
+			err = fmt.Errorf("invalid character '%c' seen in hex byte stream position %d", c, i*2+0)
+			return
+		}
+		v <<= 4
+
+		c = hexstr[i*2+1]
+		if 'A' <= c && c <= 'F' {
+			v += c - 'A' + 10
+		} else if 'a' <= c && c <= 'f' {
+			v += c - 'a' + 10
+		} else if '0' <= c && c <= '9' {
+			v += c - '0'
+		} else {
+			err = fmt.Errorf("invalid character '%c' seen in hex byte stream position %d", c, i*2+1)
+			return
+		}
+
+		data[i] = v
+	}
+
+	return
+}
+
+func (d *Device) parseJsonResponse(rspstr []byte) (data []byte, err error) {
+	type tmpResultJson struct {
+		Data []byte `json:"data"`
+	}
+
+	tmp := tmpResultJson{}
+	err = json.Unmarshal(rspstr, &tmp)
+	if err != nil {
+		return
+	}
+
+	data = tmp.Data
 	return
 }
 
