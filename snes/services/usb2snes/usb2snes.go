@@ -726,10 +726,10 @@ serverLoop:
 			if config.VerboseLogging {
 				log.Printf("usb2snes: %s: %s REPLY: $%x bytes\n", clientName, cmd.Opcode, n)
 			}
-			if err = wb.Flush(); err != nil {
-				log.Printf("usb2snes: %s: %s error flushing response: %s\n", clientName, cmd.Opcode, err)
-				break serverLoop
-			}
+			//if err = wb.Flush(); err != nil {
+			//	log.Printf("usb2snes: %s: %s error flushing response: %s\n", clientName, cmd.Opcode, err)
+			//	break serverLoop
+			//}
 			break
 
 		default:
