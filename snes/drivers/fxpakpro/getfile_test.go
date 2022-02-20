@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestDevice_getFile_bug(t *testing.T) {
+func DoNotTestDevice_getFile_bug(t *testing.T) {
 	d := openExactDevice(t)
 	defer d.Close()
 
