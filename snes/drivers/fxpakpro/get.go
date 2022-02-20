@@ -76,7 +76,7 @@ func (d *Device) get(ctx context.Context, space space, address uint32, size uint
 	}
 
 	data = make([]byte, paddedSize)
-	err = recvSerial(ctx, d.f, data, int(paddedSize))
+	err = recvSerial(ctx, d.f, data, paddedSize)
 	if err != nil {
 		err = d.FatalError(err)
 		return

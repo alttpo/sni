@@ -82,7 +82,7 @@ func (d *Device) getFile(ctx context.Context, path string, w io.Writer, sizeRece
 		progress(received, size)
 	}
 	for i := uint32(0); i < chunkCount; i++ {
-		err = readExact(ctx, d.f, 512, chunk)
+		_, err = readExact(ctx, d.f, 512, chunk)
 		if err != nil {
 			received = 0
 			err = d.FatalError(err)
@@ -108,7 +108,7 @@ func (d *Device) getFile(ctx context.Context, path string, w io.Writer, sizeRece
 
 	remainder := int(size & 511)
 	if remainder != 0 {
-		err = readExact(ctx, d.f, 512, chunk)
+		_, err = readExact(ctx, d.f, 512, chunk)
 		if err != nil {
 			received = 0
 			err = d.FatalError(err)

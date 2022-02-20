@@ -1,10 +1,34 @@
 package fxpakpro
 
 import (
-	"bytes"
 	"context"
+	"io"
 	"testing"
 )
+
+type patternReader struct {
+	size uint32
+	offs uint32
+}
+
+func (r *patternReader) Read(d []byte) (n int, err error) {
+	n = 0
+	for i := range d {
+		if r.offs >= r.size {
+			err = io.EOF
+			return
+		}
+		d[i] = byte(r.offs)
+
+		r.offs++
+		n++
+		if n >= 63 {
+			return
+		}
+	}
+
+	return
+}
 
 func TestDevice_putFile(t *testing.T) {
 	d := openExactDevice(t)
@@ -38,14 +62,9 @@ func TestDevice_putFile(t *testing.T) {
 		},
 	}
 
-	testdata := [513]byte{}
-	for i := range testdata {
-		testdata[i] = byte(i & 255)
-	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := bytes.NewReader(testdata[:tt.args.size])
+			r := &patternReader{size: tt.args.size}
 			n, err := d.putFile(ctx, tt.args.path, tt.args.size, r, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("putFile() error = %v, wantErr %v", err, tt.wantErr)

@@ -22,7 +22,7 @@ func (d *Device) vget(ctx context.Context, space space, chunks ...vgetChunk) (er
 	sb[5] = byte(space)
 	sb[6] = byte(FlagDATA64B | FlagNORESP)
 
-	total := 0
+	total := uint32(0)
 	sp := sb[32:]
 	for _, chunk := range chunks {
 		copy(sp, []byte{
@@ -32,7 +32,7 @@ func (d *Device) vget(ctx context.Context, space space, chunks ...vgetChunk) (er
 			byte((chunk.addr >> 0) & 0xFF),
 		})
 		sp = sp[4:]
-		total += int(chunk.size)
+		total += uint32(chunk.size)
 	}
 
 	if shouldLock(ctx) {
