@@ -5,6 +5,7 @@ package tray
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"syscall"
 )
@@ -15,6 +16,7 @@ var (
 	procAllocConsole *syscall.LazyProc
 	procGetWin       *syscall.LazyProc
 	procShowWin      *syscall.LazyProc
+	consoleAllocated bool
 )
 
 func initConsole() (err error) {
@@ -28,9 +30,13 @@ func initConsole() (err error) {
 	var r0 uintptr
 	r0, _, err = syscall.Syscall(procAllocConsole.Addr(), 0, 0, 0, 0)
 	if r0 == 0 {
-		err = fmt.Errorf("AllocConsole(): %w", err)
+		//err = fmt.Errorf("AllocConsole(): %w", err)
+		log.Printf("AllocConsole(): %v\n", err)
+		err = nil
 		return
 	}
+
+	consoleAllocated = true
 
 	var hin, hout, herr syscall.Handle
 	hin, err = syscall.GetStdHandle(syscall.STD_INPUT_HANDLE)
@@ -76,6 +82,10 @@ func initConsole() (err error) {
 }
 
 func consoleVisible(show bool) (err error) {
+	if !consoleAllocated {
+		return nil
+	}
+
 	hwnd, _, _ := procGetWin.Call()
 	if hwnd == 0 {
 		return
@@ -99,5 +109,5 @@ func consoleVisible(show bool) (err error) {
 }
 
 func consoleIsDynamic() bool {
-	return true
+	return consoleAllocated
 }
