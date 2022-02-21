@@ -3,33 +3,14 @@ package devices
 import (
 	"fmt"
 	"net/url"
-	"sni/protos/sni"
 	"sort"
 	"sync"
 )
 
-type DeviceDescriptor struct {
-	Uri                 url.URL
-	DisplayName         string
-	Kind                string
-	Capabilities        []sni.DeviceCapability
-	DefaultAddressSpace sni.AddressSpace
-}
-
-type Driver interface {
-	Kind() string
-
-	// Detect any present devices
-	Detect() ([]DeviceDescriptor, error)
-
-	Device(uri *url.URL) AutoCloseableDevice
-
-	DeviceKey(uri *url.URL) string
-
-	DisconnectAll()
-
-	HasCapabilities(capabilities ...sni.DeviceCapability) (bool, error)
-}
+var (
+	driversMu sync.RWMutex
+	drivers   = make(map[string]Driver)
+)
 
 type NamedDriver struct {
 	Driver Driver
@@ -44,16 +25,6 @@ type DriverDescriptor interface {
 
 	DisplayOrder() int
 }
-
-type NamedDriverDevicePair struct {
-	NamedDriver NamedDriver
-	Device      DeviceDescriptor
-}
-
-var (
-	driversMu sync.RWMutex
-	drivers   = make(map[string]Driver)
-)
 
 // Register makes a SNES driver available by the provided name.
 // If Register is called twice with the same name or if driver is nil,
