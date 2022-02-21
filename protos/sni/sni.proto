@@ -78,9 +78,12 @@ enum AddressSpace {
   SnesABus = 1;
   // Do not do any address translation; simply pass the raw address to the device as-is:
   Raw = 2;
+
+  // Nintendo 64 address space:
+  N64 = 20;
 }
 
-// memory mapping mode of a ROM cart:
+// memory mapping mode of a SNES cart:
 enum MemoryMapping {
   Unknown = 0;
   HiROM = 1;
@@ -89,7 +92,7 @@ enum MemoryMapping {
   // TODO: BSX = 4;
 }
 
-// capabilities of a SNES device
+// capabilities of a device
 enum DeviceCapability {
   None = 0;
   ReadMemory = 1;
@@ -135,6 +138,8 @@ message DevicesResponse {
     repeated DeviceCapability capabilities = 4;
     // default address space for the device:
     AddressSpace defaultAddressSpace = 5;
+    // console system supported, e.g. "snes", "n64"
+    string system = 6;
   }
 
   repeated Device devices = 1;

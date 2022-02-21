@@ -136,6 +136,7 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 				Kind:                d.Kind(),
 				Capabilities:        driverCapabilities[:],
 				DefaultAddressSpace: defaultAddressSpace,
+				System:              "snes",
 			}
 
 			devicesLock.Lock()

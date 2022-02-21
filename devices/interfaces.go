@@ -28,6 +28,7 @@ type DeviceDescriptor struct {
 	Kind                string
 	Capabilities        []sni.DeviceCapability
 	DefaultAddressSpace sni.AddressSpace
+	System              string
 }
 
 // Device acts as an exclusive-access gateway to the subsystems of the SNES device

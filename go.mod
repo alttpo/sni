@@ -10,7 +10,7 @@ require (
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.0.4
 	github.com/improbable-eng/grpc-web v0.15.0
-	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/json-iterator/go v1.1.12
 	github.com/spf13/viper v1.8.1
 	go.bug.st/serial v1.3.3
 	google.golang.org/grpc v1.38.0

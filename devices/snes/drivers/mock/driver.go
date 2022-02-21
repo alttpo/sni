@@ -48,6 +48,7 @@ func (d *Driver) Detect() ([]devices.DeviceDescriptor, error) {
 			Kind:                d.Kind(),
 			Capabilities:        driverCapabilities[:],
 			DefaultAddressSpace: sni.AddressSpace_SnesABus,
+			System:              "snes",
 		},
 	}, nil
 }
