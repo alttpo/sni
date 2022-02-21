@@ -51,6 +51,8 @@ github.com/alecthomas/units v0.0.0-20190717042225-c3de453c63f4/go.mod h1:ybxpYRF
 github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d/go.mod h1:rBZYJk541a8SKzHPHnH3zbiI+7dagKZ0cgpgrD7Fyho=
 github.com/alttpo/observable v0.0.0-20210711204527-d8b64a4529cc h1:1qcfbo8eu9X5Ljf82MmvTpCUGJLxx3gHMjpzWbdaPU4=
 github.com/alttpo/observable v0.0.0-20210711204527-d8b64a4529cc/go.mod h1:S2lExZ67QD0EYw5ie4PlFLwVDEXZzAtDrUbgRWqArRo=
+github.com/alttpo/snes v0.0.0-20220221181244-58187fd09530 h1:b4QqW6Jn7ZmlQkfS94WLQYGjN8S7dRWhjhgs8+kPu5I=
+github.com/alttpo/snes v0.0.0-20220221181244-58187fd09530/go.mod h1:hqcMbI1PDqZfNOwDdcGcsJPS5ca1nRhBIj9wwkMrS1c=
 github.com/alttpo/systray v1.3.0 h1:hinULhOMk3mjb5IhJe/rVQKdkoqTG+2G8fcZJSCvTQM=
 github.com/alttpo/systray v1.3.0/go.mod h1:SHjooj3IKvtx2SeEbHOaDgTZ6dN3oYoMJAjtcN75Dzo=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=

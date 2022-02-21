@@ -1,15 +1,13 @@
 package fxpakpro
 
 import (
-	"bytes"
 	"context"
 	"fmt"
+	"github.com/alttpo/snes/asm"
 	"sni/devices"
-	"sni/devices/snes/asm"
 	"sni/devices/snes/mapping"
 	"sni/devices/snes/timing"
 	"sni/protos/sni"
-	"strings"
 	"time"
 )
 
@@ -236,16 +234,15 @@ func (d *Device) MultiWriteMemory(
 
 	// handle WRAM writes using NMI EXE feature of fxpakpro:
 	if len(wramWrites) > 0 {
-		var a asm.Emitter
-		a.Code = &bytes.Buffer{}
-		a.Text = &strings.Builder{}
+		code := [1024]byte{}
+		a := asm.NewEmitter(code[:], true)
 
 		// generate a copy routine to write data into WRAM:
-		GenerateCopyAsm(&a, wramWrites...)
+		GenerateCopyAsm(a, wramWrites...)
 
-		//log.Print("\n" + a.Text.String())
+		//a.WriteTextTo(log.Writer())
 
-		if actual, expected := a.Code.Len(), 1024; actual > expected {
+		if actual, expected := a.Len(), 1024; actual > expected {
 			return nil, fmt.Errorf(
 				"fxpakpro: too much WRAM data for the snescmd buffer; %d > %d",
 				actual,
@@ -256,7 +253,7 @@ func (d *Device) MultiWriteMemory(
 		chunks := make([]vputChunk, 0, 8)
 		startAddr := uint32(0x2C00)
 		addr := startAddr
-		data := a.Code.Bytes()
+		data := code[:a.Len()]
 		size := len(data)
 		for size > 0 {
 			chunkSize := 255
@@ -410,7 +407,7 @@ func GenerateCopyAsm(a *asm.Emitter, writes ...devices.MemoryWriteRequest) {
 	a.JMP_indirect(0xFFEA)
 
 	// bug check: make sure emitted code is the expected size
-	if actual, expected := a.Code.Len(), expectedCodeSize; actual != expected {
+	if actual, expected := a.Len(), expectedCodeSize; actual != expected {
 		panic(fmt.Errorf("bug check: emitted code size %d != %d", actual, expected))
 	}
 

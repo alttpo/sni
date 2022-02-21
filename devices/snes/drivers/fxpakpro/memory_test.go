@@ -1,11 +1,10 @@
 package fxpakpro
 
 import (
-	"bytes"
+	"github.com/alttpo/snes/asm"
+	"log"
 	"sni/devices"
-	"sni/devices/snes/asm"
 	"sni/protos/sni"
-	"strings"
 	"testing"
 )
 
@@ -37,11 +36,10 @@ func TestGenerateCopyAsm(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var a asm.Emitter
-			a.Code = &bytes.Buffer{}
-			a.Text = &strings.Builder{}
-			GenerateCopyAsm(&a, tt.args...)
-			t.Log("\n" + a.Text.String())
+			code := [1024]byte{}
+			a := asm.NewEmitter(code[:], true)
+			GenerateCopyAsm(a, tt.args...)
+			a.WriteTextTo(log.Writer())
 		})
 	}
 }
