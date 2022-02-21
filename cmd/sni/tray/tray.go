@@ -11,7 +11,7 @@ import (
 	"sni/cmd/sni/config"
 	"sni/cmd/sni/icon"
 	"sni/cmd/sni/logging"
-	"sni/snes"
+	"sni/devices"
 	"strings"
 	"sync"
 	"time"
@@ -22,7 +22,7 @@ const maxItems = 10
 var (
 	deviceMenuItemsMu sync.Mutex
 	deviceMenuItems   [maxItems]*systray.MenuItem
-	deviceDescriptors []snes.DeviceDescriptor
+	deviceDescriptors []devices.DeviceDescriptor
 )
 
 func Init() (err error) {
@@ -30,7 +30,7 @@ func Init() (err error) {
 	return
 }
 
-func UpdateDeviceList(descriptors []snes.DeviceDescriptor) {
+func UpdateDeviceList(descriptors []devices.DeviceDescriptor) {
 	deviceDescriptors = descriptors[:]
 
 	updateDeviceList()
@@ -258,7 +258,7 @@ func trayStart() {
 	}
 
 	disconnectAll.ClickedFunc = func(item *systray.MenuItem) {
-		for _, named := range snes.Drivers() {
+		for _, named := range devices.Drivers() {
 			log.Printf("%s: disconnecting all devices...\n", named.Name)
 			named.Driver.DisconnectAll()
 		}
@@ -306,8 +306,8 @@ func trayStart() {
 }
 
 func RefreshDeviceList() {
-	descriptors := make([]snes.DeviceDescriptor, 0, 10)
-	for _, named := range snes.Drivers() {
+	descriptors := make([]devices.DeviceDescriptor, 0, 10)
+	for _, named := range devices.Drivers() {
 		d, err := named.Driver.Detect()
 		if err != nil {
 			continue

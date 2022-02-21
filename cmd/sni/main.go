@@ -8,20 +8,16 @@ import (
 	"sni/cmd/sni/config"
 	"sni/cmd/sni/logging"
 	"sni/cmd/sni/tray"
-	"sni/snes/drivers/emunw"
-	"sni/snes/services/grpcimpl"
-	"sni/snes/services/usb2snes"
+	"sni/devices/snes/drivers/emunw"
+	"sni/devices/snes/drivers/fxpakpro"
+	"sni/devices/snes/drivers/luabridge"
+	"sni/devices/snes/drivers/mock"
+	"sni/devices/snes/drivers/retroarch"
+	"sni/services/grpcimpl"
+	"sni/services/usb2snes"
 )
 
 import _ "net/http/pprof"
-
-// include these SNES drivers:
-import (
-	"sni/snes/drivers/fxpakpro"
-	"sni/snes/drivers/luabridge"
-	"sni/snes/drivers/mock"
-	"sni/snes/drivers/retroarch"
-)
 
 // build variables set via ldflags by `go build -ldflags="-X 'main.version=v1.0.0'"`:
 var (
