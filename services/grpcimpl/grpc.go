@@ -73,7 +73,29 @@ func StartGrpcServer() {
 			GrpcServer,
 			grpcweb.WithWebsockets(true),
 			grpcweb.WithOriginFunc(func(origin string) bool { return true }),
+			grpcweb.WithWebsocketOriginFunc(func(req *http.Request) bool { return true }),
 		)
+
+		//corsWrapper := wrappedGrpc
+		corsWrapper := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			// no CORS checking:
+			if wrappedGrpc.IsGrpcWebSocketRequest(req) {
+				wrappedGrpc.HandleGrpcWebsocketRequest(rw, req)
+				return
+			}
+			if wrappedGrpc.IsGrpcWebRequest(req) {
+				wrappedGrpc.HandleGrpcWebRequest(rw, req)
+				return
+			}
+
+			// Likely an OPTIONS request:
+			rw.Header().Add("Access-Control-Allow-Origin", "*")
+			rw.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+			rw.Header().Add("Access-Control-Allow-Headers", "*")
+
+			rw.WriteHeader(http.StatusOK)
+			_, _ = rw.Write(make([]byte, 0))
+		})
 
 		webListenPort := env.GetOrDefault("SNI_GRPCWEB_LISTEN_PORT", "8190")
 		webListenAddr := net.JoinHostPort(ListenHost, webListenPort)
@@ -103,7 +125,7 @@ func StartGrpcServer() {
 		}
 
 		log.Printf("grpcweb: listening on %s\n", webListenAddr)
-		err = http.Serve(lis, wrappedGrpc)
+		err = http.Serve(lis, corsWrapper)
 		log.Printf("grpcweb: exit listenHttp: %v\n", err)
 	}()
 }
