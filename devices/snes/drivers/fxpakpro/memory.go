@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/alttpo/snes/asm"
+	"github.com/alttpo/snes/timing"
 	"sni/devices"
 	"sni/devices/snes/mapping"
-	"sni/devices/snes/timing"
 	"sni/protos/sni"
 	"time"
 )

@@ -5,10 +5,10 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/alttpo/snes"
 	"google.golang.org/grpc/codes"
 	"log"
 	"sni/devices"
-	"sni/devices/snes"
 	"sni/protos/sni"
 )
 

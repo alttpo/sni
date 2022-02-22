@@ -2,11 +2,11 @@ package retroarch
 
 import (
 	"fmt"
+	"github.com/alttpo/snes/timing"
 	"log"
 	"net"
 	"net/url"
 	"sni/devices"
-	"sni/devices/snes/timing"
 	"sni/protos/sni"
 	"sni/util"
 	"sni/util/env"

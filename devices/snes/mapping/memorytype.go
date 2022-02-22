@@ -1,10 +1,10 @@
 package mapping
 
 import (
+	"github.com/alttpo/snes/mapping/exhirom"
+	"github.com/alttpo/snes/mapping/hirom"
+	"github.com/alttpo/snes/mapping/lorom"
 	"sni/devices"
-	"sni/devices/snes/mapping/exhirom"
-	"sni/devices/snes/mapping/hirom"
-	"sni/devices/snes/mapping/lorom"
 	"sni/protos/sni"
 )
 

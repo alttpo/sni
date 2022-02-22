@@ -2,8 +2,8 @@ package mock
 
 import (
 	"context"
+	"github.com/alttpo/snes/timing"
 	"sni/devices"
-	"sni/devices/snes/timing"
 	"sni/protos/sni"
 	"sync"
 	"time"
