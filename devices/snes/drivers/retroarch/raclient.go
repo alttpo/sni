@@ -63,6 +63,9 @@ type RAClient struct {
 
 	version string
 	useRCR  bool
+
+	closeLock sync.Mutex
+	closed    bool
 }
 
 func (c *RAClient) FatalError(cause error) devices.DeviceError {
@@ -99,9 +102,16 @@ func NewRAClient(addr *net.UDPAddr, name string, timeout time.Duration) *RAClien
 func (c *RAClient) IsClosed() bool { return c.UDPClient.IsClosed() }
 
 func (c *RAClient) Close() (err error) {
-	err = c.UDPClient.Close()
-	close(c.outgoing)
-	close(c.expectedIncoming)
+	c.closeLock.Lock()
+	defer c.closeLock.Unlock()
+
+	if !c.closed {
+		err = c.UDPClient.Close()
+		close(c.outgoing)
+		close(c.expectedIncoming)
+		c.closed = true
+	}
+
 	return
 }
 
