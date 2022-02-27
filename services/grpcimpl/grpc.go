@@ -22,34 +22,14 @@ const fullMethodFormatter = "%32s"
 
 var (
 	ListenHost string
-	ListenPort int
-	ListenAddr string
 	GrpcServer *grpc.Server
 )
 
 func StartGrpcServer() {
-	var err error
-
 	// Parse env vars:
 	ListenHost = env.GetOrDefault("SNI_GRPC_LISTEN_HOST", "0.0.0.0")
 
-	ListenPort, err = strconv.Atoi(env.GetOrDefault("SNI_GRPC_LISTEN_PORT", "8191"))
-	if err != nil {
-		ListenPort = 8191
-	}
-	if ListenPort <= 0 {
-		ListenPort = 8191
-	}
-
-	ListenAddr = net.JoinHostPort(ListenHost, strconv.Itoa(ListenPort))
-	lc := &net.ListenConfig{Control: util.ReusePortControl}
-	lis, err := lc.Listen(context.Background(), "tcp", ListenAddr)
-	if err != nil {
-		log.Fatalf("grpc: failed to listen: %v", err)
-	}
-	log.Printf("grpc: listening on %s\n", ListenAddr)
-
-	// start gRPC server:
+	// create gRPC server:
 	GrpcServer = grpc.NewServer(
 		grpc.ChainUnaryInterceptor(logTimingInterceptor),
 		grpc.ChainStreamInterceptor(reportErrorStreamInterceptor),
@@ -60,74 +40,124 @@ func StartGrpcServer() {
 	sni.RegisterDeviceFilesystemServer(GrpcServer, &DeviceFilesystem{})
 	reflection.Register(GrpcServer)
 
-	go func() {
-		if err := GrpcServer.Serve(lis); err != nil {
-			log.Fatalf("grpc: failed to serve: %v", err)
+	go serveGrpc()
+	go serveGrpcWeb()
+}
+
+func serveGrpc() {
+	var err error
+
+	var listenPort int
+	listenPort, err = strconv.Atoi(env.GetOrDefault("SNI_GRPC_LISTEN_PORT", "8191"))
+	if err != nil {
+		listenPort = 8191
+	}
+	if listenPort <= 0 {
+		listenPort = 8191
+	}
+
+	listenAddr := net.JoinHostPort(ListenHost, strconv.Itoa(listenPort))
+
+	for {
+		listenGrpc(listenAddr)
+	}
+}
+
+func listenGrpc(listenAddr string) {
+	defer func() {
+		if pnk := recover(); pnk != nil {
+			log.Printf("grpc: panic: %v\n", pnk)
 		}
-		log.Println("grpc: exit")
 	}()
 
-	go func() {
-		// wrap the GrpcServer with a GrpcWebServer:
-		wrappedGrpc := grpcweb.WrapServer(
-			GrpcServer,
-			grpcweb.WithWebsockets(true),
-			grpcweb.WithOriginFunc(func(origin string) bool { return true }),
-			grpcweb.WithWebsocketOriginFunc(func(req *http.Request) bool { return true }),
-		)
+	lc := &net.ListenConfig{Control: util.ReusePortControl}
 
-		//corsWrapper := wrappedGrpc
-		corsWrapper := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			// no CORS checking:
-			if wrappedGrpc.IsGrpcWebSocketRequest(req) {
-				wrappedGrpc.HandleGrpcWebsocketRequest(rw, req)
-				return
-			}
-			if wrappedGrpc.IsGrpcWebRequest(req) {
-				wrappedGrpc.HandleGrpcWebRequest(rw, req)
-				return
-			}
+	var lis net.Listener
+	var err error
+	lis, err = lc.Listen(context.Background(), "tcp", listenAddr)
+	if err != nil {
+		log.Fatalf("grpc: failed to listen: %v", err)
+	}
 
-			// Likely an OPTIONS request:
-			rw.Header().Add("Access-Control-Allow-Origin", "*")
-			rw.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-			rw.Header().Add("Access-Control-Allow-Headers", "*")
+	log.Printf("grpc: listening on %s\n", listenAddr)
+	if err := GrpcServer.Serve(lis); err != nil {
+		log.Fatalf("grpc: failed to serve: %v", err)
+	}
+	log.Println("grpc: exit")
+}
 
-			rw.WriteHeader(http.StatusOK)
-			_, _ = rw.Write(make([]byte, 0))
-		})
+func serveGrpcWeb() {
+	// wrap the GrpcServer with a GrpcWebServer:
+	wrappedGrpc := grpcweb.WrapServer(
+		GrpcServer,
+		grpcweb.WithWebsockets(true),
+		grpcweb.WithOriginFunc(func(origin string) bool { return true }),
+		grpcweb.WithWebsocketOriginFunc(func(req *http.Request) bool { return true }),
+	)
 
-		webListenPort := env.GetOrDefault("SNI_GRPCWEB_LISTEN_PORT", "8190")
-		webListenAddr := net.JoinHostPort(ListenHost, webListenPort)
+	//corsWrapper := wrappedGrpc
+	corsWrapper := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		// no CORS checking:
+		if wrappedGrpc.IsGrpcWebSocketRequest(req) {
+			wrappedGrpc.HandleGrpcWebsocketRequest(rw, req)
+			return
+		}
+		if wrappedGrpc.IsGrpcWebRequest(req) {
+			wrappedGrpc.HandleGrpcWebRequest(rw, req)
+			return
+		}
 
-		// attempt to start the usb2snes server:
-		count := 0
-		var err error
-		var lis net.Listener
+		// Likely an OPTIONS request:
+		rw.Header().Add("Access-Control-Allow-Origin", "*")
+		rw.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		rw.Header().Add("Access-Control-Allow-Headers", "*")
 
+		rw.WriteHeader(http.StatusOK)
+		_, _ = rw.Write(make([]byte, 0))
+	})
+
+	webListenPort := env.GetOrDefault("SNI_GRPCWEB_LISTEN_PORT", "8190")
+	webListenAddr := net.JoinHostPort(ListenHost, webListenPort)
+
+	for {
+		listenGrpcWeb(webListenAddr, corsWrapper)
+	}
+}
+
+func listenGrpcWeb(webListenAddr string, corsWrapper http.HandlerFunc) {
+	defer func() {
+		if pnk := recover(); pnk != nil {
+			log.Printf("grpcweb: panic: %v\n", pnk)
+		}
+	}()
+
+	var err error
+	var lis net.Listener
+
+	// attempt to start the usb2snes server:
+	count := 0
+	for {
 		//lc := &net.ListenConfig{Control: util.ReusePortControl}
 		lc := &net.ListenConfig{}
-		for {
-			lis, err = lc.Listen(context.Background(), "tcp", webListenAddr)
-			if err == nil {
-				break
-			}
-
-			if count == 0 {
-				log.Printf("grpcweb: failed to listen on %s: %v\n", webListenAddr, err)
-			}
-			count++
-			if count >= 30 {
-				count = 0
-			}
-
-			time.Sleep(time.Second)
+		lis, err = lc.Listen(context.Background(), "tcp", webListenAddr)
+		if err == nil {
+			break
 		}
 
-		log.Printf("grpcweb: listening on %s\n", webListenAddr)
-		err = http.Serve(lis, corsWrapper)
-		log.Printf("grpcweb: exit listenHttp: %v\n", err)
-	}()
+		if count == 0 {
+			log.Printf("grpcweb: failed to listen on %s: %v\n", webListenAddr, err)
+		}
+		count++
+		if count >= 30 {
+			count = 0
+		}
+
+		time.Sleep(time.Second)
+	}
+
+	log.Printf("grpcweb: listening on %s\n", webListenAddr)
+	err = http.Serve(lis, corsWrapper)
+	log.Printf("grpcweb: exit listenHttp: %v\n", err)
 }
 
 type methodRequestStringer interface {

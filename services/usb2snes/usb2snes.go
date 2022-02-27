@@ -36,11 +36,21 @@ func StartHttpServer() {
 	addrList := env.GetOrDefault("SNI_USB2SNES_LISTEN_ADDRS", "0.0.0.0:23074,0.0.0.0:8080")
 	listenAddrs := strings.Split(addrList, ",")
 	for _, listenAddr := range listenAddrs {
-		go listenHttp(listenAddr)
+		go func(listenAddr string) {
+			for {
+				listenHttp(listenAddr)
+			}
+		}(listenAddr)
 	}
 }
 
 func listenHttp(listenAddr string) {
+	defer func() {
+		if pnk := recover(); pnk != nil {
+			log.Printf("usb2snes: panic: %v\n", pnk)
+		}
+	}()
+
 	var err error
 	var lis net.Listener
 
@@ -127,7 +137,7 @@ func (w *wsWriter) Write(p []byte) (n int, err error) {
 func WebsocketHandler(rw http.ResponseWriter, req *http.Request) {
 	conn, _, _, err := ws.UpgradeHTTP(req, rw)
 	if err != nil {
-		log.Println(err)
+		log.Printf("usb2snes: %s: %v\n", req.RemoteAddr, err)
 		rw.WriteHeader(400)
 		return
 	}
@@ -726,10 +736,6 @@ serverLoop:
 			if config.VerboseLogging {
 				log.Printf("usb2snes: %s: %s REPLY: $%x bytes\n", clientName, cmd.Opcode, n)
 			}
-			//if err = wb.Flush(); err != nil {
-			//	log.Printf("usb2snes: %s: %s error flushing response: %s\n", clientName, cmd.Opcode, err)
-			//	break serverLoop
-			//}
 			break
 
 		default:
