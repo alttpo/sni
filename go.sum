@@ -53,8 +53,8 @@ github.com/alttpo/observable v0.0.0-20210711204527-d8b64a4529cc h1:1qcfbo8eu9X5L
 github.com/alttpo/observable v0.0.0-20210711204527-d8b64a4529cc/go.mod h1:S2lExZ67QD0EYw5ie4PlFLwVDEXZzAtDrUbgRWqArRo=
 github.com/alttpo/snes v0.0.0-20220221221359-6e235411a74d h1:5ML14Or7AOAsF60s6eEN7YrJRIBy2R2ELJWM/my0xbg=
 github.com/alttpo/snes v0.0.0-20220221221359-6e235411a74d/go.mod h1:hqcMbI1PDqZfNOwDdcGcsJPS5ca1nRhBIj9wwkMrS1c=
-github.com/alttpo/systray v1.3.1 h1:MFvCLl4LOq6nJw84DAyguYthUCk6miRQmdgV/+hRsos=
-github.com/alttpo/systray v1.3.1/go.mod h1:SHjooj3IKvtx2SeEbHOaDgTZ6dN3oYoMJAjtcN75Dzo=
+github.com/alttpo/systray v1.3.2 h1:86rDHDv/Q8MNA4TEd4Hy7TcSV+0TpNC0sZ8xc1bBNUI=
+github.com/alttpo/systray v1.3.2/go.mod h1:SHjooj3IKvtx2SeEbHOaDgTZ6dN3oYoMJAjtcN75Dzo=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
