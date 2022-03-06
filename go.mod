@@ -6,7 +6,7 @@ require (
 	github.com/alttpo/observable v0.0.0-20210711204527-d8b64a4529cc
 	github.com/alttpo/snes v0.0.0-20220221221359-6e235411a74d
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/getlantern/systray v1.3.0
+	github.com/getlantern/systray v1.3.1
 	github.com/gobwas/ws v1.0.4
 	github.com/improbable-eng/grpc-web v0.15.0
 	github.com/json-iterator/go v1.1.12
@@ -53,7 +53,7 @@ require (
 	nhooyr.io/websocket v1.8.6 // indirect
 )
 
-replace github.com/getlantern/systray => github.com/alttpo/systray v1.3.0
+replace github.com/getlantern/systray => github.com/alttpo/systray v1.3.1
 
 //replace github.com/getlantern/systray => ../systray
 
