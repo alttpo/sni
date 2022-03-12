@@ -135,17 +135,17 @@ jobs:
       #    -strip ${{env.basename}}/
       #    ${{env.basename}}/
 
-      - name: Package ${{env.basename}}.${{matrix.suffix}}
+      - name: Package ${{env.basename}}.${{matrix.suffix}} for MacOS
         if: ${{ matrix.os == 'macos-latest' }}
-        run: tar czf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
+        run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
 
-      - name: Package ${{env.basename}}.${{matrix.suffix}}
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: Compress-Archive -DestinationPath ${{env.basename}}.${{matrix.suffix}} -Path ${{env.basename}}/*
-
-      - name: Package ${{env.basename}}.${{matrix.suffix}}
+      - name: Package ${{env.basename}}.${{matrix.suffix}} for Linux
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
+
+      - name: Package ${{env.basename}}.${{matrix.suffix}} for Windows
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: Compress-Archive -DestinationPath ${{env.basename}}.${{matrix.suffix}} -Path ${{env.basename}}/*
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1
