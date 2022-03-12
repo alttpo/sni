@@ -32,6 +32,7 @@ jobs:
           - os: macos-latest
             goos: darwin
             goarch: amd64
+            suffix: tar.gz
           #- os: macos-latest
           #  goos: darwin
           #  goarch: arm64
@@ -39,13 +40,16 @@ jobs:
             goos: windows
             goarch: amd64
             exesuffix: .exe
+            suffix: zip
           - os: windows-latest
             goos: windows
             goarch: "386"
             exesuffix: .exe
+            suffix: zip
           - os: ubuntu-latest
             goos: linux
             goarch: amd64
+            suffix: tar.xz
           #- os: ubuntu-latest
           #  goos: linux
           #  goarch: "386"
@@ -117,18 +121,30 @@ jobs:
         run: >
           GOARCH=${{matrix.goarch}} go build
           -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
-          -o ./${{env.basename}}/sni${{matrix.exesuffix}}
+          -o ./${{env.basename}}/sni
           ./cmd/sni
 
       # cross-platform tar.gz creator:
-      - name: Create ${{env.basename}}.tar.gz
-        run: >
-          go run
-          .github/scripts/tar.go
-          -z
-          -o ${{env.basename}}.tar.gz
-          -strip ${{env.basename}}/
-          ${{env.basename}}/
+      #- name: Create ${{env.basename}}.tar.gz
+      #  run: >
+      #    go run
+      #    .github/scripts/tar.go
+      #    -z
+      #    -o ${{env.basename}}.tar.gz
+      #    -strip ${{env.basename}}/
+      #    ${{env.basename}}/
+
+      - name: Package ${{env.basename}}.${{matrix.suffix}}
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: tar czf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
+
+      - name: Package ${{env.basename}}.${{matrix.suffix}}
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: Compress-Archive -DestinationPath ${{env.basename}}.${{matrix.suffix}} -Path ${{env.basename}}/*
+
+      - name: Package ${{env.basename}}.${{matrix.suffix}}
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
 
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
@@ -136,5 +152,5 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.GITHUB_REF_SLUG }}
           overwrite: true
-          asset_name: ${{env.basename}}.tar.gz
-          file: ${{ github.workspace }}/${{env.basename}}.tar.gz
+          asset_name: ${{env.basename}}.${{matrix.suffix}}
+          file: ${{ github.workspace }}/${{env.basename}}.${{matrix.suffix}}
