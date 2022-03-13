@@ -34,6 +34,8 @@ func MakeUDPClient(name string, c *UDPClient) *UDPClient {
 	return c
 }
 
+func (c *UDPClient) Name() string { return c.name }
+
 func (c *UDPClient) IsClosed() bool { return c.isClosed }
 
 func (c *UDPClient) MuteLog(muted bool) {
@@ -130,15 +132,16 @@ func (c *UDPClient) SetWriteDeadline(t time.Time) error { return c.c.SetWriteDea
 
 func (c *UDPClient) IsConnected() bool { return c.isConnected }
 
-func (c *UDPClient) log(fmt string, args ...interface{}) {
+func (c *UDPClient) Log(format string, args ...interface{}) {
 	if c.muteLog {
 		return
 	}
-	log.Printf(fmt, args...)
+	s := fmt.Sprintf(format, args...)
+	log.Printf("%s: %s", c.name, s)
 }
 
 func (c *UDPClient) Connect(addr *net.UDPAddr) (err error) {
-	c.log("%s: connect to server '%s'\n", c.name, addr)
+	c.Log("connect to server '%s'\n", addr)
 
 	if c.isConnected {
 		return fmt.Errorf("%s: already connected", c.name)
@@ -152,13 +155,13 @@ func (c *UDPClient) Connect(addr *net.UDPAddr) (err error) {
 	}
 
 	c.isConnected = true
-	c.log("%s: connected to server '%s'\n", c.name, addr)
+	c.Log("connected to server '%s'\n", addr)
 
 	return
 }
 
 func (c *UDPClient) Disconnect() {
-	c.log("%s: disconnect from server '%s'\n", c.name, c.addr)
+	c.Log("disconnect from server '%s'\n", c.addr)
 
 	if !c.isConnected {
 		return
@@ -167,10 +170,10 @@ func (c *UDPClient) Disconnect() {
 	// close the underlying connection:
 	err := c.Close()
 	if err != nil {
-		c.log("%s: close: %v\n", c.name, err)
+		c.Log("close: %v\n", err)
 	}
 
-	c.log("%s: disconnected from server '%s'\n", c.name, c.addr)
+	c.Log("disconnected from server '%s'\n", c.addr)
 }
 
 func (c *UDPClient) Close() (err error) {
