@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"sni/cmd/sni/config"
 	"sni/devices"
@@ -61,8 +60,9 @@ type RAClient struct {
 	outgoing         chan *rwRequest
 	expectedIncoming chan *rwRequest
 
-	version string
-	useRCR  bool
+	version             string
+	useRCR              bool
+	major, minor, patch int
 
 	closeLock sync.Mutex
 	closed    bool
@@ -125,8 +125,8 @@ func (c *RAClient) HasVersion() bool { return c.version != "" }
 func (c *RAClient) DetermineVersion() (err error) {
 	var rsp []byte
 	req := []byte("VERSION\n")
-	if logDetector {
-		log.Printf("retroarch: > %s", req)
+	if config.VerboseLogging {
+		c.Log("> %s", req)
 	}
 	rsp, err = c.WriteThenRead(req, time.Now().Add(c.readWriteTimeout))
 	if err != nil {
@@ -137,8 +137,8 @@ func (c *RAClient) DetermineVersion() (err error) {
 		return
 	}
 
-	if logDetector {
-		log.Printf("retroarch: < %s", rsp)
+	if config.VerboseLogging {
+		c.Log("< %s", rsp)
 	}
 	c.version = strings.TrimSpace(string(rsp))
 
@@ -150,6 +150,8 @@ func (c *RAClient) DetermineVersion() (err error) {
 		return
 	}
 	err = nil
+
+	c.major, c.minor, c.patch = major, minor, patch
 
 	// use READ_CORE_RAM for <= 1.9.0, use READ_CORE_MEMORY otherwise:
 	c.useRCR = false
@@ -181,14 +183,10 @@ func (c *RAClient) DetermineVersion() (err error) {
 	return
 }
 
-func (d *RAClient) GetStatus(ctx context.Context) (raStatus, coreName, romFileName string, romCRC32 uint32, err error) {
+func (c *RAClient) GetStatus(ctx context.Context) (raStatus, coreName, romFileName string, romCRC32 uint32, err error) {
 	// v1.9.2:
 	//GET_STATUS
 	//GET_STATUS CONTENTLESS
-	//GET_STATUS
-	//GET_STATUS PLAYING bsnes-mercury,o2-lttphack-emu-13.6.0,crc32=dae58be6
-	//GET_STATUS
-	//GET_STATUS PAUSED bsnes-mercury,o2-lttphack-emu-13.6.0,crc32=dae58be6
 
 	// v1.9.0:
 	//GET_STATUS
@@ -196,20 +194,20 @@ func (d *RAClient) GetStatus(ctx context.Context) (raStatus, coreName, romFileNa
 
 	deadline, ok := ctx.Deadline()
 	if !ok {
-		deadline = time.Now().Add(d.readWriteTimeout)
+		deadline = time.Now().Add(c.readWriteTimeout)
 	}
 
 	var rsp []byte
 	req := []byte("GET_STATUS\n")
 	if config.VerboseLogging {
-		log.Printf("retroarch: > %s", req)
+		c.Log("> %s", req)
 	}
-	rsp, err = d.WriteThenRead(req, deadline)
+	rsp, err = c.WriteThenRead(req, deadline)
 	if err != nil {
 		return
 	}
 	if config.VerboseLogging {
-		log.Printf("retroarch: < %s", rsp)
+		c.Log("< %s", rsp)
 	}
 
 	// parse the response:
@@ -244,13 +242,13 @@ func (d *RAClient) GetStatus(ctx context.Context) (raStatus, coreName, romFileNa
 	return
 }
 
-func (d *RAClient) FetchFields(ctx context.Context, fields ...devices.Field) (values []string, err error) {
+func (c *RAClient) FetchFields(ctx context.Context, fields ...devices.Field) (values []string, err error) {
 	var raStatus string
 	var coreName string
 	var romFileName string
 	var romCRC32 uint32
 
-	raStatus, coreName, romFileName, romCRC32, err = d.GetStatus(ctx)
+	raStatus, coreName, romFileName, romCRC32, err = c.GetStatus(ctx)
 	if err != nil {
 		return
 	}
@@ -261,7 +259,7 @@ func (d *RAClient) FetchFields(ctx context.Context, fields ...devices.Field) (va
 			values = append(values, "retroarch")
 			break
 		case devices.Field_DeviceVersion:
-			values = append(values, d.version)
+			values = append(values, c.version)
 			break
 		case devices.Field_DeviceStatus:
 			values = append(values, raStatus)
@@ -408,7 +406,7 @@ func (c *RAClient) MultiReadMemory(ctx context.Context, reads ...devices.MemoryR
 		err = <-responses
 		if err != nil {
 			if derr, ok := err.(*readResponseError); ok {
-				log.Printf("retroarch: read %#v returned error '%s'; filling response with $00\n", derr.Address, derr.Response)
+				c.Log("read %#v returned error '%s'; filling response with $00\n", derr.Address, derr.Response)
 				// fill response with 00 bytes:
 				rwreq.Read.ResponseData = rwreq.Read.ResponseData[0:rwreq.Read.RequestSize]
 				d := rwreq.Read.ResponseData
@@ -571,7 +569,7 @@ func (c *RAClient) handleOutgoing() {
 			reqStr := sb.String()
 
 			if config.VerboseLogging {
-				log.Printf("retroarch: > %s", reqStr)
+				c.Log("> %s", reqStr)
 			}
 
 			err := c.WriteWithDeadline([]byte(reqStr), rwreq.deadline)
@@ -608,7 +606,7 @@ func (c *RAClient) handleIncoming() {
 		}
 
 		if config.VerboseLogging {
-			log.Printf("retroarch: < %s", rsp)
+			c.Log("< %s", rsp)
 		}
 
 		err = c.parseCommandResponse(rsp, rwreq)
@@ -658,7 +656,7 @@ func (c *RAClient) parseCommandResponse(rsp []byte, rwreq *rwRequest) (err error
 				var txt string
 				txt, err = bufio.NewReader(t).ReadString('\n')
 				if err != nil {
-					log.Printf("could not read error text from %s response: %v; `%s`", cmd, err, string(rsp))
+					c.Log("could not read error text from %s response: %v; `%s`", cmd, err, string(rsp))
 					err = c.FatalError(err)
 					return
 				}
@@ -721,7 +719,7 @@ func (c *RAClient) ResetSystem(ctx context.Context) (err error) {
 
 	req := []byte("RESET\n")
 	if config.VerboseLogging {
-		log.Printf("retroarch: > %s", req)
+		c.Log("> %s", req)
 	}
 	err = c.WriteWithDeadline(req, deadline)
 	return
@@ -743,7 +741,7 @@ func (c *RAClient) PauseToggle(ctx context.Context) (err error) {
 
 	req := []byte("PAUSE_TOGGLE\n")
 	if config.VerboseLogging {
-		log.Printf("retroarch: > %s", req)
+		c.Log("> %s", req)
 	}
 	err = c.WriteWithDeadline(req, deadline)
 	return
