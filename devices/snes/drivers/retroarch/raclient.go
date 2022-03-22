@@ -20,33 +20,12 @@ import (
 
 const hextable = "0123456789abcdef"
 
-type readOperation struct {
-	RequestAddress devices.AddressTuple
-	DeviceAddress  devices.AddressTuple
+// receives the singe-line response from retroarch UDP message including trailing newline
+type responseChannel = chan []byte
 
-	RequestSize  int
-	ResponseData []byte
-}
-
-type writeOperation struct {
-	RequestAddress devices.AddressTuple
-	DeviceAddress  devices.AddressTuple
-
-	RequestData  []byte
-	ResponseSize int
-}
-
-type rwRequest struct {
-	index    int
-	deadline time.Time
-
-	isWrite bool
-	command string
-	address uint32
-
-	Read  readOperation
-	Write writeOperation
-	R     chan<- error
+type requestResponse struct {
+	request  string
+	response responseChannel
 }
 
 type RAClient struct {
@@ -56,13 +35,10 @@ type RAClient struct {
 
 	readWriteTimeout time.Duration
 
-	expectationLock  sync.Mutex
-	outgoing         chan *rwRequest
-	expectedIncoming chan *rwRequest
-
 	version             string
-	useRCR              bool
 	major, minor, patch int
+
+	expectResponse chan responseChannel
 
 	closeLock sync.Mutex
 	closed    bool
@@ -88,15 +64,54 @@ func NewRAClient(addr *net.UDPAddr, name string, timeout time.Duration) *RAClien
 	c := &RAClient{
 		addr:             addr,
 		readWriteTimeout: timeout,
-		outgoing:         make(chan *rwRequest, 8),
-		expectedIncoming: make(chan *rwRequest, 8),
+		expectResponse:   make(chan responseChannel, 8),
 	}
 	udpclient.MakeUDPClient(name, &c.UDPClient)
 
-	go c.handleIncoming()
-	go c.handleOutgoing()
+	go c.handleResponses()
 
 	return c
+}
+
+// io.Reader implementation for bufio.Reader to use
+func (c *RAClient) Read(p []byte) (n int, err error) {
+	deadline := time.Now().Add(c.readWriteTimeout)
+	return c.ReadWithDeadlineInto(deadline, p)
+}
+
+func (c *RAClient) handleResponses() {
+	r := bufio.NewReader(c)
+	for responseCh := range c.expectResponse {
+		// read until the next newline:
+		rsp, err := r.ReadBytes('\n')
+		if err != nil {
+			c.Log("handleResponses: ReadBytes: %v\n", err)
+			if isCloseWorthy(err) {
+				_ = c.Close()
+			}
+			break
+		}
+
+		if config.VerboseLogging {
+			c.Log("< %s", rsp)
+		}
+
+		// send this response to whomever needs it:
+		responseCh <- rsp
+		close(responseCh)
+	}
+}
+
+func (c *RAClient) requestResponse(request []byte) (responseCh responseChannel, err error) {
+	deadline := time.Now().Add(c.readWriteTimeout)
+
+	err = c.WriteWithDeadline(request, deadline)
+	if err != nil {
+		return
+	}
+
+	responseCh = make(responseChannel)
+	return
 }
 
 func (c *RAClient) IsClosed() bool { return c.UDPClient.IsClosed() }
@@ -107,8 +122,7 @@ func (c *RAClient) Close() (err error) {
 
 	if !c.closed {
 		err = c.UDPClient.Close()
-		close(c.outgoing)
-		close(c.expectedIncoming)
+		close(c.expectResponse)
 		c.closed = true
 	}
 
@@ -128,15 +142,16 @@ func (c *RAClient) DetermineVersion() (err error) {
 	if config.VerboseLogging {
 		c.Log("> %s", req)
 	}
-	rsp, err = c.WriteThenRead(req, time.Now().Add(c.readWriteTimeout))
+	var rspCh responseChannel
+	rspCh, err = c.requestResponse(req)
 	if err != nil {
 		return
 	}
-
-	if rsp == nil {
+	if rspCh == nil {
 		return
 	}
 
+	rsp = <-rspCh
 	if config.VerboseLogging {
 		c.Log("< %s", rsp)
 	}

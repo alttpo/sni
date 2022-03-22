@@ -98,6 +98,32 @@ func (c *UDPClient) ReadWithDeadline(deadline time.Time) (b []byte, err error) {
 	return
 }
 
+func (c *UDPClient) ReadWithDeadlineInto(deadline time.Time, b []byte) (n int, err error) {
+	if c.isClosed {
+		return 0, net.ErrClosed
+	}
+
+	// wait for a packet from UDP socket:
+	err = c.c.SetReadDeadline(deadline)
+	if err != nil {
+		return
+	}
+
+	n, _, err = c.c.ReadFromUDP(b)
+	if err != nil {
+		b = nil
+		if isTimeoutError(err) {
+			_ = c.Close()
+		}
+		if errors.Is(err, net.ErrClosed) {
+			_ = c.Close()
+		}
+		return
+	}
+
+	return
+}
+
 func (c *UDPClient) WriteThenRead(m []byte, deadline time.Time) (rsp []byte, err error) {
 	if c.isClosed {
 		return nil, net.ErrClosed
