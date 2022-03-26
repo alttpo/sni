@@ -55,6 +55,10 @@ service DeviceFilesystem {
   rpc BootFile(BootFileRequest) returns (BootFileResponse) {}
 }
 
+service DeviceNWA {
+  rpc NWACommand(NWACommandRequest) returns (NWACommandResponse) {}
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // enums
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -110,6 +114,7 @@ enum DeviceCapability {
   PutFile = 14;
   GetFile = 15;
   BootFile = 16;
+  NWACommand = 20;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -354,4 +359,19 @@ message BootFileRequest {
 message BootFileResponse {
   string uri = 1;
   string path = 2;
+}
+
+message NWACommandRequest {
+  string uri = 1;
+  string command = 2;
+  string args = 3;
+  optional bytes binaryArg = 4;
+}
+message NWACommandResponse {
+  message NWAASCIIItem {
+    map<string, string> item = 1;
+  }
+  string uri = 1;
+  repeated NWAASCIIItem asciiReply = 2;
+  optional bytes binaryReplay = 3;
 }

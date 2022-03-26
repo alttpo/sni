@@ -990,3 +990,89 @@ var DeviceFilesystem_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "sni.proto",
 }
+
+// DeviceNWAClient is the client API for DeviceNWA service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type DeviceNWAClient interface {
+	NWACommand(ctx context.Context, in *NWACommandRequest, opts ...grpc.CallOption) (*NWACommandResponse, error)
+}
+
+type deviceNWAClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewDeviceNWAClient(cc grpc.ClientConnInterface) DeviceNWAClient {
+	return &deviceNWAClient{cc}
+}
+
+func (c *deviceNWAClient) NWACommand(ctx context.Context, in *NWACommandRequest, opts ...grpc.CallOption) (*NWACommandResponse, error) {
+	out := new(NWACommandResponse)
+	err := c.cc.Invoke(ctx, "/DeviceNWA/NWACommand", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// DeviceNWAServer is the server API for DeviceNWA service.
+// All implementations must embed UnimplementedDeviceNWAServer
+// for forward compatibility
+type DeviceNWAServer interface {
+	NWACommand(context.Context, *NWACommandRequest) (*NWACommandResponse, error)
+	mustEmbedUnimplementedDeviceNWAServer()
+}
+
+// UnimplementedDeviceNWAServer must be embedded to have forward compatible implementations.
+type UnimplementedDeviceNWAServer struct {
+}
+
+func (UnimplementedDeviceNWAServer) NWACommand(context.Context, *NWACommandRequest) (*NWACommandResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NWACommand not implemented")
+}
+func (UnimplementedDeviceNWAServer) mustEmbedUnimplementedDeviceNWAServer() {}
+
+// UnsafeDeviceNWAServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to DeviceNWAServer will
+// result in compilation errors.
+type UnsafeDeviceNWAServer interface {
+	mustEmbedUnimplementedDeviceNWAServer()
+}
+
+func RegisterDeviceNWAServer(s grpc.ServiceRegistrar, srv DeviceNWAServer) {
+	s.RegisterService(&DeviceNWA_ServiceDesc, srv)
+}
+
+func _DeviceNWA_NWACommand_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NWACommandRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceNWAServer).NWACommand(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceNWA/NWACommand",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceNWAServer).NWACommand(ctx, req.(*NWACommandRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// DeviceNWA_ServiceDesc is the grpc.ServiceDesc for DeviceNWA service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var DeviceNWA_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "DeviceNWA",
+	HandlerType: (*DeviceNWAServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "NWACommand",
+			Handler:    _DeviceNWA_NWACommand_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "sni.proto",
+}
