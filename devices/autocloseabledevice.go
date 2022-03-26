@@ -20,6 +20,7 @@ type AutoCloseableDevice interface {
 	DeviceMemory
 	DeviceFilesystem
 	DeviceInfo
+	DeviceNWA
 
 	URI() *url.URL
 	DeviceKey() string
@@ -359,6 +360,27 @@ func (a *autoCloseableDevice) BootFile(ctx context.Context, path string) (err er
 		err = fs.BootFile(ctx, path)
 		if a.logger != nil {
 			a.logger.Printf("BootFile(%#v) } -> (%#v)\n", path, err)
+		}
+		return
+	})
+	return
+}
+
+func (a *autoCloseableDevice) NWACommand(ctx context.Context, cmd string, args string, binaryArg []byte) (asciiReply []map[string]string, binaryReply []byte, err error) {
+	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		nwa, ok := device.(DeviceNWA)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceNWA not implemented"))
+		}
+		if a.logger != nil {
+			a.logger.Printf("NWACommand(%#v, %#v, binary=%#v (%d bytes)) {\n", cmd, args, binaryArg != nil, len(binaryArg))
+		}
+		asciiReply, binaryArg, err = nwa.NWACommand(ctx, cmd, args, binaryArg)
+		if a.logger != nil {
+			a.logger.Printf("NWACommand(%#v, %#v, binary=%#v (%d bytes)) } -> (%#v, binary=%#v (%d bytes), %#v)\n",
+				cmd, args, binaryArg != nil, len(binaryArg),
+				binaryReply != nil, len(binaryReply),
+				err)
 		}
 		return
 	})

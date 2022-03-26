@@ -130,6 +130,36 @@ func (c *Client) SendCommandWaitReply(cmd string, deadline time.Time) (bin []byt
 	return
 }
 
+func (c *Client) SendCommandBinaryWaitReply(cmd string, binaryArg []byte, deadline time.Time) (bin []byte, ascii []map[string]string, err error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	b := bytes.NewBuffer(make([]byte, 0, len(cmd)+1))
+	b.WriteString(cmd)
+	b.WriteByte('\n')
+	b.WriteByte('\x00')
+	binary.Write(b, binary.BigEndian, uint32(len(binaryArg)))
+	b.Write(binaryArg)
+
+	if config.VerboseLogging {
+		log.Printf("emunw: cmd> %s", b.Bytes())
+	}
+
+	err = c.writeWithDeadline(b.Bytes(), deadline)
+	if err != nil {
+		return
+	}
+
+	bin, ascii, err = c.readResponse(deadline)
+	if ascii != nil && len(ascii) > 0 {
+		if errText, ok := ascii[0]["error"]; ok {
+			err = fmt.Errorf("emunw: error=%s", errText)
+			return
+		}
+	}
+	return
+}
+
 func (c *Client) readResponse(deadline time.Time) (bin []byte, ascii []map[string]string, err error) {
 	err = c.c.SetReadDeadline(deadline)
 	if err != nil {
@@ -465,4 +495,22 @@ func (c *Client) PauseUnpause(ctx context.Context, pausedState bool) (newState b
 
 func (c *Client) PauseToggle(context.Context) (err error) {
 	return fmt.Errorf("capability unavailable")
+}
+
+func (c *Client) NWACommand(ctx context.Context, cmd string, args string, binaryArg []byte) (asciiReply []map[string]string, binaryReply []byte, err error) {
+	var line string
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(c.readWriteTimeout)
+	}
+
+	if binaryArg != nil {
+		line = fmt.Sprintf("%s %s", cmd, args)
+		binaryReply, asciiReply, err = c.SendCommandWaitReply(line, deadline)
+	} else {
+		line = fmt.Sprintf("%s %s", cmd, args)
+		binaryReply, asciiReply, err = c.SendCommandBinaryWaitReply(line, binaryArg, deadline)
+	}
+
+	return
 }

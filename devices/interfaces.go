@@ -112,3 +112,7 @@ const (
 	Field_RomFileName
 	Field_RomCRC32
 )
+
+type DeviceNWA interface {
+	NWACommand(ctx context.Context, cmd string, args string, binaryArg []byte) (asciiReply []map[string]string, binaryReply []byte, err error)
+}
