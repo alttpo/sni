@@ -84,6 +84,27 @@ file is located at:
 2022/01/07 20:33:28.378428 logging to '/Users/username/.sni/sni-2022-01-07T14-33-28-377Z.log'
 ```
 
+# How to Build
+
+## On Windows
+```shell
+go get ./...
+go build -H=windowsgui ./cmd/sni
+```
+
+## On MacOS
+```shell
+go get ./...
+go build ./cmd/sni
+```
+
+## On Linux
+```shell
+sudo apt-get install -y gcc libgtk-3-dev libayatana-appindicator3-dev
+go get ./...
+go build ./cmd/sni
+```
+
 # For Developers
 
 SNI offers a [gRPC](https://grpc.io/) API as its primary means of communication
