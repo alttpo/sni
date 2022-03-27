@@ -144,7 +144,7 @@ func (c *Client) SendCommandBinaryWaitReply(cmd string, binaryArg []byte, deadli
 	b.Write(binaryArg)
 
 	if config.VerboseLogging {
-		log.Printf("emunw: cmd> %s", b.Bytes())
+		log.Printf("emunw: cmd> %#v", b.Bytes())
 	}
 
 	err = c.writeWithDeadline(b.Bytes(), deadline)
