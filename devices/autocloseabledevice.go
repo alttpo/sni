@@ -379,7 +379,7 @@ func (a *autoCloseableDevice) NWACommand(ctx context.Context, cmd string, args s
 		if a.logger != nil {
 			a.logger.Printf("NWACommand(%#v, %#v, binary=%#v (%d bytes)) } -> (%#v, binary=%#v (%d bytes), %#v)\n",
 				cmd, args, binaryArg != nil, len(binaryArg),
-				binaryReply != nil, len(binaryReply),
+				asciiReply, binaryReply != nil, len(binaryReply),
 				err)
 		}
 		return
