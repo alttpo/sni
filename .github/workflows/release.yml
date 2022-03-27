@@ -191,7 +191,10 @@ jobs:
           cp cmd/sni/apps.yaml ${{env.basename}}
           cp lua/Connector.lua ${{env.basename}}/lua
           # TODO: luasocket.so
-          # TODO: gtk/gnome license
+          echo -e "\n--\nlibappindicator, libindicator and libdbusmenu are licensed under LGPL, see" >> ${{env.basename}}/LICENSE
+          echo "https://launchpad.net/libappindicator/" >> ${{env.basename}}/LICENSE
+          echo "https://launchpad.net/libindicator/" >> ${{env.basename}}/LICENSE
+          echo "https://launchpad.net/libdbusmenu/" >> ${{env.basename}}/LICENSE
           cp -L /lib64/libappindicator3.so.1 ${{env.basename}}
           cp -L /lib64/libindicator3.so.7 ${{env.basename}}
           cp -L /lib64/libdbusmenu-glib.so.4 ${{env.basename}}
