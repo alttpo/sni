@@ -1,4 +1,4 @@
-package emunw
+package emunwa
 
 import (
 	"bufio"
@@ -74,7 +74,8 @@ func Test_parseResponse(t *testing.T) {
 			buf.Write(tt.args.d)
 			r := bufio.NewReader(&buf)
 
-			gotBin, gotAscii, err := parseResponse(r)
+			c := Client{}
+			gotBin, gotAscii, err := c.parseResponse(r)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseResponse() error = %v, wantErr %v", err, tt.wantErr)
 				return

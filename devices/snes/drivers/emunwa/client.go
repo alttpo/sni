@@ -1,4 +1,4 @@
-package emunw
+package emunwa
 
 import (
 	"bufio"
@@ -30,16 +30,18 @@ type Client struct {
 
 	r *bufio.Reader
 
+	muteLog bool
+
 	readWriteTimeout time.Duration
 	dialer           *net.Dialer
 }
 
 func (c *Client) FatalError(cause error) devices.DeviceError {
-	return devices.DeviceFatal(fmt.Sprintf("emunw: %v", cause), cause)
+	return devices.DeviceFatal(fmt.Sprintf("emunwa: %v", cause), cause)
 }
 
 func (c *Client) NonFatalError(cause error) devices.DeviceError {
-	return devices.DeviceNonFatal(fmt.Sprintf("emunw: %v", cause), cause)
+	return devices.DeviceNonFatal(fmt.Sprintf("emunwa: %v", cause), cause)
 }
 
 func NewClient(addr *net.TCPAddr, name string, timeout time.Duration) (c *Client) {
@@ -80,6 +82,18 @@ func (c *Client) Close() (err error) {
 	return
 }
 
+func (c *Client) MuteLog(mute bool) {
+	c.muteLog = mute
+}
+
+func (c *Client) Logf(format string, args ...interface{}) {
+	if c.muteLog {
+		return
+	}
+
+	log.Printf("emunwa: "+format, args...)
+}
+
 func (c *Client) GetId() string {
 	return c.name
 }
@@ -112,7 +126,7 @@ func (c *Client) SendCommandWaitReply(cmd string, deadline time.Time) (bin []byt
 	b.WriteByte('\n')
 
 	if config.VerboseLogging {
-		log.Printf("emunw: cmd> %s", b.Bytes())
+		c.Logf("cmd> %s", b.Bytes())
 	}
 
 	err = c.writeWithDeadline(b.Bytes(), deadline)
@@ -123,7 +137,7 @@ func (c *Client) SendCommandWaitReply(cmd string, deadline time.Time) (bin []byt
 	bin, ascii, err = c.readResponse(deadline)
 	if ascii != nil && len(ascii) > 0 {
 		if errText, ok := ascii[0]["error"]; ok {
-			err = fmt.Errorf("emunw: error=%s", errText)
+			err = fmt.Errorf("emunwa: error=%s", errText)
 			return
 		}
 	}
@@ -144,7 +158,7 @@ func (c *Client) SendCommandBinaryWaitReply(cmd string, binaryArg []byte, deadli
 	b.Write(binaryArg)
 
 	if config.VerboseLogging {
-		log.Printf("emunw: cmd> %#v", b.Bytes())
+		c.Logf("cmd> %#v", b.Bytes())
 	}
 
 	err = c.writeWithDeadline(b.Bytes(), deadline)
@@ -155,7 +169,7 @@ func (c *Client) SendCommandBinaryWaitReply(cmd string, binaryArg []byte, deadli
 	bin, ascii, err = c.readResponse(deadline)
 	if ascii != nil && len(ascii) > 0 {
 		if errText, ok := ascii[0]["error"]; ok {
-			err = fmt.Errorf("emunw: error=%s", errText)
+			err = fmt.Errorf("emunwa: error=%s", errText)
 			return
 		}
 	}
@@ -170,7 +184,7 @@ func (c *Client) readResponse(deadline time.Time) (bin []byte, ascii []map[strin
 		return
 	}
 
-	bin, ascii, err = parseResponse(c.r)
+	bin, ascii, err = c.parseResponse(c.r)
 	if err != nil {
 		err = c.FatalError(err)
 		_ = c.Close()
@@ -180,7 +194,7 @@ func (c *Client) readResponse(deadline time.Time) (bin []byte, ascii []map[strin
 	return
 }
 
-func parseResponse(r *bufio.Reader) (bin []byte, ascii []map[string]string, err error) {
+func (c *Client) parseResponse(r *bufio.Reader) (bin []byte, ascii []map[string]string, err error) {
 	var d byte
 	d, err = r.ReadByte()
 	if err != nil {
@@ -202,14 +216,14 @@ func parseResponse(r *bufio.Reader) (bin []byte, ascii []map[string]string, err 
 		}
 
 		if config.VerboseLogging {
-			log.Printf("emunw: bin< %s", hex.Dump(bin))
+			c.Logf("bin< %s", hex.Dump(bin))
 		}
 		return
 	}
 
 	// expect ascii reply otherwise:
 	if d != '\n' {
-		err = fmt.Errorf("emunw: command reply expected starting with '\\0' or '\\n' but got '%c'", d)
+		err = fmt.Errorf("emunwa: command reply expected starting with '\\0' or '\\n' but got '%c'", d)
 		return
 	}
 
@@ -256,7 +270,7 @@ func parseResponse(r *bufio.Reader) (bin []byte, ascii []map[string]string, err 
 	}
 
 	if config.VerboseLogging {
-		log.Printf("emunw: asc<\n%s", b.String())
+		c.Logf("asc<\n%s", b.String())
 	}
 
 	return
@@ -319,7 +333,7 @@ func (c *Client) MultiReadMemory(ctx context.Context, reads ...devices.MemoryRea
 		}
 		sb.WriteByte('\n')
 		if config.VerboseLogging {
-			log.Printf("emunw: cmd> %s", sb.Bytes())
+			c.Logf("cmd> %s", sb.Bytes())
 		}
 		err = c.writeWithDeadline(sb.Bytes(), deadline)
 		if err != nil {
@@ -336,7 +350,7 @@ func (c *Client) MultiReadMemory(ctx context.Context, reads ...devices.MemoryRea
 			return
 		}
 		if ascii != nil {
-			err = fmt.Errorf("emunw: expecting binary reply but got ascii:\n%+v", ascii)
+			err = fmt.Errorf("emunwa: expecting binary reply but got ascii:\n%+v", ascii)
 			err = c.FatalError(err)
 			return
 		}
@@ -418,7 +432,7 @@ func (c *Client) MultiWriteMemory(ctx context.Context, writes ...devices.MemoryW
 		}
 		sb.WriteByte('\n')
 		if config.VerboseLogging {
-			log.Printf("emunw: cmd> %s", sb.Bytes())
+			c.Logf("cmd> %s", sb.Bytes())
 		}
 		err = c.writeWithDeadline(sb.Bytes(), deadline)
 		if err != nil {
@@ -431,7 +445,7 @@ func (c *Client) MultiWriteMemory(ctx context.Context, writes ...devices.MemoryW
 		_ = binary.Write(&sb, binary.BigEndian, size)
 		sb.Write(data.Bytes())
 		if config.VerboseLogging {
-			log.Printf("emunw: bin> %s", hex.Dump(sb.Bytes()))
+			c.Logf("bin> %s", hex.Dump(sb.Bytes()))
 		}
 		err = c.writeWithDeadline(sb.Bytes(), deadline)
 		if err != nil {
@@ -456,7 +470,7 @@ func (c *Client) MultiWriteMemory(ctx context.Context, writes ...devices.MemoryW
 	}
 
 	if errReplies.Len() > 0 {
-		err = fmt.Errorf("emunw: error=%s", errReplies.String())
+		err = fmt.Errorf("emunwa: error=%s", errReplies.String())
 		err = c.NonFatalError(err)
 		return
 	}

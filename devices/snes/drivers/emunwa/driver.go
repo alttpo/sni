@@ -1,4 +1,4 @@
-package emunw
+package emunwa
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const driverName = "emunw"
+const driverName = "emunwa"
 
 var logDetector = false
 var driver *Driver
@@ -36,6 +36,7 @@ func NewDriver(addresses []*net.TCPAddr) *Driver {
 
 	for i, addr := range addresses {
 		c := NewClient(addr, addr.String(), timing.Frame*4)
+		c.MuteLog(!logDetector)
 		d.detectors[i] = c
 	}
 
@@ -47,14 +48,14 @@ func (d *Driver) DisplayOrder() int {
 }
 
 func (d *Driver) DisplayName() string {
-	return "EmuNW"
+	return "EmuNWA"
 }
 
 func (d *Driver) DisplayDescription() string {
-	return "Connect to a EmuNW emulator"
+	return "Connect to a EmuNWA emulator"
 }
 
-func (d *Driver) Kind() string { return "emunw" }
+func (d *Driver) Kind() string { return "emunwa" }
 
 // TODO: sni.DeviceCapability_ExecuteASM
 var driverCapabilities = []sni.DeviceCapability{
@@ -103,7 +104,8 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 			if detector.IsClosed() {
 				detector.Close()
 				// refresh detector:
-				c := NewClient(detector.addr, fmt.Sprintf("emunw[%d]", i), timing.Frame*4)
+				c := NewClient(detector.addr, fmt.Sprintf("emunwa[%d]", i), timing.Frame*4)
+				c.MuteLog(!logDetector)
 				d.detectors[i] = c
 				detector = c
 			}
@@ -113,27 +115,34 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 				err = detector.Connect()
 				if err != nil {
 					if logDetector {
-						log.Printf("emunw: detect: detector[%d]: connect: %v\n", i, err)
+						log.Printf("emunwa: detect: detector[%d]: connect: %v\n", i, err)
 					}
 					return
 				}
 			}
 
+			var (
+				name    string
+				version string
+			)
+
 			{
-				// check emulator status:
+				// check emulator info:
 				var status []map[string]string
-				_, status, err = detector.SendCommandWaitReply("EMU_STATUS", time.Now().Add(timing.Frame*2))
+				_, status, err = detector.SendCommandWaitReply("EMULATOR_INFO", time.Now().Add(timing.Frame*2))
 				if err != nil {
 					return
 				}
 				if logDetector {
-					log.Printf("emunw: detect: detector[%d]:\n%+v\n", i, status)
+					log.Printf("emunwa: detect: detector[%d]: EMULATOR_INFO\n%+v\n", i, status)
 				}
+				name = status[0]["name"]
+				version = status[0]["version"]
 			}
 
 			descriptor := devices.DeviceDescriptor{
 				Uri:                 url.URL{Scheme: driverName, Host: detector.addr.String()},
-				DisplayName:         fmt.Sprintf("EmuNW (%s)", detector.addr),
+				DisplayName:         fmt.Sprintf("%s %s (emunwa)", name, version),
 				Kind:                d.Kind(),
 				Capabilities:        driverCapabilities[:],
 				DefaultAddressSpace: defaultAddressSpace,
@@ -172,7 +181,7 @@ func (d *Driver) DisconnectAll() {
 
 func DriverInit() {
 	if util.IsTruthy(env.GetOrDefault("SNI_EMUNW_DISABLE", "0")) {
-		log.Printf("disabling emunw snes driver\n")
+		log.Printf("disabling emunwa snes driver\n")
 		return
 	}
 
@@ -197,7 +206,7 @@ func DriverInit() {
 	for _, host := range hosts {
 		addr, err := net.ResolveTCPAddr("tcp", host)
 		if err != nil {
-			log.Printf("emunw: resolve('%s'): %v\n", host, err)
+			log.Printf("emunwa: resolve('%s'): %v\n", host, err)
 			// drop the address if it doesn't resolve:
 			// TODO: consider retrying the resolve later? maybe not worth worrying about.
 			continue
@@ -208,7 +217,7 @@ func DriverInit() {
 
 	if util.IsTruthy(env.GetOrDefault("SNI_EMUNW_DETECT_LOG", "0")) {
 		logDetector = true
-		log.Printf("enabling emunw detector logging")
+		log.Printf("enabling emunwa detector logging")
 	}
 
 	// register the driver:
