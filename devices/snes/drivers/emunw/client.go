@@ -134,10 +134,12 @@ func (c *Client) SendCommandBinaryWaitReply(cmd string, binaryArg []byte, deadli
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	b := bytes.NewBuffer(make([]byte, 0, len(cmd)+1))
+	b := bytes.NewBuffer(make([]byte, 0, 1+len(cmd)+2+4+len(binaryArg)))
+	// TODO: enable 'b' prefix once bsnes-plus-wasm gets that enhancement to draft 3 protocol
+	//b.WriteByte('b')
 	b.WriteString(cmd)
 	b.WriteByte('\n')
-	b.WriteByte('\x00')
+	b.WriteByte(0)
 	binary.Write(b, binary.BigEndian, uint32(len(binaryArg)))
 	b.Write(binaryArg)
 
@@ -506,10 +508,10 @@ func (c *Client) NWACommand(ctx context.Context, cmd string, args string, binary
 
 	if binaryArg != nil {
 		line = fmt.Sprintf("%s %s", cmd, args)
-		binaryReply, asciiReply, err = c.SendCommandWaitReply(line, deadline)
+		binaryReply, asciiReply, err = c.SendCommandBinaryWaitReply(line, binaryArg, deadline)
 	} else {
 		line = fmt.Sprintf("%s %s", cmd, args)
-		binaryReply, asciiReply, err = c.SendCommandBinaryWaitReply(line, binaryArg, deadline)
+		binaryReply, asciiReply, err = c.SendCommandWaitReply(line, deadline)
 	}
 
 	return
