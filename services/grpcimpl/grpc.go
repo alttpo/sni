@@ -38,6 +38,7 @@ func StartGrpcServer() {
 	sni.RegisterDeviceMemoryServer(GrpcServer, &DeviceMemoryService{})
 	sni.RegisterDeviceControlServer(GrpcServer, &DeviceControlService{})
 	sni.RegisterDeviceFilesystemServer(GrpcServer, &DeviceFilesystem{})
+	sni.RegisterDeviceNWAServer(GrpcServer, &DeviceNWAService{})
 	reflection.Register(GrpcServer)
 
 	go serveGrpc()
