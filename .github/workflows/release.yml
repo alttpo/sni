@@ -154,3 +154,70 @@ jobs:
           overwrite: true
           asset_name: ${{env.basename}}.${{matrix.suffix}}
           file: ${{ github.workspace }}/${{env.basename}}.${{matrix.suffix}}
+
+  manylinux2014:
+    runs-on: ubuntu-latest
+    container: quay.io/pypa/manylinux2014_x86_64
+    steps:
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@v3.x
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Set up linux dependencies
+        run: |
+          # manylinux2014 is based on centos 7, so we use yum
+          yum -y install libappindicator libappindicator-devel libappindicator-gtk3 libappindicator-gtk3-devel gtk3-devel libdbusmenu-gtk3 libdbusmenu-gtk3-devel
+
+      - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-manylinux2014-amd64" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v2
+        name: Checkout
+        with:
+          fetch-depth: 0
+
+      - name: Collect files
+        run: |
+          mkdir ${{env.basename}}
+          mkdir ${{env.basename}}/lua
+          # mkdir ${{env.basename}}/lua/x64
+          # mkdir ${{env.basename}}/lua/x86
+          cp README.md ${{env.basename}}
+          cp LICENSE ${{env.basename}}
+          cp protos/sni/sni.proto ${{env.basename}}
+          cp cmd/sni/apps.yaml ${{env.basename}}
+          cp lua/Connector.lua ${{env.basename}}/lua
+          # TODO: luasocket.so
+          echo -e "\n--\nlibappindicator, libindicator and libdbusmenu are licensed under LGPL, see" >> ${{env.basename}}/LICENSE
+          echo "https://launchpad.net/libappindicator/" >> ${{env.basename}}/LICENSE
+          echo "https://launchpad.net/libindicator/" >> ${{env.basename}}/LICENSE
+          echo "https://launchpad.net/libdbusmenu/" >> ${{env.basename}}/LICENSE
+          cp -L /lib64/libappindicator3.so.1 ${{env.basename}}
+          cp -L /lib64/libindicator3.so.7 ${{env.basename}}
+          cp -L /lib64/libdbusmenu-glib.so.4 ${{env.basename}}
+          cp -L /lib64/libdbusmenu-gtk3.so.4 ${{env.basename}}
+
+      - name: Build SNI
+        run: >
+          CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-rpath=. -Wl,--gc-sections"
+          GOARCH=amd64 go build -tags=legacy_appindicator
+          -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
+          -o ./${{env.basename}}/sni
+          ./cmd/sni
+
+      - name: Package ${{env.basename}}.tar.xz for Linux
+        run: |
+          ldd ${{env.basename}}/sni
+          tar cJf ${{env.basename}}.tar.xz ${{env.basename}}/
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ env.GITHUB_REF_SLUG }}
+          overwrite: true
+          asset_name: ${{env.basename}}.tar.xz
+          file: ${{github.workspace}}/${{env.basename}}.tar.xz
