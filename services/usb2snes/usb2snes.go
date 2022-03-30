@@ -128,7 +128,8 @@ func (w *wsWriter) Write(p []byte) (n int, err error) {
 	}
 
 	if w.written >= w.frameSize {
-		err = w.w.FlushFragment()
+		//err = w.w.FlushFragment()
+		err = w.w.Flush()
 		w.written = 0
 	}
 	return
