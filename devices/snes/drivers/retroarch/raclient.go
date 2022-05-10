@@ -81,6 +81,8 @@ func (c *RAClient) Read(p []byte) (n int, err error) {
 
 func (c *RAClient) handleResponses() {
 	r := bufio.NewReader(c)
+
+	// every response channel must be closed:
 	for responseCh := range c.expectResponse {
 		// read until the next newline:
 		rsp, err := r.ReadBytes('\n')
@@ -89,6 +91,7 @@ func (c *RAClient) handleResponses() {
 			if isCloseWorthy(err) {
 				_ = c.Close()
 			}
+			close(responseCh)
 			break
 		}
 
@@ -168,33 +171,6 @@ func (c *RAClient) DetermineVersion() (err error) {
 
 	c.major, c.minor, c.patch = major, minor, patch
 
-	// use READ_CORE_RAM for <= 1.9.0, use READ_CORE_MEMORY otherwise:
-	c.useRCR = false
-	if major < 1 {
-		// 0.x.x
-		c.useRCR = true
-		return
-	} else if major > 1 {
-		// 2+.x.x
-		c.useRCR = false
-		return
-	}
-	if minor < 9 {
-		// 1.0-8.x
-		c.useRCR = true
-		return
-	} else if minor > 9 {
-		// 1.10+.x
-		c.useRCR = false
-		return
-	}
-	if patch < 1 {
-		// 1.9.0
-		c.useRCR = true
-		return
-	}
-
-	// 1.9.1+
 	return
 }
 
