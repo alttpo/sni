@@ -45,6 +45,16 @@ service DeviceMemory {
   rpc StreamWrite(stream MultiWriteMemoryRequest) returns (stream MultiWriteMemoryResponse) {}
 }
 
+service DeviceMemoryDomains {
+  rpc MemoryDomains(MemoryDomainsRequest) returns (MemoryDomainsResponse) {}
+
+  rpc MultiDomainRead(MultiDomainReadRequest) returns (MultiDomainReadResponse) {}
+  rpc MultiDomainWrite(MultiDomainWriteRequest) returns (MultiDomainWriteResponse) {}
+
+  rpc StreamDomainRead(stream MultiDomainReadRequest) returns (stream MultiDomainReadResponse) {}
+  rpc StreamDomainWrite(stream MultiDomainWriteRequest) returns (stream MultiDomainWriteResponse) {}
+}
+
 service DeviceFilesystem {
   rpc ReadDirectory(ReadDirectoryRequest) returns (ReadDirectoryResponse) {}
   rpc MakeDirectory(MakeDirectoryRequest) returns (MakeDirectoryResponse) {}
@@ -82,9 +92,6 @@ enum AddressSpace {
   SnesABus = 1;
   // Do not do any address translation; simply pass the raw address to the device as-is:
   Raw = 2;
-
-  // Nintendo 64 address space:
-  N64 = 20;
 }
 
 // memory mapping mode of a SNES cart:
@@ -279,6 +286,76 @@ message MultiWriteMemoryResponse {
   string uri = 1;
   repeated WriteMemoryResponse responses = 2;
 }
+
+
+message MemoryDomainsRequest {
+  string uri = 1;
+}
+message MemoryDomain {
+  string domainName = 1;
+  uint32 size = 2;
+}
+message MemoryDomainsResponse {
+  string uri = 1;
+  repeated MemoryDomain domains = 2;
+}
+
+message GroupedDomainReadRequests {
+  message AddressSize {
+    uint32 address = 1;
+    uint32 size = 2;
+  }
+
+  string domainName = 1;
+  repeated AddressSize reads = 2;
+}
+message MultiDomainReadRequest {
+  string uri = 1;
+  repeated GroupedDomainReadRequests requests = 2;
+}
+
+message GroupedDomainReadResponses {
+  message AddressData {
+    uint32 address = 1;
+    bytes  data = 2;
+  }
+
+  string domainName = 1;
+  repeated AddressData reads = 2;
+}
+message MultiDomainReadResponse {
+  string uri = 1;
+  repeated GroupedDomainReadResponses responses = 2;
+}
+
+message GroupedDomainWriteRequests {
+  message AddressData {
+    uint32 address = 1;
+    bytes  data = 2;
+  }
+
+  string domainName = 1;
+  repeated AddressData writes = 2;
+}
+message MultiDomainWriteRequest {
+  string uri = 1;
+  repeated GroupedDomainWriteRequests requests = 2;
+}
+
+message GroupedDomainWriteResponses {
+  message AddressSize {
+    uint32 address = 1;
+    uint32 size = 2;
+  }
+
+  string domainName = 1;
+  repeated AddressSize writes = 2;
+}
+message MultiDomainWriteResponse {
+  string uri = 1;
+  repeated GroupedDomainWriteResponses responses = 2;
+}
+
 
 message ReadDirectoryRequest {
   string uri = 1;
