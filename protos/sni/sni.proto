@@ -113,7 +113,8 @@ enum DeviceCapability {
   PauseUnpauseEmulation = 5;
   PauseToggleEmulation = 6;
   ResetToMenu = 7;
-  // TODO: query ROM name
+  ReadMemoryDomain = 8;
+  WriteMemoryDomain = 9;
   ReadDirectory = 10;
   MakeDirectory = 11;
   RemoveFile = 12;
