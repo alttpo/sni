@@ -72,6 +72,12 @@ type MemoryWriteResponse struct {
 	Size int
 }
 
+type DeviceMemoryDomains interface {
+	MemoryDomains(context.Context, *sni.MemoryDomainsRequest) (*sni.MemoryDomainsResponse, error)
+	MultiDomainRead(context.Context, *sni.MultiDomainReadRequest) (*sni.MultiDomainReadResponse, error)
+	MultiDomainWrite(context.Context, *sni.MultiDomainWriteRequest) (*sni.MultiDomainWriteResponse, error)
+}
+
 type DeviceControl interface {
 	ResetSystem(ctx context.Context) error
 	ResetToMenu(ctx context.Context) error
