@@ -15,6 +15,10 @@ type Device struct {
 	isClosed bool
 }
 
+func testableDevice(f serial.Port) *Device {
+	return &Device{f: f}
+}
+
 func (d *Device) FatalError(cause error) devices.DeviceError {
 	return devices.DeviceFatal(fmt.Sprintf("fxpakpro: %v", cause), cause)
 }

@@ -10,21 +10,30 @@ import (
 )
 
 type domain struct {
+	name  string
 	start uint32
 	size  uint32
 }
 
-var domains = map[string]domain{
-	"CARTROM": {0x00_0000, 0xE0_0000},
-	"SRAM":    {0xE0_0000, 0x10_0000},
-	"WRAM":    {0xF5_0000, 0x02_0000},
-	"VRAM":    {0xF7_0000, 0x01_0000},
-	"APURAM":  {0xF8_0000, 0x01_0000},
-	"CGRAM":   {0xF9_0000, 0x0200},
-	"OAM":     {0xF9_0200, 0x0420 - 0x0200},
-	"MISC":    {0xF9_0420, 0x0500 - 0x0420},
-	"PPUREG":  {0xF9_0500, 0x0700 - 0x0500},
-	"CPUREG":  {0xF9_0700, 0x0200},
+var domains = []domain{
+	{"CARTROM", 0x00_0000, 0xE0_0000},
+	{"SRAM", 0xE0_0000, 0x10_0000},
+	{"WRAM", 0xF5_0000, 0x02_0000},
+	{"VRAM", 0xF7_0000, 0x01_0000},
+	{"APURAM", 0xF8_0000, 0x01_0000},
+	{"CGRAM", 0xF9_0000, 0x0200},
+	{"OAM", 0xF9_0200, 0x0420 - 0x0200},
+	{"MISC", 0xF9_0420, 0x0500 - 0x0420},
+	{"PPUREG", 0xF9_0500, 0x0700 - 0x0500},
+	{"CPUREG", 0xF9_0700, 0x0200},
+}
+var domainMap map[string]domain
+
+func init() {
+	domainMap = make(map[string]domain, len(domains))
+	for _, d := range domains {
+		domainMap[d.name] = d
+	}
 }
 
 func (d *Device) MemoryDomains(ctx context.Context, request *sni.MemoryDomainsRequest) (rsp *sni.MemoryDomainsResponse, err error) {
@@ -32,9 +41,9 @@ func (d *Device) MemoryDomains(ctx context.Context, request *sni.MemoryDomainsRe
 		Domains: make([]*sni.MemoryDomain, 0, len(domains)),
 	}
 
-	for name, d := range domains {
+	for _, d := range domains {
 		rsp.Domains = append(rsp.Domains, &sni.MemoryDomain{
-			DomainName: name,
+			DomainName: d.name,
 			Size:       d.size,
 		})
 	}
@@ -51,7 +60,7 @@ func (d *Device) MultiDomainRead(ctx context.Context, request *sni.MultiDomainRe
 
 	for i, domainReqs := range request.Requests {
 		domainName := strings.ToUpper(domainReqs.DomainName)
-		dm, ok := domains[domainName]
+		dm, ok := domainMap[domainName]
 		if !ok {
 			err = status.Errorf(codes.InvalidArgument, "invalid domain name '%s'", domainName)
 			return
