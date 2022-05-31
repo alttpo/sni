@@ -3,3 +3,7 @@ build:
 
 clean:
 	rm mobile-sources.jar mobile.aar
+
+tools:
+	go install golang.org/x/mobile/cmd/gomobile@latest
+	gomobile init
