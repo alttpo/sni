@@ -4,7 +4,7 @@
     package="org.alttpo.sni">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="a"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 
     <application
         android:allowBackup="true"
@@ -15,12 +15,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.SNI"
-        tools:targetApi="31">
-        <service
-            android:name=".SNIService"
-            android:enabled="true"
-            android:exported="true">
-        </service>
+        tools:targetApi="26">
+        <service android:name=".SNIService" />
 
         <activity
             android:name=".MainActivity"
@@ -32,5 +28,4 @@
             </intent-filter>
         </activity>
     </application>
-
 </manifest>
