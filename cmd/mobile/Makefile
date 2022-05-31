@@ -1,2 +1,5 @@
-mobile.aar: main.go
+build:
 	gomobile bind -v -target=android -o mobile.aar -tags notray .
+
+clean:
+	rm mobile-sources.jar mobile.aar
