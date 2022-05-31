@@ -16,26 +16,35 @@ import java.text.MessageFormat
 
 private const val TAG = "SNIService"
 
+enum class Actions {
+    START,
+    STOP
+}
+
 class SNIService : Service() {
     private val CHANNEL_ID = "SNIService Channel"
 
     companion object {
         fun startService(context: Context) {
             val startIntent = Intent(context, SNIService::class.java)
+            startIntent.action = Actions.START.name
             //startIntent.putExtra("inputExtra", message)
-            Log.i(TAG, "startForegroundService")
+            Log.i(TAG, "startForegroundService(START)")
             ContextCompat.startForegroundService(context, startIntent)
         }
+
         fun stopService(context: Context) {
             val stopIntent = Intent(context, SNIService::class.java)
-            Log.i(TAG, "stopService")
-            context.stopService(stopIntent)
+            stopIntent.action = Actions.STOP.name
+            Log.i(TAG, "startForegroundService(STOP)")
+            ContextCompat.startForegroundService(context, stopIntent)
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.M)
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.i(TAG, "onStartCommand")
+    override fun onCreate() {
+        Log.i(TAG, "onCreate")
+        super.onCreate()
 
         createNotificationChannel()
         val notificationIntent = Intent(this, MainActivity::class.java)
@@ -56,12 +65,42 @@ class SNIService : Service() {
 
         Log.i(TAG, "startForeground(1, notification)")
         startForeground(1, notification)
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.i(TAG, "onStartCommand executed with startId: $startId")
+        if (intent != null) {
+            val action = intent.action
+            Log.i(TAG, "using an intent with action $action")
+            when (action) {
+                Actions.START.name -> startService()
+                Actions.STOP.name -> stopService()
+                else -> Log.i(TAG, "This should never happen. No action in the received intent")
+            }
+        } else {
+            Log.i(TAG, "with a null intent. It has been probably restarted by the system.")
+        }
+
+        // by returning this we make sure the service is restarted if the system kills the service
+        return START_STICKY
+    }
+
+    private fun startService() {
+        Log.i(TAG, "startService")
 
         // start up SNI native service:
         Log.i(TAG, "mobile.Mobile.start()")
         mobile.Mobile.start()
+    }
 
-        return START_NOT_STICKY
+    private fun stopService() {
+        Log.i(TAG, "stopService")
+        try {
+            stopForeground(true)
+            stopSelf()
+        } catch (e: Exception) {
+            Log.i(TAG, "Service stopped without being started: ${e.message}")
+        }
     }
 
     private fun createNotificationChannel() {
@@ -89,6 +128,7 @@ class SNIService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG, "onDestroy")
+        Log.i(TAG, "mobile.Mobile.stop()")
         mobile.Mobile.stop()
 
         super.onDestroy()
