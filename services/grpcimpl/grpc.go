@@ -45,6 +45,17 @@ func StartGrpcServer() {
 	go serveGrpcWeb()
 }
 
+func StopGrpcServer() {
+	if GrpcServer == nil {
+		log.Println("grpc: server already stopped")
+		return
+	}
+
+	log.Println("grpc: stop")
+	GrpcServer.Stop()
+	GrpcServer = nil
+}
+
 func serveGrpc() {
 	var err error
 
@@ -59,12 +70,15 @@ func serveGrpc() {
 
 	listenAddr := net.JoinHostPort(ListenHost, strconv.Itoa(listenPort))
 
-	for {
-		listenGrpc(listenAddr)
+	for err == nil {
+		log.Println("grpc: listen")
+		err = listenGrpc(listenAddr)
 	}
+
+	log.Println("grpc: stopped")
 }
 
-func listenGrpc(listenAddr string) {
+func listenGrpc(listenAddr string) (err error) {
 	defer func() {
 		if pnk := recover(); pnk != nil {
 			log.Printf("grpc: panic: %v\n", pnk)
@@ -74,17 +88,20 @@ func listenGrpc(listenAddr string) {
 	lc := &net.ListenConfig{Control: util.ReusePortControl}
 
 	var lis net.Listener
-	var err error
 	lis, err = lc.Listen(context.Background(), "tcp", listenAddr)
 	if err != nil {
-		log.Fatalf("grpc: failed to listen: %v", err)
+		log.Printf("grpc: failed to listen: %v\n", err)
+		return
 	}
 
 	log.Printf("grpc: listening on %s\n", listenAddr)
-	if err := GrpcServer.Serve(lis); err != nil {
-		log.Fatalf("grpc: failed to serve: %v", err)
+	if err = GrpcServer.Serve(lis); err != nil {
+		log.Printf("grpc: failed to serve: %v\n", err)
+		return
 	}
 	log.Println("grpc: exit")
+
+	return nil
 }
 
 func serveGrpcWeb() {
@@ -120,19 +137,22 @@ func serveGrpcWeb() {
 	webListenPort := env.GetOrDefault("SNI_GRPCWEB_LISTEN_PORT", "8190")
 	webListenAddr := net.JoinHostPort(ListenHost, webListenPort)
 
-	for {
-		listenGrpcWeb(webListenAddr, corsWrapper)
+	var err error
+	for err == nil {
+		log.Println("grpcweb: listen")
+		err = listenGrpcWeb(webListenAddr, corsWrapper)
 	}
+
+	log.Printf("grpcweb: stopped\n")
 }
 
-func listenGrpcWeb(webListenAddr string, corsWrapper http.HandlerFunc) {
+func listenGrpcWeb(webListenAddr string, corsWrapper http.HandlerFunc) (err error) {
 	defer func() {
 		if pnk := recover(); pnk != nil {
 			log.Printf("grpcweb: panic: %v\n", pnk)
 		}
 	}()
 
-	var err error
 	var lis net.Listener
 
 	// attempt to start the usb2snes server:
@@ -159,6 +179,8 @@ func listenGrpcWeb(webListenAddr string, corsWrapper http.HandlerFunc) {
 	log.Printf("grpcweb: listening on %s\n", webListenAddr)
 	err = http.Serve(lis, corsWrapper)
 	log.Printf("grpcweb: exit listenHttp: %v\n", err)
+
+	return
 }
 
 type methodRequestStringer interface {

@@ -1,9 +1,9 @@
 package mobile
 
 import (
-	"io"
 	"log"
 	"sni/cmd/sni/appversion"
+	"sni/cmd/sni/config"
 	"sni/devices/snes/drivers/emunwa"
 	"sni/devices/snes/drivers/fxpakpro"
 	"sni/devices/snes/drivers/luabridge"
@@ -11,6 +11,7 @@ import (
 	"sni/devices/snes/drivers/retroarch"
 	"sni/services/grpcimpl"
 	"sni/services/usb2snes"
+	"sync"
 )
 
 // build variables set via ldflags by `go build -ldflags="-X 'main.version=v1.0.0'"`:
@@ -21,28 +22,39 @@ var (
 	builtBy string = "go"
 )
 
+var once sync.Once
+
 func Start() {
-	// make the version info public in the appversion package because the main package cannot be imported:
-	appversion.Init(
-		version,
-		commit,
-		date,
-		builtBy,
-	)
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("recover from Start(): %v\n", err)
+		}
+	}()
 
-	// TODO: initialize logging subsystem:
-	//logging.Init()
-	log.SetOutput(io.Discard)
+	once.Do(func() {
+		// make the version info public in the appversion package because the main package cannot be imported:
+		appversion.Init(
+			version,
+			commit,
+			date,
+			builtBy,
+		)
 
-	// TODO: load configuration:
-	//config.Load()
+		// TODO: initialize logging subsystem:
+		//logging.Init()
+		//log.SetOutput(io.Discard)
 
-	// explicitly initialize all the drivers:
-	fxpakpro.DriverInit()
-	emunwa.DriverInit()
-	luabridge.DriverInit()
-	retroarch.DriverInit()
-	mock.DriverInit()
+		// TODO: load configuration:
+		//config.Load()
+		config.VerboseLogging = true
+
+		// explicitly initialize all the drivers:
+		fxpakpro.DriverInit()
+		emunwa.DriverInit()
+		luabridge.DriverInit()
+		retroarch.DriverInit()
+		mock.DriverInit()
+	})
 
 	// start the servers:
 	grpcimpl.StartGrpcServer()
@@ -50,7 +62,12 @@ func Start() {
 }
 
 func Stop() {
-	grpcimpl.GrpcServer.Stop()
-	// TODO: Close() on usb2snes's `*http.Server`s
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("recover from Stop(): %v\n", err)
+		}
+	}()
 
+	grpcimpl.StopGrpcServer()
+	// TODO: Close() on usb2snes's `*http.Server`s
 }
