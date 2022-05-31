@@ -21,8 +21,12 @@ import (
 const fullMethodFormatter = "%32s"
 
 var (
-	ListenHost string
-	GrpcServer *grpc.Server
+	ListenHost      string
+	GrpcServer      *grpc.Server
+	GrpcListener    net.Listener
+	GrpcWebListener net.Listener
+	stoppingGrpc    bool
+	stoppingWeb     bool
 )
 
 func StartGrpcServer() {
@@ -30,33 +34,54 @@ func StartGrpcServer() {
 	ListenHost = env.GetOrDefault("SNI_GRPC_LISTEN_HOST", "0.0.0.0")
 
 	// create gRPC server:
-	GrpcServer = grpc.NewServer(
+	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(logTimingInterceptor),
 		grpc.ChainStreamInterceptor(reportErrorStreamInterceptor),
 	)
-	sni.RegisterDevicesServer(GrpcServer, &DevicesService{})
-	sni.RegisterDeviceMemoryServer(GrpcServer, &DeviceMemoryService{})
-	sni.RegisterDeviceControlServer(GrpcServer, &DeviceControlService{})
-	sni.RegisterDeviceFilesystemServer(GrpcServer, &DeviceFilesystem{})
-	sni.RegisterDeviceNWAServer(GrpcServer, &DeviceNWAService{})
-	reflection.Register(GrpcServer)
+	sni.RegisterDevicesServer(grpcServer, &DevicesService{})
+	sni.RegisterDeviceMemoryServer(grpcServer, &DeviceMemoryService{})
+	sni.RegisterDeviceControlServer(grpcServer, &DeviceControlService{})
+	sni.RegisterDeviceFilesystemServer(grpcServer, &DeviceFilesystem{})
+	sni.RegisterDeviceNWAServer(grpcServer, &DeviceNWAService{})
+	reflection.Register(grpcServer)
 
-	go serveGrpc()
-	go serveGrpcWeb()
+	go serveGrpc(grpcServer)
+	go serveGrpcWeb(grpcServer)
 }
 
 func StopGrpcServer() {
-	if GrpcServer == nil {
-		log.Println("grpc: server already stopped")
-		return
+	if GrpcServer != nil {
+		stoppingGrpc = true
+
+		if grpcListener := GrpcListener; grpcListener != nil {
+			log.Printf("grpc: listener close\n")
+			err := grpcListener.Close()
+			if err != nil {
+				log.Printf("grpc: listener close: %v\n", err)
+			}
+			GrpcListener = nil
+		}
+
+		if grpcServer := GrpcServer; grpcServer != nil {
+			log.Println("grpc: stop")
+			grpcServer.Stop()
+			GrpcServer = nil
+		}
 	}
 
-	log.Println("grpc: stop")
-	GrpcServer.Stop()
-	GrpcServer = nil
+	if grpcWebListener := GrpcWebListener; grpcWebListener != nil {
+		stoppingWeb = true
+
+		log.Println("grpcweb: listener close")
+		err := grpcWebListener.Close()
+		if err != nil {
+			log.Printf("grpcweb: listener close: %v\n", err)
+		}
+		GrpcWebListener = nil
+	}
 }
 
-func serveGrpc() {
+func serveGrpc(grpcServer *grpc.Server) {
 	var err error
 
 	var listenPort int
@@ -70,15 +95,16 @@ func serveGrpc() {
 
 	listenAddr := net.JoinHostPort(ListenHost, strconv.Itoa(listenPort))
 
-	for err == nil {
+	for !stoppingGrpc {
 		log.Println("grpc: listen")
-		err = listenGrpc(listenAddr)
+		err = listenGrpc(grpcServer, listenAddr)
 	}
 
 	log.Println("grpc: stopped")
+	stoppingGrpc = false
 }
 
-func listenGrpc(listenAddr string) (err error) {
+func listenGrpc(grpcServer *grpc.Server, listenAddr string) (err error) {
 	defer func() {
 		if pnk := recover(); pnk != nil {
 			log.Printf("grpc: panic: %v\n", pnk)
@@ -95,19 +121,27 @@ func listenGrpc(listenAddr string) (err error) {
 	}
 
 	log.Printf("grpc: listening on %s\n", listenAddr)
-	if err = GrpcServer.Serve(lis); err != nil {
+	GrpcListener = lis
+	GrpcServer = grpcServer
+	if err = grpcServer.Serve(lis); err != nil {
 		log.Printf("grpc: failed to serve: %v\n", err)
 		return
 	}
-	log.Println("grpc: exit")
+
+	log.Println("grpc: serve exit")
+	GrpcListener = nil
 
 	return nil
 }
 
-func serveGrpcWeb() {
+func serveGrpcWeb(grpcServer *grpc.Server) {
+	if GrpcWebListener != nil {
+		return
+	}
+
 	// wrap the GrpcServer with a GrpcWebServer:
 	wrappedGrpc := grpcweb.WrapServer(
-		GrpcServer,
+		grpcServer,
 		grpcweb.WithWebsockets(true),
 		grpcweb.WithOriginFunc(func(origin string) bool { return true }),
 		grpcweb.WithWebsocketOriginFunc(func(req *http.Request) bool { return true }),
@@ -137,13 +171,13 @@ func serveGrpcWeb() {
 	webListenPort := env.GetOrDefault("SNI_GRPCWEB_LISTEN_PORT", "8190")
 	webListenAddr := net.JoinHostPort(ListenHost, webListenPort)
 
-	var err error
-	for err == nil {
+	for !stoppingWeb {
 		log.Println("grpcweb: listen")
-		err = listenGrpcWeb(webListenAddr, corsWrapper)
+		listenGrpcWeb(webListenAddr, corsWrapper)
 	}
 
 	log.Printf("grpcweb: stopped\n")
+	stoppingWeb = false
 }
 
 func listenGrpcWeb(webListenAddr string, corsWrapper http.HandlerFunc) (err error) {
@@ -157,7 +191,7 @@ func listenGrpcWeb(webListenAddr string, corsWrapper http.HandlerFunc) (err erro
 
 	// attempt to start the usb2snes server:
 	count := 0
-	for {
+	for ; count < 30; count++ {
 		//lc := &net.ListenConfig{Control: util.ReusePortControl}
 		lc := &net.ListenConfig{}
 		lis, err = lc.Listen(context.Background(), "tcp", webListenAddr)
@@ -165,20 +199,19 @@ func listenGrpcWeb(webListenAddr string, corsWrapper http.HandlerFunc) (err erro
 			break
 		}
 
-		if count == 0 {
-			log.Printf("grpcweb: failed to listen on %s: %v\n", webListenAddr, err)
-		}
-		count++
-		if count >= 30 {
-			count = 0
-		}
+		log.Printf("grpcweb: failed to listen on %s: %v\n", webListenAddr, err)
 
 		time.Sleep(time.Second)
 	}
+	if count >= 30 {
+		return
+	}
 
 	log.Printf("grpcweb: listening on %s\n", webListenAddr)
+	GrpcWebListener = lis
 	err = http.Serve(lis, corsWrapper)
 	log.Printf("grpcweb: exit listenHttp: %v\n", err)
+	GrpcWebListener = nil
 
 	return
 }

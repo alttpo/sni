@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"google.golang.org/grpc/status"
+	"log"
 	"sni/cmd/sni/tray"
 	"sni/devices"
 	"sni/protos/sni"
@@ -27,7 +28,9 @@ func (s *DevicesService) ListDevices(ctx context.Context, request *sni.DevicesRe
 	for _, driver := range devices.Drivers() {
 		d, err := driver.Driver.Detect()
 		if err != nil {
-			return nil, err
+			log.Printf("grpc: ListDevices: driver=%s: %v\n", driver.Name, err)
+			continue
+			//return nil, err
 		}
 		descriptors = append(descriptors, d...)
 	}
