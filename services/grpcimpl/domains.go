@@ -27,7 +27,9 @@ func (s *DeviceMemoryDomainsService) MemoryDomains(ctx context.Context, request 
 		return nil, grpcError(gerr)
 	}
 
-	_ = driver
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_ReadMemoryDomain); err != nil {
+		return nil, status.Error(codes.Unimplemented, err.Error())
+	}
 
 	gerr = device.EnsureOpened(func(device devices.Device) (err error) {
 		md, ok := device.(devices.DeviceMemoryDomains)
@@ -58,7 +60,7 @@ func (s *DeviceMemoryDomainsService) MultiDomainRead(ctx context.Context, reques
 		return nil, grpcError(gerr)
 	}
 
-	if _, err := driver.HasCapabilities(sni.DeviceCapability_ReadMemory); err != nil {
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_ReadMemoryDomain); err != nil {
 		return nil, status.Error(codes.Unimplemented, err.Error())
 	}
 
@@ -91,7 +93,7 @@ func (s *DeviceMemoryDomainsService) MultiDomainWrite(ctx context.Context, reque
 		return nil, grpcError(gerr)
 	}
 
-	if _, err := driver.HasCapabilities(sni.DeviceCapability_ReadMemory); err != nil {
+	if _, err := driver.HasCapabilities(sni.DeviceCapability_WriteMemoryDomain); err != nil {
 		return nil, status.Error(codes.Unimplemented, err.Error())
 	}
 
