@@ -328,9 +328,9 @@ serverLoop:
 			var fields []string
 			fields, err = device.FetchFields(
 				context.Background(),
-				devices.Field_DeviceVersion,
-				devices.Field_DeviceName,
-				devices.Field_RomFileName,
+				sni.Field_DeviceVersion,
+				sni.Field_DeviceName,
+				sni.Field_RomFileName,
 			)
 			if err != nil {
 				log.Printf("usb2snes: %s: %s error: %v; falling back to default Info values\n", clientName, cmd.Opcode, err)

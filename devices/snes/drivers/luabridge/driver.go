@@ -53,6 +53,7 @@ var driverCapabilities = []sni.DeviceCapability{
 	sni.DeviceCapability_ResetSystem,
 	sni.DeviceCapability_PauseUnpauseEmulation,
 	sni.DeviceCapability_PauseToggleEmulation,
+	sni.DeviceCapability_FetchFields,
 }
 
 func (d *Driver) HasCapabilities(capabilities ...sni.DeviceCapability) (bool, error) {

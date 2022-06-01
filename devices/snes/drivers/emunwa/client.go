@@ -530,3 +530,109 @@ func (c *Client) NWACommand(ctx context.Context, cmd string, args string, binary
 
 	return
 }
+
+func getFirstValue(reply []map[string]string, name string) string {
+	if len(reply) == 0 {
+		return ""
+	}
+	return reply[0][name]
+}
+
+func (c *Client) FetchFields(ctx context.Context, fields ...sni.Field) (values []string, err error) {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(c.readWriteTimeout)
+	}
+
+	wantGameInfo := false        // RomFileName
+	wantCoreInfo := false        // CoreName, CoreVersion, CorePlatform
+	wantEmulatorInfo := false    // DeviceName, DeviceVersion
+	wantEmulationStatus := false // DeviceStatus
+
+	for _, field := range fields {
+		switch field {
+		case sni.Field_DeviceName:
+		case sni.Field_DeviceVersion:
+			wantEmulatorInfo = true
+			break
+		case sni.Field_DeviceStatus:
+			wantEmulationStatus = true
+			break
+		case sni.Field_CoreName:
+		case sni.Field_CoreVersion:
+		case sni.Field_CorePlatform:
+			wantCoreInfo = true
+			break
+		case sni.Field_RomFileName:
+			wantGameInfo = true
+			break
+		}
+	}
+
+	var (
+		gameInfo        []map[string]string
+		coreInfo        []map[string]string
+		emulatorInfo    []map[string]string
+		emulationStatus []map[string]string
+	)
+
+	// make the necessary requests based on which fields are requested:
+	if wantGameInfo {
+		_, gameInfo, err = c.SendCommandWaitReply("GAME_INFO", deadline)
+		if err != nil {
+			return
+		}
+	}
+
+	if wantCoreInfo {
+		_, coreInfo, err = c.SendCommandWaitReply("CORE_CURRENT_INFO", deadline)
+		if err != nil {
+			return
+		}
+	}
+
+	if wantEmulatorInfo {
+		_, emulatorInfo, err = c.SendCommandWaitReply("EMULATOR_INFO", deadline)
+		if err != nil {
+			return
+		}
+	}
+
+	if wantEmulationStatus {
+		_, emulationStatus, err = c.SendCommandWaitReply("EMULATION_STATUS", deadline)
+		if err != nil {
+			return
+		}
+	}
+
+	for _, field := range fields {
+		switch field {
+		case sni.Field_DeviceName:
+			values = append(values, getFirstValue(emulatorInfo, "name"))
+			break
+		case sni.Field_DeviceVersion:
+			values = append(values, getFirstValue(emulatorInfo, "version"))
+			break
+		case sni.Field_DeviceStatus:
+			values = append(values, getFirstValue(emulationStatus, "state"))
+			break
+		case sni.Field_CoreName:
+			values = append(values, getFirstValue(coreInfo, "name"))
+			break
+		case sni.Field_CoreVersion:
+			values = append(values, getFirstValue(coreInfo, "version"))
+			break
+		case sni.Field_CorePlatform:
+			values = append(values, getFirstValue(coreInfo, "platform"))
+			break
+		case sni.Field_RomFileName:
+			values = append(values, getFirstValue(gameInfo, "file"))
+			break
+		default:
+			values = append(values, "")
+			break
+		}
+	}
+
+	return
+}

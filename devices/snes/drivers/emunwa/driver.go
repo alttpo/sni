@@ -63,6 +63,7 @@ var driverCapabilities = []sni.DeviceCapability{
 	sni.DeviceCapability_WriteMemory,
 	sni.DeviceCapability_ResetSystem,
 	sni.DeviceCapability_PauseUnpauseEmulation,
+	sni.DeviceCapability_FetchFields,
 	sni.DeviceCapability_NWACommand,
 }
 
@@ -127,6 +128,7 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 			)
 
 			{
+				// TODO: backwards compat to EMU_INFO
 				// check emulator info:
 				var status []map[string]string
 				_, status, err = detector.SendCommandWaitReply("EMULATOR_INFO", time.Now().Add(timing.Frame*2))

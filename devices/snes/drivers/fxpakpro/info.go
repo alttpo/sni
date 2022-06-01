@@ -3,10 +3,10 @@ package fxpakpro
 import (
 	"context"
 	"fmt"
-	"sni/devices"
+	"sni/protos/sni"
 )
 
-func (d *Device) FetchFields(ctx context.Context, fields ...devices.Field) (values []string, err error) {
+func (d *Device) FetchFields(ctx context.Context, fields ...sni.Field) (values []string, err error) {
 	var version string
 	var deviceName string
 	var rom string
@@ -18,13 +18,13 @@ func (d *Device) FetchFields(ctx context.Context, fields ...devices.Field) (valu
 
 	for _, field := range fields {
 		switch field {
-		case devices.Field_DeviceName:
+		case sni.Field_DeviceName:
 			values = append(values, deviceName)
 			break
-		case devices.Field_DeviceVersion:
+		case sni.Field_DeviceVersion:
 			values = append(values, version)
 			break
-		case devices.Field_RomFileName:
+		case sni.Field_RomFileName:
 			values = append(values, rom)
 			break
 		default:

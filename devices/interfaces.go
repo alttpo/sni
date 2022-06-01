@@ -99,19 +99,8 @@ type ProgressReportFunc func(current uint32, total uint32)
 type SizeReceivedFunc func(size uint32)
 
 type DeviceInfo interface {
-	FetchFields(ctx context.Context, fields ...Field) (values []string, err error)
+	FetchFields(ctx context.Context, fields ...sni.Field) (values []string, err error)
 }
-
-type Field int
-
-const (
-	Field_DeviceName Field = iota
-	Field_DeviceVersion
-	Field_DeviceStatus
-	Field_CoreName
-	Field_RomFileName
-	Field_RomCRC32
-)
 
 type DeviceNWA interface {
 	NWACommand(ctx context.Context, cmd string, args string, binaryArg []byte) (asciiReply []map[string]string, binaryReply []byte, err error)

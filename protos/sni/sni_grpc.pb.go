@@ -991,6 +991,92 @@ var DeviceFilesystem_ServiceDesc = grpc.ServiceDesc{
 	Metadata: "sni.proto",
 }
 
+// DeviceInfoClient is the client API for DeviceInfo service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type DeviceInfoClient interface {
+	FetchFields(ctx context.Context, in *FieldsRequest, opts ...grpc.CallOption) (*FieldsResponse, error)
+}
+
+type deviceInfoClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewDeviceInfoClient(cc grpc.ClientConnInterface) DeviceInfoClient {
+	return &deviceInfoClient{cc}
+}
+
+func (c *deviceInfoClient) FetchFields(ctx context.Context, in *FieldsRequest, opts ...grpc.CallOption) (*FieldsResponse, error) {
+	out := new(FieldsResponse)
+	err := c.cc.Invoke(ctx, "/DeviceInfo/FetchFields", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// DeviceInfoServer is the server API for DeviceInfo service.
+// All implementations must embed UnimplementedDeviceInfoServer
+// for forward compatibility
+type DeviceInfoServer interface {
+	FetchFields(context.Context, *FieldsRequest) (*FieldsResponse, error)
+	mustEmbedUnimplementedDeviceInfoServer()
+}
+
+// UnimplementedDeviceInfoServer must be embedded to have forward compatible implementations.
+type UnimplementedDeviceInfoServer struct {
+}
+
+func (UnimplementedDeviceInfoServer) FetchFields(context.Context, *FieldsRequest) (*FieldsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FetchFields not implemented")
+}
+func (UnimplementedDeviceInfoServer) mustEmbedUnimplementedDeviceInfoServer() {}
+
+// UnsafeDeviceInfoServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to DeviceInfoServer will
+// result in compilation errors.
+type UnsafeDeviceInfoServer interface {
+	mustEmbedUnimplementedDeviceInfoServer()
+}
+
+func RegisterDeviceInfoServer(s grpc.ServiceRegistrar, srv DeviceInfoServer) {
+	s.RegisterService(&DeviceInfo_ServiceDesc, srv)
+}
+
+func _DeviceInfo_FetchFields_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FieldsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceInfoServer).FetchFields(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceInfo/FetchFields",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceInfoServer).FetchFields(ctx, req.(*FieldsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// DeviceInfo_ServiceDesc is the grpc.ServiceDesc for DeviceInfo service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var DeviceInfo_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "DeviceInfo",
+	HandlerType: (*DeviceInfoServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "FetchFields",
+			Handler:    _DeviceInfo_FetchFields_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "sni.proto",
+}
+
 // DeviceNWAClient is the client API for DeviceNWA service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.

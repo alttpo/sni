@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"sni/devices"
+	"sni/protos/sni"
 	"strings"
 	"sync"
 	"time"
@@ -123,13 +124,13 @@ func (d *Device) CheckVersion() (err error) {
 	return
 }
 
-func (d *Device) FetchFields(ctx context.Context, fields ...devices.Field) (values []string, err error) {
+func (d *Device) FetchFields(ctx context.Context, fields ...sni.Field) (values []string, err error) {
 	for _, field := range fields {
 		switch field {
-		case devices.Field_DeviceName:
+		case sni.Field_DeviceName:
 			values = append(values, d.clientName+"|"+d.host)
 			break
-		case devices.Field_DeviceVersion:
+		case sni.Field_DeviceVersion:
 			values = append(values, d.version)
 			break
 		default:

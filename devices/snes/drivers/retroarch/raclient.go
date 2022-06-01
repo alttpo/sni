@@ -244,7 +244,7 @@ func (d *RAClient) GetStatus(ctx context.Context) (raStatus, coreName, romFileNa
 	return
 }
 
-func (d *RAClient) FetchFields(ctx context.Context, fields ...devices.Field) (values []string, err error) {
+func (d *RAClient) FetchFields(ctx context.Context, fields ...sni.Field) (values []string, err error) {
 	var raStatus string
 	var coreName string
 	var romFileName string
@@ -257,22 +257,25 @@ func (d *RAClient) FetchFields(ctx context.Context, fields ...devices.Field) (va
 
 	for _, field := range fields {
 		switch field {
-		case devices.Field_DeviceName:
+		case sni.Field_DeviceName:
 			values = append(values, "retroarch")
 			break
-		case devices.Field_DeviceVersion:
+		case sni.Field_DeviceVersion:
 			values = append(values, d.version)
 			break
-		case devices.Field_DeviceStatus:
+		case sni.Field_DeviceStatus:
 			values = append(values, raStatus)
 			break
-		case devices.Field_CoreName:
+		case sni.Field_CoreName:
 			values = append(values, coreName)
 			break
-		case devices.Field_RomFileName:
+		case sni.Field_RomFileName:
 			values = append(values, romFileName)
 			break
-		case devices.Field_RomCRC32:
+		case sni.Field_RomHashType:
+			values = append(values, "crc32")
+			break
+		case sni.Field_RomHashValue:
 			values = append(values, strconv.FormatUint(uint64(romCRC32), 16))
 			break
 		default:
