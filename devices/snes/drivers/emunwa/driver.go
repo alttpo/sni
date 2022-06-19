@@ -90,7 +90,7 @@ func (d *Driver) openDevice(uri *url.URL) (q devices.Device, err error) {
 	return
 }
 
-func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
+func (d *Driver) Detect() (devs []devices.DeviceDescriptor, derr error) {
 	devicesLock := sync.Mutex{}
 	devs = make([]devices.DeviceDescriptor, 0, len(d.detectors))
 
@@ -99,11 +99,16 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 	for i, de := range d.detectors {
 		// run detectors in parallel:
 		go func(i int, detector *Client) {
+			var err error
+
 			defer wg.Done()
 
 			// reopen detector if necessary:
 			if detector.IsClosed() {
-				detector.Close()
+				err = detector.Close()
+				if err != nil {
+					log.Printf("emunwa: error closing detector: %v\n", err)
+				}
 				// refresh detector:
 				c := NewClient(detector.addr, fmt.Sprintf("emunwa[%d]", i), timing.Frame*4)
 				c.MuteLog(!logDetector)
@@ -158,7 +163,7 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 	}
 	wg.Wait()
 
-	err = nil
+	derr = nil
 	return
 }
 
