@@ -64,6 +64,7 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 	d.devicesRw.RLock()
 	devs = make([]devices.DeviceDescriptor, 0, len(d.devicesMap))
 	for _, device := range d.devicesMap {
+		device.stateLock.Lock()
 		devs = append(devs, devices.DeviceDescriptor{
 			Uri:                 url.URL{Scheme: driverName, Host: device.c.RemoteAddr().String()},
 			DisplayName:         fmt.Sprintf("%s v%s", device.clientName, device.version),
@@ -72,6 +73,7 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 			DefaultAddressSpace: defaultAddressSpace,
 			System:              "snes",
 		})
+		device.stateLock.Unlock()
 	}
 	d.devicesRw.RUnlock()
 	return
@@ -178,21 +180,31 @@ func (d *Driver) StartServer() (err error) {
 
 func (d *Driver) runServer(listener *net.TCPListener) {
 	var err error
+
 	defer func(listener *net.TCPListener) {
+		if err != nil {
+			log.Printf("luabridge: runserver error: %v\n", err)
+		}
+
 		err := listener.Close()
 		if err != nil {
 			log.Printf("luabridge: error closing listener: %v\n", err)
 		}
+
+		// TODO: auto-restart? what if it continuously fails?
+		log.Printf("luabridge: server shut down; restart SNI to restart it\n")
 	}(listener)
 
-	// TODO: stopping criteria
 	for {
 		// accept new TCP connections:
 		var conn *net.TCPConn
 		conn, err = listener.AcceptTCP()
 		if err != nil {
+			log.Printf("luabridge: error during AcceptTCP: %v\n", err)
 			break
 		}
+
+		log.Printf("luabridge: accepted connection from %s\n", conn.RemoteAddr())
 
 		// create the Device to handle this connection:
 		deviceKey := conn.RemoteAddr().String()

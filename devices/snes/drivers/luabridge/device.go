@@ -14,6 +14,8 @@ import (
 )
 
 type Device struct {
+	stateLock sync.Mutex
+
 	lock sync.Mutex
 	c    *net.TCPConn
 
@@ -55,21 +57,27 @@ func (d *Device) Init() {
 
 func (d *Device) initConnection() {
 	var err error
+	remoteAddr := d.c.RemoteAddr()
+
 	defer func() {
 		if err != nil {
 			log.Printf("luabridge: %v\n", err)
-			err := d.Close()
-			if err != nil {
-				log.Printf("luabridge: close error: %v\n", err)
-				return
-			}
 		}
+
+		err := d.Close()
+		if err != nil {
+			log.Printf("luabridge: close error: %v\n", err)
+		}
+
+		log.Printf("luabridge: connection closed for %s\n", remoteAddr)
+		driver.DeleteDevice(remoteAddr.String())
 	}()
 
 	_ = d.c.SetNoDelay(true)
 
 	err = d.CheckVersion()
 	if err != nil {
+		// defer above checks and logs err
 		return
 	}
 
@@ -88,6 +96,9 @@ func (d *Device) initConnection() {
 }
 
 func (d *Device) CheckVersion() (err error) {
+	defer d.stateLock.Unlock()
+	d.stateLock.Lock()
+
 	var b []byte
 	b, err = d.WriteThenReadUntilNewline([]byte("Version\n"), time.Now().Add(time.Second*15))
 	if err != nil {
