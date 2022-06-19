@@ -52,6 +52,7 @@ type rwRequest struct {
 
 type RAClient struct {
 	udpclient.UDPClient
+	stateLock sync.Mutex
 
 	addr *net.UDPAddr
 
@@ -119,8 +120,18 @@ func (c *RAClient) GetId() string {
 	return c.addr.String()
 }
 
-func (c *RAClient) Version() string  { return c.version }
-func (c *RAClient) HasVersion() bool { return c.version != "" }
+func (c *RAClient) Version() string {
+	defer c.stateLock.Unlock()
+	c.stateLock.Lock()
+
+	return c.version
+}
+func (c *RAClient) HasVersion() bool {
+	defer c.stateLock.Unlock()
+	c.stateLock.Lock()
+
+	return c.version != ""
+}
 
 func (c *RAClient) DetermineVersion() (err error) {
 	var rsp []byte
@@ -140,6 +151,10 @@ func (c *RAClient) DetermineVersion() (err error) {
 	if logDetector {
 		log.Printf("retroarch: < %s", rsp)
 	}
+
+	defer c.stateLock.Unlock()
+	c.stateLock.Lock()
+
 	c.version = strings.TrimSpace(string(rsp))
 
 	// parse the version string:
@@ -292,6 +307,9 @@ func (d *RAClient) FetchFields(ctx context.Context, fields ...sni.Field) (values
 const maxReadSize = 2048
 
 func (c *RAClient) readCommand() string {
+	defer c.stateLock.Unlock()
+	c.stateLock.Lock()
+
 	if c.useRCR {
 		return "READ_CORE_RAM"
 	} else {
@@ -300,6 +318,9 @@ func (c *RAClient) readCommand() string {
 }
 
 func (c *RAClient) writeCommand() string {
+	defer c.stateLock.Unlock()
+	c.stateLock.Lock()
+
 	if c.useRCR {
 		return "WRITE_CORE_RAM"
 	} else {
@@ -544,6 +565,10 @@ func (c *RAClient) MultiWriteMemory(ctx context.Context, writes ...devices.Memor
 }
 
 func (c *RAClient) handleOutgoing() {
+	c.stateLock.Lock()
+	useRCR := c.useRCR
+	c.stateLock.Unlock()
+
 	for rwreq := range c.outgoing {
 		var sb strings.Builder
 
@@ -587,7 +612,7 @@ func (c *RAClient) handleOutgoing() {
 				return
 			}
 
-			if c.useRCR && rwreq.isWrite {
+			if useRCR && rwreq.isWrite {
 				// fake a response since we don't get any from WRITE_CORE_RAM:
 				rwreq.R <- nil
 			} else {
@@ -633,6 +658,10 @@ func (r *readResponseError) IsFatal() bool {
 }
 
 func (c *RAClient) parseCommandResponse(rsp []byte, rwreq *rwRequest) (err error) {
+	c.stateLock.Lock()
+	useRCR := c.useRCR
+	c.stateLock.Unlock()
+
 	r := bytes.NewReader(rsp)
 
 	var cmd string
@@ -652,7 +681,7 @@ func (c *RAClient) parseCommandResponse(rsp []byte, rwreq *rwRequest) (err error
 		n, err = fmt.Fscanf(t, "%d", &test)
 		if n == 1 && test < 0 {
 			// read a -1:
-			if c.useRCR {
+			if useRCR {
 				err = &readResponseError{addr, ""}
 				return
 			} else {
