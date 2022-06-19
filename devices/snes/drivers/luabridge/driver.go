@@ -178,7 +178,12 @@ func (d *Driver) StartServer() (err error) {
 
 func (d *Driver) runServer(listener *net.TCPListener) {
 	var err error
-	defer listener.Close()
+	defer func(listener *net.TCPListener) {
+		err := listener.Close()
+		if err != nil {
+			log.Printf("luabridge: error closing listener: %v\n", err)
+		}
+	}(listener)
 
 	// TODO: stopping criteria
 	for {
