@@ -25,7 +25,6 @@ const maxItems = 10
 var (
 	deviceMenuItemsMu sync.Mutex
 	deviceMenuItems   [maxItems]*systray.MenuItem
-	deviceDescriptors []devices.DeviceDescriptor
 )
 
 func Init() (err error) {
@@ -33,13 +32,7 @@ func Init() (err error) {
 	return
 }
 
-func UpdateDeviceList(descriptors []devices.DeviceDescriptor) {
-	deviceDescriptors = descriptors[:]
-
-	updateDeviceList()
-}
-
-func updateDeviceList() {
+func UpdateDeviceList(deviceDescriptors []devices.DeviceDescriptor) {
 	defer deviceMenuItemsMu.Unlock()
 	deviceMenuItemsMu.Lock()
 
@@ -163,7 +156,6 @@ func trayStart() {
 		deviceMenuItems[i] = devicesMenu.AddSubMenuItemCheckbox("_", "_", false)
 		deviceMenuItems[i].Hide()
 	}
-	updateDeviceList()
 
 	appsMenuItems := make([]*systray.MenuItem, 0, 10)
 	appConfigs := make([]*appConfig, 0, 10)
@@ -318,5 +310,6 @@ func RefreshDeviceList() {
 
 		descriptors = append(descriptors, d...)
 	}
+
 	UpdateDeviceList(descriptors)
 }
