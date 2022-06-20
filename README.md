@@ -89,7 +89,7 @@ file is located at:
 ## On Windows
 ```shell
 go get ./...
-go build -H=windowsgui ./cmd/sni
+go build -ldflags -H=windowsgui ./cmd/sni
 ```
 
 ## On MacOS
