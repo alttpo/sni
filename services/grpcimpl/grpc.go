@@ -29,10 +29,13 @@ func StartGrpcServer() {
 	// Parse env vars:
 	ListenHost = env.GetOrDefault("SNI_GRPC_LISTEN_HOST", "0.0.0.0")
 
+	const maxMessageSize = 10 * 1024 * 1024;
+
 	// create gRPC server:
 	GrpcServer = grpc.NewServer(
 		grpc.ChainUnaryInterceptor(logTimingInterceptor),
 		grpc.ChainStreamInterceptor(reportErrorStreamInterceptor),
+		grpc.MaxMsgSize(maxMessageSize),
 	)
 	sni.RegisterDevicesServer(GrpcServer, &DevicesService{})
 	sni.RegisterDeviceMemoryServer(GrpcServer, &DeviceMemoryService{})
