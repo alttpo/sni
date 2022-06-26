@@ -113,7 +113,7 @@ jobs:
       - if: ${{ matrix.goos == 'windows' }}
         name: Build SNI
         run: |
-          SET GOARCH=${{matrix.goarch}}
+          export GOARCH=${{matrix.goarch}}
           go build -ldflags="-H=windowsgui -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')' -X 'main.builtBy=$(go version | cut -f3 -d ' ')'" -o ./${{env.basename}}/sni${{matrix.exesuffix}} ./cmd/sni
 
       - if: ${{ matrix.goos != 'windows' }}
