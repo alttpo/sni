@@ -47,6 +47,16 @@ jobs:
             goarch: "386"
             exesuffix: .exe
             suffix: zip
+          - os: windows-latest
+            goos: windows
+            goarch: arm
+            exesuffix: .exe
+            suffix: zip
+          - os: windows-latest
+            goos: windows
+            goarch: arm64
+            exesuffix: .exe
+            suffix: zip
           - os: ubuntu-latest
             goos: linux
             goarch: amd64
@@ -114,7 +124,7 @@ jobs:
       - if: ${{ matrix.goos == 'windows' }}
         name: Build SNI
         run: |
-          export GOARCH=${{matrix.goarch}}
+          Set-Item -Path Env:GOARCH -Value "${{matrix.goarch}}"
           go build -ldflags="-H=windowsgui -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')' -X 'main.builtBy=$(go version | cut -f3 -d ' ')'" -o ./${{env.basename}}/sni${{matrix.exesuffix}} ./cmd/sni
 
       - if: ${{ matrix.goos != 'windows' }}
