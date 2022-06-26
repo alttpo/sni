@@ -34,9 +34,10 @@ jobs:
             goos: darwin
             goarch: amd64
             suffix: tar.gz
-          #- os: macos-latest
-          #  goos: darwin
-          #  goarch: arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            suffix: tar.gz
           - os: windows-latest
             goos: windows
             goarch: amd64
