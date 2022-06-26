@@ -11,7 +11,7 @@ require (
 	github.com/improbable-eng/grpc-web v0.15.0
 	github.com/json-iterator/go v1.1.12
 	github.com/spf13/viper v1.8.1
-	go.bug.st/serial v1.3.3
+	go.bug.st/serial v1.3.5
 	google.golang.org/grpc v1.38.0
 	google.golang.org/protobuf v1.26.0
 )
