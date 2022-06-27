@@ -125,13 +125,14 @@ jobs:
       - if: ${{ matrix.goos == 'windows' }}
         name: Build SNI
         run: |
+          Set-Item -Path Env:GOOS -Value "${{matrix.goos}}"
           Set-Item -Path Env:GOARCH -Value "${{matrix.goarch}}"
           go build -ldflags="-H=windowsgui -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')' -X 'main.builtBy=$(go version | cut -f3 -d ' ')'" -o ./${{env.basename}}/sni${{matrix.exesuffix}} ./cmd/sni
 
       - if: ${{ matrix.goos != 'windows' }}
         name: Build SNI
         run: >
-          GOARCH=${{matrix.goarch}} go build
+          GOOS=${{matrix.goos}} GOARCH=${{matrix.goarch}} go build
           -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
           -o ./${{env.basename}}/sni
           ./cmd/sni
