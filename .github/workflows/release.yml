@@ -46,6 +46,16 @@ jobs:
             goarch: "386"
             exesuffix: .exe
             suffix: zip
+          - os: windows-latest
+            goos: windows
+            goarch: arm
+            exesuffix: .exe
+            suffix: zip
+          - os: windows-latest
+            goos: windows
+            goarch: arm64
+            exesuffix: .exe
+            suffix: zip
           - os: ubuntu-latest
             goos: linux
             goarch: amd64
