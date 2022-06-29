@@ -28,7 +28,7 @@ service DeviceControl {
 }
 
 service DeviceMemory {
-  // detect the current memory mapping for the given device by reading $00:FFB0 header:
+  // detect the current memory mapping for the given device by reading 00:FFB0 header:
   rpc MappingDetect(DetectMemoryMappingRequest) returns (DetectMemoryMappingResponse) {}
 
   // read a single memory segment with a given size from the given device:
