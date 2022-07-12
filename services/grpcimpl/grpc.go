@@ -29,7 +29,7 @@ func StartGrpcServer() {
 	// Parse env vars:
 	ListenHost = env.GetOrDefault("SNI_GRPC_LISTEN_HOST", "0.0.0.0")
 
-	const maxMessageSize = 10 * 1024 * 1024;
+	const maxMessageSize = 100 * 1024 * 1024; // 100 MB
 
 	// create gRPC server:
 	GrpcServer = grpc.NewServer(
