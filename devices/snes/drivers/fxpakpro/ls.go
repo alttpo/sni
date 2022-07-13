@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sni/devices"
 	"sni/protos/sni"
+	"time"
 )
 
 func (d *Device) listFiles(ctx context.Context, path string) (files []devices.DirEntry, err error) {
@@ -15,7 +16,9 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []devices.Di
 	sb[5] = byte(SpaceFILE)
 	sb[6] = byte(FlagNONE)
 
-	n := copy(sb[256:], path)
+	n := copy(sb[256:], path) + 1
+	sb[256 + n] = byte(sni.FileDetails_FileSize | sni.FileDetails_FileStamp)
+	n++
 	binary.BigEndian.PutUint32(sb[252:], uint32(n))
 
 	if shouldLock(ctx) {
@@ -73,6 +76,11 @@ recvLoop:
 		}
 
 		i := 0
+		var ls_extended_flags byte
+		if sb[0] == 0 {
+			ls_extended_flags = sb[1]
+			i = i + 2
+		}
 		for i < 512 {
 			// FF means no more data expected:
 			if sb[i] == 0xFF {
@@ -96,6 +104,28 @@ recvLoop:
 			}
 			i++
 
+			if ls_extended_flags & byte(sni.FileDetails_FileSize) != 0 {
+				file.Size = new(uint32)
+				*file.Size = binary.LittleEndian.Uint32(sb[i:i+4])
+				i += 4
+			}
+			if ls_extended_flags & byte(sni.FileDetails_FileStamp) != 0 {
+				ModifiedDate := binary.LittleEndian.Uint16(sb[i:i+2])
+				i += 2
+				ModifiedTime := binary.LittleEndian.Uint16(sb[i:i+2])
+				i += 2
+
+				Year := int(1980 + (ModifiedDate >> 9))
+				Month := time.Month(((ModifiedDate >> 5) & 0x0f))
+				Day := int(ModifiedDate & 0x1f)
+				Hour := int(ModifiedTime >> 11)
+				Minute := int((ModifiedTime >> 5) & 0x3f)
+				Second := int((ModifiedTime & 0x1f) * 2)
+
+				file.ModifiedTime = new(time.Time)
+				*file.ModifiedTime = time.Date(Year, Month, Day, Hour, Minute, Second, 0, time.UTC)
+			}
+			
 			// read filename with 0-terminator:
 			start := i
 			for i < 512 && sb[i] != 0 {
@@ -107,7 +137,6 @@ recvLoop:
 			file.Name = string(sb[start:i])
 			i++
 
-			// file size does not come in this response
 			files = append(files, file)
 		}
 		if i == 512 {
@@ -117,12 +146,6 @@ recvLoop:
 			continue recvLoop
 		}
 	}
-
-	// TODO: go back and fetch file sizes
-	// NOTE: there is no way in the protocol to simply check file size. GET requires downloading the entire file.
-	//for i, file := range files {
-	//	size, err = d.getFile(file.Name)
-	//}
 
 	return
 }

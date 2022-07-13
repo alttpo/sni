@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"sni/devices"
 	"sni/protos/sni"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type DeviceFilesystem struct {
@@ -47,6 +48,11 @@ func (d *DeviceFilesystem) ReadDirectory(ctx context.Context, request *sni.ReadD
 		grsp.Entries[i] = &sni.DirEntry{
 			Name: file.Name,
 			Type: file.Type,
+			Size: file.Size,
+		}
+		
+		if file.ModifiedTime != nil {
+			grsp.Entries[i].ModifiedStamp = timestamppb.New(*file.ModifiedTime)
 		}
 	}
 	return

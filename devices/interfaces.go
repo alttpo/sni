@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/url"
 	"sni/protos/sni"
+	"time"
 )
 
 type Driver interface {
@@ -81,7 +82,7 @@ type DeviceControl interface {
 }
 
 type DeviceFilesystem interface {
-	ReadDirectory(ctx context.Context, path string) ([]DirEntry, error)
+	ReadDirectory(ctx context.Context, path string) (files []DirEntry, err error)
 	MakeDirectory(ctx context.Context, path string) error
 	RemoveFile(ctx context.Context, path string) error
 	RenameFile(ctx context.Context, path, newFilename string) error
@@ -93,6 +94,8 @@ type DeviceFilesystem interface {
 type DirEntry struct {
 	Name string
 	Type sni.DirEntryType
+	Size *uint32
+	ModifiedTime *time.Time
 }
 
 type ProgressReportFunc func(current uint32, total uint32)
