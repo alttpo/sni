@@ -4,6 +4,8 @@ option go_package = "github.com/alttpo/sni/protos/sni";
 option csharp_namespace = "SNI";
 option java_package = "com.github.alttpo.sni";
 
+import "google/protobuf/timestamp.proto";
+
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // services
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -318,6 +320,16 @@ enum DirEntryType {
 message DirEntry {
   string name = 1;
   DirEntryType type = 2;
+  optional uint32 size = 3;
+  optional google.protobuf.Timestamp modifiedStamp = 4;
+}
+
+// Bitfield, 1, 2, 4, etc
+enum FileDetails
+{
+  FileNoDetails = 0;
+  FileSize = 1;
+  FileStamp = 2;
 }
 
 message ReadDirectoryResponse {
