@@ -111,7 +111,6 @@ func (c *Client) writeWithDeadline(bytes []byte, deadline time.Time) (err error)
 	_, err = c.c.Write(bytes)
 	if err != nil {
 		err = c.FatalError(err)
-		_ = c.Close()
 		return
 	}
 	return
@@ -131,6 +130,7 @@ func (c *Client) SendCommandWaitReply(cmd string, deadline time.Time) (bin []byt
 
 	err = c.writeWithDeadline(b.Bytes(), deadline)
 	if err != nil {
+		err = c.FatalError(err)
 		return
 	}
 
@@ -150,7 +150,7 @@ func (c *Client) SendCommandBinaryWaitReply(cmd string, binaryArg []byte, deadli
 
 	b := bytes.NewBuffer(make([]byte, 0, 1+len(cmd)+2+4+len(binaryArg)))
 	// TODO: enable 'b' prefix once bsnes-plus-wasm gets that enhancement to draft 3 protocol
-	//b.WriteByte('b')
+	b.WriteByte('b')
 	b.WriteString(cmd)
 	b.WriteByte('\n')
 	b.WriteByte(0)
@@ -163,6 +163,7 @@ func (c *Client) SendCommandBinaryWaitReply(cmd string, binaryArg []byte, deadli
 
 	err = c.writeWithDeadline(b.Bytes(), deadline)
 	if err != nil {
+		err = c.FatalError(err)
 		return
 	}
 
@@ -180,17 +181,10 @@ func (c *Client) readResponse(deadline time.Time) (bin []byte, ascii []map[strin
 	err = c.c.SetReadDeadline(deadline)
 	if err != nil {
 		err = c.FatalError(err)
-		_ = c.Close()
 		return
 	}
 
 	bin, ascii, err = c.parseResponse(c.r)
-	if err != nil {
-		err = c.FatalError(err)
-		_ = c.Close()
-		return
-	}
-
 	return
 }
 
@@ -198,6 +192,7 @@ func (c *Client) parseResponse(r *bufio.Reader) (bin []byte, ascii []map[string]
 	var d byte
 	d, err = r.ReadByte()
 	if err != nil {
+		err = c.FatalError(err)
 		return
 	}
 
@@ -206,12 +201,14 @@ func (c *Client) parseResponse(r *bufio.Reader) (bin []byte, ascii []map[string]
 		var size uint32
 		err = binary.Read(r, binary.BigEndian, &size)
 		if err != nil {
+			err = c.FatalError(err)
 			return
 		}
 
 		bin = make([]byte, size)
 		_, err = io.ReadFull(r, bin)
 		if err != nil {
+			err = c.FatalError(err)
 			return
 		}
 
@@ -351,7 +348,6 @@ func (c *Client) MultiReadMemory(ctx context.Context, reads ...devices.MemoryRea
 		}
 		if ascii != nil {
 			err = fmt.Errorf("emunwa: expecting binary reply but got ascii:\n%+v", ascii)
-			err = c.FatalError(err)
 			return
 		}
 
@@ -424,7 +420,7 @@ func (c *Client) MultiWriteMemory(ctx context.Context, writes ...devices.MemoryW
 		sb := bytes.Buffer{}
 		data := bytes.Buffer{}
 		size := uint32(0)
-		_, _ = fmt.Fprintf(&sb, "CORE_WRITE %s", memType)
+		_, _ = fmt.Fprintf(&sb, "bCORE_WRITE %s", memType)
 		for _, region := range regions {
 			_, _ = fmt.Fprintf(&sb, ";$%x;$%x", region.Offset, region.Size)
 			data.Write(region.Data)
@@ -485,7 +481,7 @@ func (c *Client) ResetSystem(ctx context.Context) (err error) {
 		deadline = time.Now().Add(c.readWriteTimeout)
 	}
 
-	_, _, err = c.SendCommandWaitReply("EMU_RESET", deadline)
+	_, _, err = c.SendCommandWaitReply("EMULATION_RESET", deadline)
 	return
 }
 
@@ -501,9 +497,9 @@ func (c *Client) PauseUnpause(ctx context.Context, pausedState bool) (newState b
 
 	newState = pausedState
 	if pausedState {
-		_, _, err = c.SendCommandWaitReply("EMU_PAUSE", deadline)
+		_, _, err = c.SendCommandWaitReply("EMULATION_PAUSE", deadline)
 	} else {
-		_, _, err = c.SendCommandWaitReply("EMU_RESUME", deadline)
+		_, _, err = c.SendCommandWaitReply("EMULATION_RESUME", deadline)
 	}
 
 	return
