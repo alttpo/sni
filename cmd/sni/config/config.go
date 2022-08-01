@@ -6,8 +6,9 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"log"
+	"os"
 	"path/filepath"
-	"sni/cmd/sni/logging"
+	"runtime"
 )
 
 var (
@@ -29,9 +30,27 @@ var (
 )
 
 var (
+	Dir    string
 	Config *viper.Viper = viper.New()
 	Apps   *viper.Viper = viper.New()
 )
+
+func InitDir() {
+	// decide on a config directory:
+	if runtime.GOOS == "windows" {
+		Dir = filepath.Join(os.Getenv("LOCALAPPDATA"), "sni")
+	} else {
+		var err error
+		Dir, err = os.UserHomeDir()
+		if err != nil {
+			log.Printf("could not retrieve home directory: %s\n", err)
+			return
+		}
+		Dir = filepath.Join(Dir, ".sni")
+	}
+	// make the directory if it doesn't exist:
+	_ = os.MkdirAll(Dir, 0755|os.ModeDir)
+}
 
 func Load() {
 	log.Printf("config: load\n")
@@ -67,7 +86,7 @@ func loadConfig() {
 	Config.SetConfigType("yaml")
 
 	// set the path:
-	ConfigPath = logging.Dir
+	ConfigPath = Dir
 	Config.AddConfigPath(ConfigPath)
 	ConfigPath = filepath.Join(ConfigPath, fmt.Sprintf("%s.yaml", configFilename))
 
@@ -106,7 +125,7 @@ func loadApps() {
 	Apps.SetConfigType("yaml")
 
 	// set the path:
-	AppsPath = logging.Dir
+	AppsPath = Dir
 	Apps.AddConfigPath(AppsPath)
 	AppsPath = filepath.Join(AppsPath, fmt.Sprintf("%s.yaml", appsFilename))
 

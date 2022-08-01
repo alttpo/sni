@@ -13,7 +13,6 @@ import (
 	"sni/cmd/sni/appversion"
 	"sni/cmd/sni/config"
 	"sni/cmd/sni/icon"
-	"sni/cmd/sni/logging"
 	"sni/devices"
 	"strings"
 	"sync"
@@ -64,6 +63,24 @@ func CreateSystray() {
 	// Start up a systray:
 	systray.Run(trayStart, trayExit)
 	log.Println("tray: exited main loop")
+}
+
+func ShowMessage(appName, title, msg string) {
+	systray.Run(
+		func() {
+			systray.SetIcon(icon.Data)
+
+			versionText := fmt.Sprintf("Super Nintendo Interface %s (%s)", appversion.Version, appversion.Commit)
+			systray.SetTooltip(versionText)
+
+			// show balloon notification for 3 seconds:
+			systray.ShowMessage(appName, title, msg)
+			time.Sleep(3 * time.Second)
+
+			systray.Quit()
+		},
+		func() {},
+	)
 }
 
 func quitSystray() {
@@ -244,7 +261,7 @@ func trayStart() {
 			Dir:     "",
 			Path:    "",
 			Args:    nil,
-			Url:     logging.Dir,
+			Url:     config.Dir,
 		})
 	}
 

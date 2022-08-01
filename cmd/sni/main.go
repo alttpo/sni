@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"github.com/postfinance/single"
 	"log"
 	"net/http"
 	"sni/cmd/sni/appversion"
@@ -40,8 +42,27 @@ func main() {
 		builtBy,
 	)
 
-	// initialize tray, i.e. the Console window functionality:
+	config.InitDir()
+
 	var err error
+
+	// ensure only one instance of sni is running at a time:
+	var one *single.Single
+	one, _ = single.New("sni", single.WithLockPath(config.Dir))
+	if err = one.Lock(); err != nil {
+		fmt.Println(err)
+		tray.ShowMessage("SNI", "SNI cannot start", err.Error())
+		return
+	}
+	// release lock file:
+	defer func(one *single.Single) {
+		err := one.Unlock()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(one)
+
+	// initialize tray, i.e. the Console window functionality:
 	err = tray.Init()
 	if err != nil {
 		log.Fatalln(err)

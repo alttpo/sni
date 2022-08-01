@@ -10,6 +10,7 @@ require (
 	github.com/gobwas/ws v1.0.4
 	github.com/improbable-eng/grpc-web v0.15.0
 	github.com/json-iterator/go v1.1.12
+	github.com/postfinance/single v0.0.2
 	github.com/spf13/viper v1.8.1
 	go.bug.st/serial v1.3.5
 	google.golang.org/grpc v1.38.0
@@ -29,6 +30,7 @@ require (
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
+	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/klauspost/compress v1.11.7 // indirect
@@ -45,7 +47,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	golang.org/x/net v0.0.0-20210805182204-aaa1db679c0d // indirect
-	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect
+	golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8 // indirect
 	golang.org/x/text v0.3.6 // indirect
 	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect
@@ -53,7 +55,7 @@ require (
 	nhooyr.io/websocket v1.8.6 // indirect
 )
 
-replace github.com/getlantern/systray => github.com/alttpo/systray v1.3.2
+replace github.com/getlantern/systray => github.com/alttpo/systray v1.3.3
 
 //replace github.com/getlantern/systray => ../systray
 
