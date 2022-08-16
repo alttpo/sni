@@ -97,7 +97,7 @@ jobs:
         run: |
           cd cmd/sni
           go install github.com/tc-hib/go-winres@latest
-          go-winres simply --icon icon/sni.ico --product-version git-tag --file-version git-tag --product-name "Super Nintendo Interface" --copyright "© jsd1982 2021" --original-filename "sni"
+          go-winres simply --icon icon/sni.ico --product-version git-tag --file-version git-tag --file-description "SNI" --product-name "Super Nintendo Interface" --copyright "© jsd1982 2021" --original-filename "sni"
 
       - name: Package Lua Bridge for distribution
         run: |
