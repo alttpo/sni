@@ -73,9 +73,9 @@ func ShowMessage(appName, title, msg string) {
 			versionText := fmt.Sprintf("Super Nintendo Interface %s (%s)", appversion.Version, appversion.Commit)
 			systray.SetTooltip(versionText)
 
-			// show balloon notification for 3 seconds:
+			// show balloon notification for 10 seconds:
 			systray.ShowMessage(appName, title, msg)
-			time.Sleep(3 * time.Second)
+			time.Sleep(10 * time.Second)
 
 			systray.Quit()
 		},
