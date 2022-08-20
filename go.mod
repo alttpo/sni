@@ -64,7 +64,7 @@ require (
 	nhooyr.io/websocket v1.8.7 // indirect
 )
 
-replace github.com/getlantern/systray => github.com/alttpo/systray v1.3.4
+replace github.com/getlantern/systray => github.com/alttpo/systray v1.3.5
 
 //replace github.com/getlantern/systray => ../systray
 

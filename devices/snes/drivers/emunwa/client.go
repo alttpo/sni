@@ -135,6 +135,9 @@ func (c *Client) SendCommandWaitReply(cmd string, deadline time.Time) (bin []byt
 	}
 
 	bin, ascii, err = c.readResponse(deadline)
+	if err != nil {
+		return
+	}
 	if ascii != nil && len(ascii) > 0 {
 		if errText, ok := ascii[0]["error"]; ok {
 			err = fmt.Errorf("emunwa: error=%s", errText)
