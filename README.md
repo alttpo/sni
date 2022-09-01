@@ -147,7 +147,7 @@ A great UI tool for ad-hoc testing of gRPC services is [grpcui](https://github.c
 
 To use `grpcui`, invoke it like this on the command line:
 
-```grpcui -plaintest -listen 8192 localhost:8191```
+```grpcui -plaintext localhost:8191```
 
 SNI has grpc reflection enabled to allow using such ad-hoc testing tools as `grpcui`.
 
