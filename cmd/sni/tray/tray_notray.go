@@ -17,7 +17,8 @@ func CreateSystray() {
 	select {}
 }
 
-func ShowMessage(title, msg string) {
+func ShowMessage(appName, title, msg string) {
+	fmt.Println(appName)
 	fmt.Println(title)
 	fmt.Println(msg)
 }
