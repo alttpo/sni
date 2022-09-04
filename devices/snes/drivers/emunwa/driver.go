@@ -10,6 +10,7 @@ import (
 	"sni/protos/sni"
 	"sni/util"
 	"sni/util/env"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -204,21 +205,38 @@ func (d *Driver) DisconnectAll() {
 
 func DriverInit() {
 	if util.IsTruthy(env.GetOrDefault("SNI_EMUNW_DISABLE", "0")) {
-		log.Printf("disabling emunwa snes driver\n")
+		log.Printf("emunwa: disabling emunwa snes driver\n")
 		return
 	}
 
+	basePortStr := env.GetOrDefault("NWA_PORT_RANGE", "0xbeef")
+	var basePort uint64
+	var err error
+	if basePort, err = strconv.ParseUint(basePortStr, 0, 16); err != nil {
+		basePort = 0xbeef
+		log.Printf("emunwa: unable to parse '%s', using default of 0xbeef (%d)\n", basePortStr, basePort)
+	}
+
+	disableOldRange := util.IsTruthy(env.GetOrDefault("NWA_DISABLE_OLD_RANGE", "0"))
+
 	// comma-delimited list of host:port pairs:
 	hostsStr := env.GetOrSupply("SNI_EMUNW_HOSTS", func() string {
-		var sb strings.Builder
 		const count = 10
-		for i := 0; i < count; i++ {
-			sb.WriteString(fmt.Sprintf("localhost:%d", 65400+i))
-			if i < count-1 {
-				sb.WriteByte(',')
+		hosts := make([]string, 0, 20)
+		if disableOldRange {
+			log.Printf("emunwa: disabling old port range 65400..65409 due to NWA_DISABLE_OLD_RANGE")
+		}
+		if disableOldRange || (basePort != 65400) {
+			for i := uint64(0); i < count; i++ {
+				hosts = append(hosts, fmt.Sprintf("localhost:%d", basePort+i))
 			}
 		}
-		return sb.String()
+		if !disableOldRange {
+			for i := 0; i < count; i++ {
+				hosts = append(hosts, fmt.Sprintf("localhost:%d", 65400+i))
+			}
+		}
+		return strings.Join(hosts, ",")
 	})
 
 	// split the hostsStr list by commas:
@@ -240,7 +258,7 @@ func DriverInit() {
 
 	if util.IsTruthy(env.GetOrDefault("SNI_EMUNW_DETECT_LOG", "0")) {
 		logDetector = true
-		log.Printf("enabling emunwa detector logging")
+		log.Printf("emunwa: enabling emunwa detector logging")
 	}
 
 	// register the driver:
