@@ -12,8 +12,9 @@ import (
 type UDPClient struct {
 	name string
 
-	c    *net.UDPConn
-	addr *net.UDPAddr
+	c     *net.UDPConn
+	addr  *net.UDPAddr
+	laddr *net.UDPAddr
 
 	muteLog bool
 
@@ -41,8 +42,6 @@ func (c *UDPClient) MuteLog(muted bool) {
 }
 
 func (c *UDPClient) Address() *net.UDPAddr { return c.addr }
-
-var ErrTimeout = fmt.Errorf("timeout")
 
 func (c *UDPClient) WriteWithDeadline(m []byte, deadline time.Time) (err error) {
 	if c.isClosed {
@@ -137,6 +136,18 @@ func (c *UDPClient) log(fmt string, args ...interface{}) {
 	log.Printf(fmt, args...)
 }
 
+func (c *UDPClient) LocalAddr() *net.UDPAddr {
+	return c.c.LocalAddr().(*net.UDPAddr)
+}
+
+func (c *UDPClient) RemoteAddr() *net.UDPAddr {
+	return c.c.RemoteAddr().(*net.UDPAddr)
+}
+
+func (c *UDPClient) SetLocalAddr(addr *net.UDPAddr) {
+	c.laddr = addr
+}
+
 func (c *UDPClient) Connect(addr *net.UDPAddr) (err error) {
 	c.log("%s: connect to server '%s'\n", c.name, addr)
 
@@ -146,7 +157,7 @@ func (c *UDPClient) Connect(addr *net.UDPAddr) (err error) {
 
 	c.addr = addr
 
-	c.c, err = net.DialUDP("udp", nil, addr)
+	c.c, err = net.DialUDP("udp", c.laddr, addr)
 	if err != nil {
 		return
 	}

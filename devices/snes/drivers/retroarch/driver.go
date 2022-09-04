@@ -130,6 +130,13 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 					}
 					return
 				}
+				if detector.DetectLoopback(d.detectors) {
+					detector.Close()
+					if logDetector {
+						log.Printf("retroarch: detect: detector[%d]: loopback connection detected; breaking\n", i)
+					}
+					return
+				}
 			}
 
 			// we need to check if the retroarch device is listening:
@@ -138,6 +145,7 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 				if logDetector {
 					log.Printf("retroarch: detect: detector[%d]: %s\n", i, err)
 				}
+				detector.Close()
 				return
 			}
 			if !detector.HasVersion() {
