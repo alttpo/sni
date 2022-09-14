@@ -82,6 +82,30 @@ func (c *Client) Close() (err error) {
 	return
 }
 
+func (c *Client) DetectLoopback(others []*Client) bool {
+	for i := range others {
+		other := others[i]
+
+		if c.c == nil {
+			continue
+		}
+		if other.c == nil {
+			continue
+		}
+
+		// detect loopback condition:
+		laddr := c.c.LocalAddr().(*net.TCPAddr)
+		raddr := other.c.RemoteAddr().(*net.TCPAddr)
+		if laddr.Port == raddr.Port {
+			if laddr.IP.Equal(raddr.IP) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 func (c *Client) MuteLog(mute bool) {
 	c.muteLog = mute
 }

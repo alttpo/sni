@@ -128,19 +128,12 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, derr error) {
 				}
 
 				// detect accidental loopback connections:
-				if detector.c != nil {
-					laddr := detector.c.LocalAddr().(*net.TCPAddr)
-					raddr := detector.c.RemoteAddr().(*net.TCPAddr)
-					if laddr.IP.IsLoopback() && raddr.IP.IsLoopback() {
-						lport := laddr.Port
-						for _, ode := range d.detectors {
-							if lport == ode.addr.Port {
-								detector.Logf("loopback connection detected; breaking")
-								detector.Close()
-								return
-							}
-						}
+				if detector.DetectLoopback(d.detectors) {
+					detector.Close()
+					if logDetector {
+						log.Printf("emunwa: detect: detector[%d]: loopback connection detected; breaking\n", i)
 					}
+					return
 				}
 			}
 

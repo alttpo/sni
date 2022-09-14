@@ -126,14 +126,17 @@ func (c *RAClient) Connect(addr *net.UDPAddr) (err error) {
 
 func (c *RAClient) DetectLoopback(others []*RAClient) bool {
 	for i := range others {
-		if !others[i].IsConnected() {
-			continue
-		}
 		other := others[i]
 
 		// detect loopback condition:
 		laddr := c.UDPClient.LocalAddr()
 		raddr := other.UDPClient.RemoteAddr()
+		if laddr == nil {
+			continue
+		}
+		if raddr == nil {
+			continue
+		}
 		if laddr.Port == raddr.Port {
 			if laddr.IP.Equal(raddr.IP) {
 				return true

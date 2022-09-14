@@ -137,10 +137,16 @@ func (c *UDPClient) log(fmt string, args ...interface{}) {
 }
 
 func (c *UDPClient) LocalAddr() *net.UDPAddr {
+	if c.c == nil {
+		return nil
+	}
 	return c.c.LocalAddr().(*net.UDPAddr)
 }
 
 func (c *UDPClient) RemoteAddr() *net.UDPAddr {
+	if c.c == nil {
+		return nil
+	}
 	return c.c.RemoteAddr().(*net.UDPAddr)
 }
 
