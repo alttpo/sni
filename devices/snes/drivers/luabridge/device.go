@@ -8,6 +8,7 @@ import (
 	"net"
 	"sni/devices"
 	"sni/protos/sni"
+	"sni/util"
 	"strings"
 	"sync"
 	"time"
@@ -56,6 +57,8 @@ func (d *Device) Init() {
 }
 
 func (d *Device) initConnection() {
+	defer util.Recover()
+
 	var err error
 	remoteAddr := d.c.RemoteAddr()
 

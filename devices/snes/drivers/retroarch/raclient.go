@@ -13,6 +13,7 @@ import (
 	"sni/devices/snes/mapping"
 	"sni/protos/sni"
 	"sni/udpclient"
+	"sni/util"
 	"strconv"
 	"strings"
 	"sync"
@@ -596,6 +597,8 @@ func (c *RAClient) MultiWriteMemory(ctx context.Context, writes ...devices.Memor
 }
 
 func (c *RAClient) handleOutgoing() {
+	defer util.Recover()
+
 	c.stateLock.Lock()
 	useRCR := c.useRCR
 	c.stateLock.Unlock()
@@ -656,6 +659,8 @@ func (c *RAClient) handleOutgoing() {
 }
 
 func (c *RAClient) handleIncoming() {
+	defer util.Recover()
+
 	for rwreq := range c.expectedIncoming {
 		rsp, err := c.ReadWithDeadline(rwreq.deadline)
 		if err != nil {

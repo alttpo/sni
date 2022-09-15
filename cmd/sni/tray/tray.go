@@ -14,6 +14,7 @@ import (
 	"sni/cmd/sni/config"
 	"sni/cmd/sni/icon"
 	"sni/devices"
+	"sni/util"
 	"strings"
 	"sync"
 	"time"
@@ -32,6 +33,8 @@ func Init() (err error) {
 }
 
 func UpdateDeviceList(deviceDescriptors []devices.DeviceDescriptor) {
+	defer util.Recover()
+
 	defer deviceMenuItemsMu.Unlock()
 	deviceMenuItemsMu.Lock()
 
@@ -310,6 +313,8 @@ func trayStart() {
 
 	// refresh device list periodically:
 	go func() {
+		defer util.Recover()
+
 		refreshPeriod := time.Tick(time.Second * 2)
 		for range refreshPeriod {
 			RefreshDeviceList()

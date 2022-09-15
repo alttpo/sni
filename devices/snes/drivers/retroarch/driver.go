@@ -105,6 +105,7 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 	for i, de := range d.detectors {
 		// run detectors in parallel:
 		go func(i int, detector *RAClient) {
+			defer util.Recover()
 			defer wg.Done()
 
 			detector.MuteLog(true)

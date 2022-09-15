@@ -29,7 +29,7 @@ func StartGrpcServer() {
 	// Parse env vars:
 	ListenHost = env.GetOrDefault("SNI_GRPC_LISTEN_HOST", "0.0.0.0")
 
-	const maxMessageSize = 100 * 1024 * 1024; // 100 MB
+	const maxMessageSize = 100 * 1024 * 1024 // 100 MB
 
 	// create gRPC server:
 	GrpcServer = grpc.NewServer(
@@ -50,6 +50,8 @@ func StartGrpcServer() {
 }
 
 func serveGrpc() {
+	defer util.Recover()
+
 	var err error
 
 	var listenPort int
@@ -92,6 +94,8 @@ func listenGrpc(listenAddr string) {
 }
 
 func serveGrpcWeb() {
+	defer util.Recover()
+
 	// wrap the GrpcServer with a GrpcWebServer:
 	wrappedGrpc := grpcweb.WrapServer(
 		GrpcServer,

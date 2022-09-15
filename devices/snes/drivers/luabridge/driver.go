@@ -179,6 +179,8 @@ func (d *Driver) StartServer() (err error) {
 }
 
 func (d *Driver) runServer(listener *net.TCPListener) {
+	defer util.Recover()
+
 	var err error
 
 	defer func(listener *net.TCPListener) {
@@ -227,6 +229,8 @@ func DriverInit() {
 	driver.devicesMap = make(map[string]*Device)
 
 	go func() {
+		defer util.Recover()
+
 		count := 0
 
 		// attempt to start the luabridge server:

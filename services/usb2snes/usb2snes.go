@@ -45,11 +45,12 @@ func StartHttpServer() {
 }
 
 func listenHttp(listenAddr string) {
-	defer func() {
-		if pnk := recover(); pnk != nil {
-			log.Printf("usb2snes: panic: %v\n", pnk)
-		}
-	}()
+	defer util.Recover()
+	//defer func() {
+	//	if pnk := recover(); pnk != nil {
+	//		log.Printf("usb2snes: panic: %v\n", pnk)
+	//	}
+	//}()
 
 	var err error
 	var lis net.Listener
