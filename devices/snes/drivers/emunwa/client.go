@@ -55,10 +55,23 @@ func NewClient(addr *net.TCPAddr, name string, timeout time.Duration) (c *Client
 	return
 }
 
-func (c *Client) IsConnected() bool { return c.isConnected }
-func (c *Client) IsClosed() bool    { return c.isClosed }
+func (c *Client) IsConnected() bool {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	return c.isConnected
+}
+func (c *Client) IsClosed() bool {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	return c.isClosed
+}
 
 func (c *Client) Connect() (err error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	c.isClosed = false
 
 	var conn net.Conn
@@ -76,6 +89,9 @@ func (c *Client) Connect() (err error) {
 }
 
 func (c *Client) Close() (err error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	c.isClosed = true
 	c.isConnected = false
 	err = c.c.Close()
@@ -83,6 +99,9 @@ func (c *Client) Close() (err error) {
 }
 
 func (c *Client) DetectLoopback(others []*Client) bool {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	for i := range others {
 		other := others[i]
 
