@@ -65,6 +65,8 @@ type RAClient struct {
 
 	version string
 	useRCR  bool
+	rcrHasBusMapping  bool
+	rcrTestsTried string
 
 	closeLock sync.Mutex
 	closed    bool
@@ -210,26 +212,43 @@ func (c *RAClient) DetermineVersionAndSystemAndApi() (systemId string, err error
 		return
 	}
 
-	// use READ_CORE_RAM for < 1.10.1, and attempt to use READ_CORE_MEMORY otherwise:
-	c.useRCR = false
+	// for RA version < 1.9.1, READ_CORE_RAM is the only API available. SNI has historically never
+	// supported 'rcrHasBusMapping = false' behavior for these versions, which are now quite old.
+	// setting rcrHasBusMapping = true means RA cores on RA < 1.9.1 that do not support bus mapping
+	// will eventually error out on client memory requests
 	if major < 1 {
 		// 0.x.x
 		c.useRCR = true
+		c.rcrHasBusMapping = true
 		return
 	}
-	if major == 1 && minor < 10 {
-		// 1.0-9.x
+	if major == 1 && minor < 9 {
+		// 1.0-8.x
 		c.useRCR = true
+		c.rcrHasBusMapping = true
 		return
 	}
-	if major == 1 && minor == 10 && patch < 1 {
-		// 1.10.0
+	if major == 1 && minor == 9 && patch < 1 {
+		// 1.9.0
 		c.useRCR = true
+		c.rcrHasBusMapping = true
 		return
 	}
 
-	// 1.10.1+
+	// for versions where 1.9.1 <= RA version < 1.10.1, the snes bus memory mapping is broken due to
+	// a bug in RA. the ROM is essentially unreadable (gives back wrong data). so refuse to read it
+	if (major == 1 && minor == 9) || (major == 1 && minor == 10 && patch < 1) {
+		// 1.9.(1+), 1.10.0
+		c.useRCR = true
+		c.rcrHasBusMapping = false
+	}
+
+	// READ_CORE_MEMORY is implemented with valid data in RA >= 1.10.1. for those versions, use
+	// this api if it demonstrates that it's really available
+	// meanwhile, READ_CORE_RAM cannot provide bus addressing in these more recent versions
+	c.rcrHasBusMapping = false
 	if systemId == "super_nes" {
+		// 1.10.1+
 		err = c.DetermineSnesMemoryApiByTesting()
 	}
 	return
@@ -241,18 +260,21 @@ func (c *RAClient) DetermineSnesMemoryApiByTesting() (err error) {
 		ifSuccessEquals bool
 		thenSetRcrTo    bool
 		warnOnFail      bool
+		shortName       string
 	}
 	testCases := []TestCase{
 		// if $00:ffc0 is available, very likely ROM+SRAM+RAM are all available via RCM
 		TestCase{command: "READ_CORE_MEMORY 00ffc0 32",
 			ifSuccessEquals: true,
 			thenSetRcrTo: false,
-			warnOnFail: false},
+			warnOnFail: false,
+			shortName: "RCM ROM"},
 		// if RCR is responding, very likely SRAM+RAM are both available via RCR
 		TestCase{command: "READ_CORE_RAM 00 32",
 			ifSuccessEquals: true,
 			thenSetRcrTo: true,
-			warnOnFail: true},
+			warnOnFail: true,
+			shortName: "RCR WRAM"},
 		// RCR is disabled (it's tied to RA achievements somehow) and $00:ffc0 isn't available.
 		// if we have RAM access, that's something.
 		// (SRAM may be available too if a gRPC client knows its address and knows the game.)
@@ -260,10 +282,12 @@ func (c *RAClient) DetermineSnesMemoryApiByTesting() (err error) {
 		TestCase{command: "READ_CORE_MEMORY 7e0000 32",
 			ifSuccessEquals: true,
 			thenSetRcrTo: false,
-			warnOnFail: true},
+			warnOnFail: true,
+			shortName: "RCM WRAM"},
 	}
 
 	matchFound := false
+	c.rcrTestsTried = ""
 	for _, testCase := range testCases {
 		var testMemoryRsp []byte
 		testMemoryReq := []byte(testCase.command + "\n")
@@ -294,6 +318,7 @@ func (c *RAClient) DetermineSnesMemoryApiByTesting() (err error) {
 				"succeeds, things may still not work properly", testCase.command)
 		}
 		success := !failed
+		c.rcrTestsTried += testCase.shortName + ", "
 		if success == testCase.ifSuccessEquals {
 			c.useRCR = testCase.thenSetRcrTo
 			matchFound = true
@@ -304,8 +329,14 @@ func (c *RAClient) DetermineSnesMemoryApiByTesting() (err error) {
 	if !matchFound {
 		err = fmt.Errorf("all snes test read requests failed")
 	}
+	c.rcrTestsTried = strings.Trim(c.rcrTestsTried, ", ")
 
 	return
+}
+
+func (c *RAClient) LogRCR() {
+	log.Printf("retroarch: RA on port %d: useRCR=%t rcrTestsTried='%s'\n",
+		c.UDPClient.RemoteAddr().Port, c.useRCR, c.rcrTestsTried)
 }
 
 func (d *RAClient) GetStatus(ctx context.Context) (raStatus, systemId, romFileName string, romCRC32 uint32, err error) {
@@ -451,6 +482,52 @@ func (c *RAClient) DefaultAddressSpace(context.Context) (sni.AddressSpace, error
 	return defaultAddressSpace, nil
 }
 
+var ErrRAUnknownMapping = fmt.Errorf("only WRAM is available, and SRAM in FxPakPro-space requests, due to falling back to RA RCR (READ_CORE_RAM) with no bus mapping")
+
+func (c *RAClient) RATranslateAddress(
+	sourceAddress devices.AddressTuple,
+	deviceSpace sni.AddressSpace,
+) (deviceAddress uint32, err error) {
+
+	if !c.useRCR || c.rcrHasBusMapping {
+		// RA speaks bus mapping, so get the address in snes A-bus terms
+		return mapping.TranslateAddress(
+			sourceAddress,
+			deviceSpace,
+		)
+	} else {
+		// RA does not speak bus mapping, so translate RAM and ROM addresses to READ_CORE_RAM space:
+		// 0-$1ffff: RAM
+		// $20000-onward: SRAM
+		switch sourceAddress.AddressSpace {
+		case sni.AddressSpace_Raw:
+			return sourceAddress.Address, nil
+		case sni.AddressSpace_FxPakPro:
+			// SRAM
+			if sourceAddress.Address >= 0xE0_0000 && sourceAddress.Address <= 0xEF_FFFF {
+				return (sourceAddress.Address - 0xE0_0000 + 0x2_0000), nil
+			}
+			// WRAM
+			if sourceAddress.Address >= 0xF5_0000 && sourceAddress.Address <= 0xF6_FFFF {
+				return (sourceAddress.Address - 0xF5_0000), nil
+			}
+			return 0, ErrRAUnknownMapping
+		case sni.AddressSpace_SnesABus:
+			// WRAM
+			if sourceAddress.Address >= 0xF5_0000 && sourceAddress.Address <= 0xF6_FFFF {
+				return (sourceAddress.Address - 0xF5_0000), nil
+			}
+			// there is no way to be sure if the request wanted SRAM:
+			// - if it looks like a HiROM SRAM request, the client could have meant LoROM
+			//   enhancement chip memory instead
+			// - if it looks like a LoROM SRAM request, the client could have meant HiROM ROM space
+			//   instead
+			return 0, ErrRAUnknownMapping
+		}
+		return 0, ErrRAUnknownMapping
+	}
+}
+
 func (c *RAClient) MultiReadMemory(ctx context.Context, reads ...devices.MemoryReadRequest) (mrsp []devices.MemoryReadResponse, err error) {
 	deadline, ok := ctx.Deadline()
 	if !ok {
@@ -471,7 +548,7 @@ func (c *RAClient) MultiReadMemory(ctx context.Context, reads ...devices.MemoryR
 			Data: make([]byte, 0, read.Size),
 		}
 
-		mrsp[j].DeviceAddress.Address, err = mapping.TranslateAddress(
+		mrsp[j].DeviceAddress.Address, err = c.RATranslateAddress(
 			read.RequestAddress,
 			sni.AddressSpace_SnesABus,
 		)
@@ -592,7 +669,7 @@ func (c *RAClient) MultiWriteMemory(ctx context.Context, writes ...devices.Memor
 			Size: 0,
 		}
 
-		mrsp[j].DeviceAddress.Address, err = mapping.TranslateAddress(
+		mrsp[j].DeviceAddress.Address, err = c.RATranslateAddress(
 			write.RequestAddress,
 			sni.AddressSpace_SnesABus,
 		)

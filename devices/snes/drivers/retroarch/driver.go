@@ -91,6 +91,7 @@ func (d *Driver) openDevice(uri *url.URL) (q devices.Device, err error) {
 		_ = c.Close()
 		return
 	}
+	c.LogRCR()
 
 	q = c
 	return
