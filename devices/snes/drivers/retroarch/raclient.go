@@ -63,10 +63,10 @@ type RAClient struct {
 	outgoing         chan *rwRequest
 	expectedIncoming chan *rwRequest
 
-	version string
-	useRCR  bool
-	rcrHasBusMapping  bool
-	rcrTestsTried string
+	version          string
+	useRCR           bool
+	rcrHasBusMapping bool
+	rcrTestsTried    string
 
 	closeLock sync.Mutex
 	closed    bool
@@ -266,24 +266,24 @@ func (c *RAClient) DetermineSnesMemoryApiByTesting() (err error) {
 		// if $00:ffc0 is available, very likely ROM+SRAM+RAM are all available via RCM
 		TestCase{command: "READ_CORE_MEMORY 00ffc0 32",
 			ifSuccessEquals: true,
-			thenSetRcrTo: false,
-			warnOnFail: false,
-			shortName: "RCM ROM"},
+			thenSetRcrTo:    false,
+			warnOnFail:      false,
+			shortName:       "RCM ROM"},
 		// if RCR is responding, very likely SRAM+RAM are both available via RCR
 		TestCase{command: "READ_CORE_RAM 00 32",
 			ifSuccessEquals: true,
-			thenSetRcrTo: true,
-			warnOnFail: true,
-			shortName: "RCR WRAM"},
+			thenSetRcrTo:    true,
+			warnOnFail:      true,
+			shortName:       "RCR WRAM"},
 		// RCR is disabled (it's tied to RA achievements somehow) and $00:ffc0 isn't available.
 		// if we have RAM access, that's something.
 		// (SRAM may be available too if a gRPC client knows its address and knows the game.)
 		// if not, this is not a useful SNES device, and we fail
 		TestCase{command: "READ_CORE_MEMORY 7e0000 32",
 			ifSuccessEquals: true,
-			thenSetRcrTo: false,
-			warnOnFail: true,
-			shortName: "RCM WRAM"},
+			thenSetRcrTo:    false,
+			warnOnFail:      true,
+			shortName:       "RCM WRAM"},
 	}
 
 	matchFound := false
@@ -314,7 +314,7 @@ func (c *RAClient) DetermineSnesMemoryApiByTesting() (err error) {
 			}
 		}
 		if failed && testCase.warnOnFail {
-			log.Printf("retroarch: Warning: snes test request '%s' failed. If connection " +
+			log.Printf("retroarch: Warning: snes test request '%s' failed. If connection "+
 				"succeeds, things may still not work properly", testCase.command)
 		}
 		success := !failed
