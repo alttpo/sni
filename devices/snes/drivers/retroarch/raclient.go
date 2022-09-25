@@ -165,7 +165,7 @@ func (c *RAClient) HasVersion() bool {
 	return c.version != ""
 }
 
-func (c *RAClient) DetermineVersion() (err error) {
+func (c *RAClient) DetermineVersionAndSystemAndApi() (systemId string, err error) {
 	var rsp []byte
 	req := []byte("VERSION\n")
 	if logDetector {
@@ -177,7 +177,8 @@ func (c *RAClient) DetermineVersion() (err error) {
 	}
 
 	if rsp == nil {
-		return fmt.Errorf("no response received")
+		err = fmt.Errorf("no response received to VERSION request")
+		return
 	}
 
 	if logDetector {
@@ -198,44 +199,127 @@ func (c *RAClient) DetermineVersion() (err error) {
 	}
 	err = nil
 
-	// use READ_CORE_RAM for <= 1.9.0, use READ_CORE_MEMORY otherwise:
+	var raStatus string
+	raStatus, systemId, _, _, err = c.GetStatus(context.Background())
+	if err != nil {
+		if logDetector && raStatus == "CONTENTLESS" {
+			// CONTENTLESS -> no way to present this as a specific system (super_nes, nintendo_64)
+			log.Printf("retroarch: RA on port %d has no content loaded\n",
+				c.UDPClient.RemoteAddr().Port)
+		}
+		return
+	}
+
+	// use READ_CORE_RAM for < 1.10.1, and attempt to use READ_CORE_MEMORY otherwise:
 	c.useRCR = false
 	if major < 1 {
 		// 0.x.x
 		c.useRCR = true
 		return
-	} else if major > 1 {
-		// 2+.x.x
-		c.useRCR = false
-		return
 	}
-	if minor < 9 {
-		// 1.0-8.x
+	if major == 1 && minor < 10 {
+		// 1.0-9.x
 		c.useRCR = true
 		return
-	} else if minor > 9 {
-		// 1.10+.x
-		c.useRCR = false
-		return
 	}
-	if patch < 1 {
-		// 1.9.0
+	if major == 1 && minor == 10 && patch < 1 {
+		// 1.10.0
 		c.useRCR = true
 		return
 	}
 
-	// 1.9.1+
+	// 1.10.1+
+	if systemId == "super_nes" {
+		err = c.DetermineSnesMemoryApiByTesting()
+	}
 	return
 }
 
-func (d *RAClient) GetStatus(ctx context.Context) (raStatus, coreName, romFileName string, romCRC32 uint32, err error) {
-	// v1.9.2:
+func (c *RAClient) DetermineSnesMemoryApiByTesting() (err error) {
+	type TestCase struct {
+		command         string
+		ifSuccessEquals bool
+		thenSetRcrTo    bool
+		warnOnFail      bool
+	}
+	testCases := []TestCase{
+		// if $00:ffc0 is available, very likely ROM+SRAM+RAM are all available via RCM
+		TestCase{command: "READ_CORE_MEMORY 00ffc0 32",
+			ifSuccessEquals: true,
+			thenSetRcrTo: false,
+			warnOnFail: false},
+		// if RCR is responding, very likely SRAM+RAM are both available via RCR
+		TestCase{command: "READ_CORE_RAM 00 32",
+			ifSuccessEquals: true,
+			thenSetRcrTo: true,
+			warnOnFail: true},
+		// RCR is disabled (it's tied to RA achievements somehow) and $00:ffc0 isn't available.
+		// if we have RAM access, that's something.
+		// (SRAM may be available too if a gRPC client knows its address and knows the game.)
+		// if not, this is not a useful SNES device, and we fail
+		TestCase{command: "READ_CORE_MEMORY 7e0000 32",
+			ifSuccessEquals: true,
+			thenSetRcrTo: false,
+			warnOnFail: true},
+	}
+
+	matchFound := false
+	for _, testCase := range testCases {
+		var testMemoryRsp []byte
+		testMemoryReq := []byte(testCase.command + "\n")
+		if logDetector {
+			log.Printf("retroarch: > %s", testMemoryReq)
+		}
+		failed := false
+		testMemoryRsp, err = c.WriteThenRead(testMemoryReq, time.Now().Add(c.readWriteTimeout))
+		if err != nil {
+			failed = true
+		}
+		if !failed {
+			if testMemoryRsp == nil {
+				failed = true
+			}
+		}
+		if !failed {
+			testMemoryRspString := strings.TrimSpace(string(testMemoryRsp))
+			if logDetector {
+				log.Printf("retroarch: < %s", testMemoryRspString)
+			}
+			if strings.Contains(testMemoryRspString, "-1") {
+				failed = true
+			}
+		}
+		if failed && testCase.warnOnFail {
+			log.Printf("retroarch: Warning: snes test request '%s' failed. If connection " +
+				"succeeds, things may still not work properly", testCase.command)
+		}
+		success := !failed
+		if success == testCase.ifSuccessEquals {
+			c.useRCR = testCase.thenSetRcrTo
+			matchFound = true
+			break
+		}
+	}
+
+	if !matchFound {
+		err = fmt.Errorf("all snes test read requests failed")
+	}
+
+	return
+}
+
+func (d *RAClient) GetStatus(ctx context.Context) (raStatus, systemId, romFileName string, romCRC32 uint32, err error) {
+	// v1.10.3:
 	//GET_STATUS
 	//GET_STATUS CONTENTLESS
 	//GET_STATUS
-	//GET_STATUS PLAYING bsnes-mercury,o2-lttphack-emu-13.6.0,crc32=dae58be6
+	//GET_STATUS PLAYING super_nes,o2-lttphack-emu-13.6.0,crc32=dae58be6
 	//GET_STATUS
-	//GET_STATUS PAUSED bsnes-mercury,o2-lttphack-emu-13.6.0,crc32=dae58be6
+	//GET_STATUS PAUSED super_nes,o2-lttphack-emu-13.6.0,crc32=dae58be6
+
+	// v1.9.2 - different system_id:
+	//GET_STATUS
+	//GET_STATUS PLAYING bsnes-mercury,o2-lttphack-emu-13.6.0,crc32=dae58be6
 
 	// v1.9.0:
 	//GET_STATUS
@@ -269,7 +353,14 @@ func (d *RAClient) GetStatus(ctx context.Context) (raStatus, coreName, romFileNa
 	// split the second arg by commas:
 	argsArr := strings.Split(args, ",")
 	if len(argsArr) >= 1 {
-		coreName = argsArr[0]
+		systemId = argsArr[0]
+		if systemId != "super_nes" {
+			// unknown system. but some RA versions around 1.9.2 put the core name as their system_id.
+			// check for at least bsnes and snes9x
+			if strings.Contains(strings.ToLower(systemId), "snes") {
+				systemId = "super_nes"
+			}
+		}
 	}
 	if len(argsArr) >= 2 {
 		romFileName = argsArr[1]
@@ -293,11 +384,10 @@ func (d *RAClient) GetStatus(ctx context.Context) (raStatus, coreName, romFileNa
 
 func (d *RAClient) FetchFields(ctx context.Context, fields ...sni.Field) (values []string, err error) {
 	var raStatus string
-	var coreName string
 	var romFileName string
 	var romCRC32 uint32
 
-	raStatus, coreName, romFileName, romCRC32, err = d.GetStatus(ctx)
+	raStatus, _, romFileName, romCRC32, err = d.GetStatus(ctx)
 	if err != nil {
 		return
 	}
@@ -312,9 +402,6 @@ func (d *RAClient) FetchFields(ctx context.Context, fields ...sni.Field) (values
 			break
 		case sni.Field_DeviceStatus:
 			values = append(values, raStatus)
-			break
-		case sni.Field_CoreName:
-			values = append(values, coreName)
 			break
 		case sni.Field_RomFileName:
 			values = append(values, romFileName)
