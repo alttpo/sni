@@ -514,8 +514,8 @@ func (c *RAClient) RATranslateAddress(
 			return 0, ErrRAUnknownMapping
 		case sni.AddressSpace_SnesABus:
 			// WRAM
-			if sourceAddress.Address >= 0xF5_0000 && sourceAddress.Address <= 0xF6_FFFF {
-				return (sourceAddress.Address - 0xF5_0000), nil
+			if sourceAddress.Address >= 0x7E_0000 && sourceAddress.Address <= 0x7F_FFFF {
+				return (sourceAddress.Address - 0x7E_0000), nil
 			}
 			// there is no way to be sure if the request wanted SRAM:
 			// - if it looks like a HiROM SRAM request, the client could have meant LoROM
