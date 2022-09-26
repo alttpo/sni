@@ -154,8 +154,16 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 			if !detector.HasVersion() {
 				return
 			}
+			if systemId == "" {
+				if logDetector {
+					log.Printf("retroarch: no system loaded\n")
+				}
+				return
+			}
 			if systemId != "super_nes" {
-				log.Printf("retroarch: running unrecognized system_id '%s'\n", systemId)
+				if logDetector {
+					log.Printf("retroarch: running unrecognized system_id '%s'\n", systemId)
+				}
 				return
 			}
 
