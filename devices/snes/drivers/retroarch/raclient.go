@@ -375,14 +375,15 @@ func (d *RAClient) GetStatus(ctx context.Context) (raStatus, systemId, romFileNa
 	}
 
 	// parse the response:
-	var args string
-	_, err = fmt.Fscanf(bytes.NewReader(rsp), "GET_STATUS %s %s", &raStatus, &args)
+	_, err = fmt.Fscanf(bytes.NewReader(rsp), "GET_STATUS %s ", &raStatus)
 	if err != nil {
 		return
 	}
 
-	// split the second arg by commas:
-	argsArr := strings.Split(args, ",")
+	// get the remainder
+	allArgsString := strings.TrimSpace(strings.SplitN(string(rsp), " ", 3)[2])
+	// split the remainder by commas (note data will be wrong if rom name contains a comma):
+	argsArr := strings.Split(allArgsString, ",")
 	if len(argsArr) >= 1 {
 		systemId = argsArr[0]
 		if systemId != "super_nes" {
