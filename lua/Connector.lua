@@ -63,8 +63,8 @@ end
 local socket = require("socket.core")
 
 local connection
-local host = '127.0.0.1'
-local port = 65398
+local host = os.getenv("SNI_LUABRIDGE_LISTEN_HOST") or '127.0.0.1'
+local port = os.getenv("SNI_LUABRIDGE_LISTEN_PORT") or 65398
 local connected = false
 local stopped = false
 local name = "Unnamed"
