@@ -29,16 +29,20 @@ func StartGrpcServer() {
 	// Parse env vars:
 	ListenHost = env.GetOrDefault("SNI_GRPC_LISTEN_HOST", "0.0.0.0")
 
+	const maxMessageSize = 100 * 1024 * 1024 // 100 MB
+
 	// create gRPC server:
 	GrpcServer = grpc.NewServer(
 		grpc.ChainUnaryInterceptor(logTimingInterceptor),
 		grpc.ChainStreamInterceptor(reportErrorStreamInterceptor),
+		grpc.MaxMsgSize(maxMessageSize),
 	)
 	sni.RegisterDevicesServer(GrpcServer, &DevicesService{})
 	sni.RegisterDeviceMemoryServer(GrpcServer, &DeviceMemoryService{})
 	sni.RegisterDeviceMemoryDomainsServer(GrpcServer, &DeviceMemoryDomainsService{})
 	sni.RegisterDeviceControlServer(GrpcServer, &DeviceControlService{})
 	sni.RegisterDeviceFilesystemServer(GrpcServer, &DeviceFilesystem{})
+	sni.RegisterDeviceInfoServer(GrpcServer, &DeviceInfoService{})
 	sni.RegisterDeviceNWAServer(GrpcServer, &DeviceNWAService{})
 	reflection.Register(GrpcServer)
 
@@ -47,6 +51,8 @@ func StartGrpcServer() {
 }
 
 func serveGrpc() {
+	defer util.Recover()
+
 	var err error
 
 	var listenPort int
@@ -89,6 +95,8 @@ func listenGrpc(listenAddr string) {
 }
 
 func serveGrpcWeb() {
+	defer util.Recover()
+
 	// wrap the GrpcServer with a GrpcWebServer:
 	wrappedGrpc := grpcweb.WrapServer(
 		GrpcServer,

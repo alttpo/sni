@@ -110,8 +110,11 @@ recvLoop:
 			// file size does not come in this response
 			files = append(files, file)
 		}
-		if i >= 512 {
-			return nil, fmt.Errorf("ls: went through too many iterations")
+		if i == 512 {
+			if sb[i-1] != 0 {
+				return nil, fmt.Errorf("ls: malformed packet")
+			}
+			continue recvLoop
 		}
 	}
 

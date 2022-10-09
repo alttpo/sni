@@ -10,6 +10,7 @@ import (
 	"sni/protos/sni"
 	"sni/util"
 	"sni/util/env"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -63,6 +64,7 @@ var driverCapabilities = []sni.DeviceCapability{
 	sni.DeviceCapability_WriteMemory,
 	sni.DeviceCapability_ResetSystem,
 	sni.DeviceCapability_PauseUnpauseEmulation,
+	sni.DeviceCapability_FetchFields,
 	sni.DeviceCapability_NWACommand,
 }
 
@@ -89,7 +91,7 @@ func (d *Driver) openDevice(uri *url.URL) (q devices.Device, err error) {
 	return
 }
 
-func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
+func (d *Driver) Detect() (devs []devices.DeviceDescriptor, derr error) {
 	devicesLock := sync.Mutex{}
 	devs = make([]devices.DeviceDescriptor, 0, len(d.detectors))
 
@@ -98,11 +100,18 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 	for i, de := range d.detectors {
 		// run detectors in parallel:
 		go func(i int, detector *Client) {
+			defer util.Recover()
+
+			var err error
+
 			defer wg.Done()
 
 			// reopen detector if necessary:
 			if detector.IsClosed() {
-				detector.Close()
+				err = detector.Close()
+				if err != nil {
+					log.Printf("emunwa: error closing detector: %v\n", err)
+				}
 				// refresh detector:
 				c := NewClient(detector.addr, fmt.Sprintf("emunwa[%d]", i), timing.Frame*4)
 				c.MuteLog(!logDetector)
@@ -119,6 +128,15 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 					}
 					return
 				}
+
+				// detect accidental loopback connections:
+				if detector.DetectLoopback(d.detectors) {
+					detector.Close()
+					if logDetector {
+						log.Printf("emunwa: detect: detector[%d]: loopback connection detected; breaking\n", i)
+					}
+					return
+				}
 			}
 
 			var (
@@ -127,6 +145,7 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 			)
 
 			{
+				// TODO: backwards compat to EMU_INFO
 				// check emulator info:
 				var status []map[string]string
 				_, status, err = detector.SendCommandWaitReply("EMULATOR_INFO", time.Now().Add(timing.Frame*2))
@@ -156,7 +175,7 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 	}
 	wg.Wait()
 
-	err = nil
+	derr = nil
 	return
 }
 
@@ -181,21 +200,38 @@ func (d *Driver) DisconnectAll() {
 
 func DriverInit() {
 	if util.IsTruthy(env.GetOrDefault("SNI_EMUNW_DISABLE", "0")) {
-		log.Printf("disabling emunwa snes driver\n")
+		log.Printf("emunwa: disabling emunwa snes driver\n")
 		return
 	}
 
+	basePortStr := env.GetOrDefault("NWA_PORT_RANGE", "0xbeef")
+	var basePort uint64
+	var err error
+	if basePort, err = strconv.ParseUint(basePortStr, 0, 16); err != nil {
+		basePort = 0xbeef
+		log.Printf("emunwa: unable to parse '%s', using default of 0xbeef (%d)\n", basePortStr, basePort)
+	}
+
+	disableOldRange := util.IsTruthy(env.GetOrDefault("NWA_DISABLE_OLD_RANGE", "0"))
+
 	// comma-delimited list of host:port pairs:
 	hostsStr := env.GetOrSupply("SNI_EMUNW_HOSTS", func() string {
-		var sb strings.Builder
 		const count = 10
-		for i := 0; i < count; i++ {
-			sb.WriteString(fmt.Sprintf("localhost:%d", 65400+i))
-			if i < count-1 {
-				sb.WriteByte(',')
+		hosts := make([]string, 0, 20)
+		if disableOldRange {
+			log.Printf("emunwa: disabling old port range 65400..65409 due to NWA_DISABLE_OLD_RANGE")
+		}
+		if disableOldRange || (basePort != 65400) {
+			for i := uint64(0); i < count; i++ {
+				hosts = append(hosts, fmt.Sprintf("localhost:%d", basePort+i))
 			}
 		}
-		return sb.String()
+		if !disableOldRange {
+			for i := 0; i < count; i++ {
+				hosts = append(hosts, fmt.Sprintf("localhost:%d", 65400+i))
+			}
+		}
+		return strings.Join(hosts, ",")
 	})
 
 	// split the hostsStr list by commas:
@@ -217,7 +253,7 @@ func DriverInit() {
 
 	if util.IsTruthy(env.GetOrDefault("SNI_EMUNW_DETECT_LOG", "0")) {
 		logDetector = true
-		log.Printf("enabling emunwa detector logging")
+		log.Printf("emunwa: enabling emunwa detector logging")
 	}
 
 	// register the driver:

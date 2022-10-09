@@ -223,7 +223,7 @@ func (a *autoCloseableDevice) MultiWriteMemory(ctx context.Context, writes ...Me
 	return
 }
 
-func (a *autoCloseableDevice) FetchFields(ctx context.Context, fields ...Field) (values []string, err error) {
+func (a *autoCloseableDevice) FetchFields(ctx context.Context, fields ...sni.Field) (values []string, err error) {
 	err = a.EnsureOpened(func(device Device) (err error) {
 		inf, ok := device.(DeviceInfo)
 		if !ok {

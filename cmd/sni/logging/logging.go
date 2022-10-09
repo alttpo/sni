@@ -8,31 +8,16 @@ import (
 	"path/filepath"
 	"runtime"
 	"sni/cmd/sni/appversion"
+	"sni/cmd/sni/config"
 	"strings"
 	"time"
 )
 
 var (
-	Dir  string
 	Path string
 )
 
 func Init() {
-	// decide on a logging output directory:
-	if runtime.GOOS == "windows" {
-		Dir = filepath.Join(os.Getenv("LOCALAPPDATA"), "sni")
-	} else {
-		var err error
-		Dir, err = os.UserHomeDir()
-		if err != nil {
-			log.Printf("could not retrieve home directory: %s\n", err)
-			return
-		}
-		Dir = filepath.Join(Dir, ".sni")
-	}
-	// make the directory if it doesn't exist:
-	_ = os.MkdirAll(Dir, 0755|os.ModeDir)
-
 	// include microseconds in timestamp and use UTC:
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.LUTC)
 
@@ -40,7 +25,7 @@ func Init() {
 	ts := time.Now().Format("2006-01-02T15:04:05.000Z")
 	ts = strings.ReplaceAll(ts, ":", "-")
 	ts = strings.ReplaceAll(ts, ".", "-")
-	Path = filepath.Join(Dir, fmt.Sprintf("sni-%s-%s-%s-%s.log", runtime.GOOS, runtime.GOARCH, appversion.Version, ts))
+	Path = filepath.Join(config.Dir, fmt.Sprintf("sni-%s-%s-%s-%s.log", runtime.GOOS, runtime.GOARCH, appversion.Version, ts))
 
 	// open the log file for writing:
 	logFile, err := os.OpenFile(Path, os.O_CREATE|os.O_WRONLY, 0644)

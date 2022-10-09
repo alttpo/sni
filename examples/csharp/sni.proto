@@ -1,8 +1,6 @@
 syntax = "proto3";
 
 option go_package = "github.com/alttpo/sni/protos/sni";
-option csharp_namespace = "SNI";
-option java_package = "com.github.alttpo.sni";
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // services
@@ -28,7 +26,7 @@ service DeviceControl {
 }
 
 service DeviceMemory {
-  // detect the current memory mapping for the given device by reading 00:FFB0 header:
+  // detect the current memory mapping for the given device by reading $00:FFB0 header:
   rpc MappingDetect(DetectMemoryMappingRequest) returns (DetectMemoryMappingResponse) {}
 
   // read a single memory segment with a given size from the given device:
@@ -47,16 +45,6 @@ service DeviceMemory {
   rpc StreamWrite(stream MultiWriteMemoryRequest) returns (stream MultiWriteMemoryResponse) {}
 }
 
-service DeviceMemoryDomains {
-  rpc MemoryDomains(MemoryDomainsRequest) returns (MemoryDomainsResponse) {}
-
-  rpc MultiDomainRead(MultiDomainReadRequest) returns (MultiDomainReadResponse) {}
-  rpc MultiDomainWrite(MultiDomainWriteRequest) returns (MultiDomainWriteResponse) {}
-
-  rpc StreamDomainRead(stream MultiDomainReadRequest) returns (stream MultiDomainReadResponse) {}
-  rpc StreamDomainWrite(stream MultiDomainWriteRequest) returns (stream MultiDomainWriteResponse) {}
-}
-
 service DeviceFilesystem {
   rpc ReadDirectory(ReadDirectoryRequest) returns (ReadDirectoryResponse) {}
   rpc MakeDirectory(MakeDirectoryRequest) returns (MakeDirectoryResponse) {}
@@ -65,10 +53,6 @@ service DeviceFilesystem {
   rpc PutFile(PutFileRequest) returns (PutFileResponse) {}
   rpc GetFile(GetFileRequest) returns (GetFileResponse) {}
   rpc BootFile(BootFileRequest) returns (BootFileResponse) {}
-}
-
-service DeviceInfo {
-  rpc FetchFields(FieldsRequest) returns (FieldsResponse) {}
 }
 
 service DeviceNWA {
@@ -98,6 +82,9 @@ enum AddressSpace {
   SnesABus = 1;
   // Do not do any address translation; simply pass the raw address to the device as-is:
   Raw = 2;
+
+  // Nintendo 64 address space:
+  N64 = 20;
 }
 
 // memory mapping mode of a SNES cart:
@@ -119,8 +106,7 @@ enum DeviceCapability {
   PauseUnpauseEmulation = 5;
   PauseToggleEmulation = 6;
   ResetToMenu = 7;
-  FetchFields = 8;
-
+  // TODO: query ROM name
   ReadDirectory = 10;
   MakeDirectory = 11;
   RemoveFile = 12;
@@ -128,26 +114,7 @@ enum DeviceCapability {
   PutFile = 14;
   GetFile = 15;
   BootFile = 16;
-
-  ReadMemoryDomain = 18;
-  WriteMemoryDomain = 19;
-
   NWACommand = 20;
-}
-
-// fields to query from DeviceInfo.FetchFields
-enum Field {
-  DeviceName = 0;
-  DeviceVersion = 1;
-  DeviceStatus = 2;
-
-  CoreName = 20;
-  CoreVersion = 21;
-  CorePlatform = 22;
-
-  RomFileName = 40;
-  RomHashType = 41;
-  RomHashValue = 42;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -176,10 +143,8 @@ message DevicesResponse {
     repeated DeviceCapability capabilities = 4;
     // default address space for the device:
     AddressSpace defaultAddressSpace = 5;
-
-    // [DEPRECATED] console system supported, e.g. "snes", "n64"
-    // since devices can support multiple systems, it's better to fetch platform from DeviceInfo.FetchFields method
-    string system = 6 [deprecated = true];
+    // console system supported, e.g. "snes", "n64"
+    string system = 6;
   }
 
   repeated Device devices = 1;
@@ -241,6 +206,7 @@ message DetectMemoryMappingResponse {
   // the ROM header read from $00:FFB0, length is $50 bytes if server reads it, otherwise length of `romHeader00FFB0` from request
   bytes romHeader00FFB0 = 4;
 }
+
 
 message ReadMemoryRequest {
   uint32        requestAddress = 1;
@@ -313,80 +279,6 @@ message MultiWriteMemoryResponse {
   string uri = 1;
   repeated WriteMemoryResponse responses = 2;
 }
-
-
-message MemoryDomainsRequest {
-  string uri = 1;
-}
-message MemoryDomain {
-  string domainName = 1;
-  uint32 size = 2;
-}
-message MemoryDomainsResponse {
-  string uri = 1;
-  repeated MemoryDomain domains = 2;
-}
-
-message GroupedDomainReadRequests {
-  message AddressSize {
-    uint32 address = 1;
-    uint32 size = 2;
-  }
-
-  string domainName = 1;
-  repeated AddressSize reads = 2;
-}
-message MultiDomainReadRequest {
-  string uri = 1;
-  repeated GroupedDomainReadRequests requests = 2;
-}
-
-message GroupedDomainReadResponses {
-  message AddressData {
-    uint32 address = 1;
-    bytes  data = 2;
-  }
-
-  string domainName = 1;
-  repeated AddressData reads = 2;
-}
-message MultiDomainReadResponse {
-  string uri = 1;
-  repeated GroupedDomainReadResponses responses = 2;
-}
-
-message GroupedDomainWriteRequests {
-  message AddressData {
-    uint32 address = 1;
-    bytes  data = 2;
-  }
-
-  string domainName = 1;
-  repeated AddressData writes = 2;
-}
-message MultiDomainWriteRequest {
-  string uri = 1;
-  repeated GroupedDomainWriteRequests requests = 2;
-}
-
-message GroupedDomainWriteResponses {
-  message AddressSize {
-    uint32 address = 1;
-    uint32 size = 2;
-  }
-
-  string domainName = 1;
-  repeated AddressSize writes = 2;
-}
-message MultiDomainWriteResponse {
-  string uri = 1;
-  repeated GroupedDomainWriteResponses responses = 2;
-}
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////
-// filesystem messages
-//////////////////////////////////////////////////////////////////////////////////////////////////
 
 message ReadDirectoryRequest {
   string uri = 1;
@@ -469,38 +361,16 @@ message BootFileResponse {
   string path = 2;
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////
-// info messages
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
-message FieldsRequest {
-  string uri = 1;
-  repeated Field fields = 2;
-}
-message FieldsResponse {
-  string uri = 1;
-  repeated Field fields = 2;
-  repeated string values = 3;
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////
-// NWA messages (emu-nwaccess protocol pass through)
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
 message NWACommandRequest {
   string uri = 1;
-  // emu-nwaccess command name:
   string command = 2;
-  // command arguments:
   string args = 3;
-  // an optional binary argument:
   optional bytes binaryArg = 4;
 }
 message NWACommandResponse {
   message NWAASCIIItem {
     map<string, string> item = 1;
   }
-
   string uri = 1;
   repeated NWAASCIIItem asciiReply = 2;
   optional bytes binaryReplay = 3;

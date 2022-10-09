@@ -5,6 +5,7 @@ import (
 	"github.com/alttpo/snes/timing"
 	"sni/devices"
 	"sni/protos/sni"
+	"sni/util"
 	"sync"
 	"time"
 )
@@ -23,6 +24,8 @@ func (d *Device) Init() {
 	d.frameTicker = time.NewTicker(timing.Frame)
 
 	go func() {
+		defer util.Recover()
+
 		for range d.frameTicker.C {
 			// increment frame timer:
 			d.WRAM[0x1A]++

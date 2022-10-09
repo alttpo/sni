@@ -62,6 +62,7 @@ var driverCapabilities = []sni.DeviceCapability{
 	sni.DeviceCapability_WriteMemory,
 	sni.DeviceCapability_ResetSystem,
 	sni.DeviceCapability_PauseToggleEmulation,
+	sni.DeviceCapability_FetchFields,
 }
 
 func (d *Driver) HasCapabilities(capabilities ...sni.DeviceCapability) (bool, error) {
@@ -104,6 +105,7 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 	for i, de := range d.detectors {
 		// run detectors in parallel:
 		go func(i int, detector *RAClient) {
+			defer util.Recover()
 			defer wg.Done()
 
 			detector.MuteLog(true)
@@ -129,6 +131,13 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 					}
 					return
 				}
+				if detector.DetectLoopback(d.detectors) {
+					detector.Close()
+					if logDetector {
+						log.Printf("retroarch: detect: detector[%d]: loopback connection detected; breaking\n", i)
+					}
+					return
+				}
 			}
 
 			// we need to check if the retroarch device is listening:
@@ -137,6 +146,7 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 				if logDetector {
 					log.Printf("retroarch: detect: detector[%d]: %s\n", i, err)
 				}
+				detector.Close()
 				return
 			}
 			if !detector.HasVersion() {

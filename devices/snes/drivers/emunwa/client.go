@@ -55,10 +55,23 @@ func NewClient(addr *net.TCPAddr, name string, timeout time.Duration) (c *Client
 	return
 }
 
-func (c *Client) IsConnected() bool { return c.isConnected }
-func (c *Client) IsClosed() bool    { return c.isClosed }
+func (c *Client) IsConnected() bool {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	return c.isConnected
+}
+func (c *Client) IsClosed() bool {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	return c.isClosed
+}
 
 func (c *Client) Connect() (err error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	c.isClosed = false
 
 	var conn net.Conn
@@ -76,10 +89,40 @@ func (c *Client) Connect() (err error) {
 }
 
 func (c *Client) Close() (err error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	c.isClosed = true
 	c.isConnected = false
 	err = c.c.Close()
 	return
+}
+
+func (c *Client) DetectLoopback(others []*Client) bool {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	for i := range others {
+		other := others[i]
+
+		if c.c == nil {
+			continue
+		}
+		if other.c == nil {
+			continue
+		}
+
+		// detect loopback condition:
+		laddr := c.c.LocalAddr().(*net.TCPAddr)
+		raddr := other.c.RemoteAddr().(*net.TCPAddr)
+		if laddr.Port == raddr.Port {
+			if laddr.IP.Equal(raddr.IP) {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func (c *Client) MuteLog(mute bool) {
@@ -111,7 +154,6 @@ func (c *Client) writeWithDeadline(bytes []byte, deadline time.Time) (err error)
 	_, err = c.c.Write(bytes)
 	if err != nil {
 		err = c.FatalError(err)
-		_ = c.Close()
 		return
 	}
 	return
@@ -131,10 +173,14 @@ func (c *Client) SendCommandWaitReply(cmd string, deadline time.Time) (bin []byt
 
 	err = c.writeWithDeadline(b.Bytes(), deadline)
 	if err != nil {
+		err = c.FatalError(err)
 		return
 	}
 
 	bin, ascii, err = c.readResponse(deadline)
+	if err != nil {
+		return
+	}
 	if ascii != nil && len(ascii) > 0 {
 		if errText, ok := ascii[0]["error"]; ok {
 			err = fmt.Errorf("emunwa: error=%s", errText)
@@ -150,7 +196,7 @@ func (c *Client) SendCommandBinaryWaitReply(cmd string, binaryArg []byte, deadli
 
 	b := bytes.NewBuffer(make([]byte, 0, 1+len(cmd)+2+4+len(binaryArg)))
 	// TODO: enable 'b' prefix once bsnes-plus-wasm gets that enhancement to draft 3 protocol
-	//b.WriteByte('b')
+	b.WriteByte('b')
 	b.WriteString(cmd)
 	b.WriteByte('\n')
 	b.WriteByte(0)
@@ -163,6 +209,7 @@ func (c *Client) SendCommandBinaryWaitReply(cmd string, binaryArg []byte, deadli
 
 	err = c.writeWithDeadline(b.Bytes(), deadline)
 	if err != nil {
+		err = c.FatalError(err)
 		return
 	}
 
@@ -180,17 +227,10 @@ func (c *Client) readResponse(deadline time.Time) (bin []byte, ascii []map[strin
 	err = c.c.SetReadDeadline(deadline)
 	if err != nil {
 		err = c.FatalError(err)
-		_ = c.Close()
 		return
 	}
 
 	bin, ascii, err = c.parseResponse(c.r)
-	if err != nil {
-		err = c.FatalError(err)
-		_ = c.Close()
-		return
-	}
-
 	return
 }
 
@@ -198,6 +238,7 @@ func (c *Client) parseResponse(r *bufio.Reader) (bin []byte, ascii []map[string]
 	var d byte
 	d, err = r.ReadByte()
 	if err != nil {
+		err = c.FatalError(err)
 		return
 	}
 
@@ -206,12 +247,14 @@ func (c *Client) parseResponse(r *bufio.Reader) (bin []byte, ascii []map[string]
 		var size uint32
 		err = binary.Read(r, binary.BigEndian, &size)
 		if err != nil {
+			err = c.FatalError(err)
 			return
 		}
 
 		bin = make([]byte, size)
 		_, err = io.ReadFull(r, bin)
 		if err != nil {
+			err = c.FatalError(err)
 			return
 		}
 
@@ -351,7 +394,6 @@ func (c *Client) MultiReadMemory(ctx context.Context, reads ...devices.MemoryRea
 		}
 		if ascii != nil {
 			err = fmt.Errorf("emunwa: expecting binary reply but got ascii:\n%+v", ascii)
-			err = c.FatalError(err)
 			return
 		}
 
@@ -424,7 +466,7 @@ func (c *Client) MultiWriteMemory(ctx context.Context, writes ...devices.MemoryW
 		sb := bytes.Buffer{}
 		data := bytes.Buffer{}
 		size := uint32(0)
-		_, _ = fmt.Fprintf(&sb, "CORE_WRITE %s", memType)
+		_, _ = fmt.Fprintf(&sb, "bCORE_WRITE %s", memType)
 		for _, region := range regions {
 			_, _ = fmt.Fprintf(&sb, ";$%x;$%x", region.Offset, region.Size)
 			data.Write(region.Data)
@@ -485,7 +527,7 @@ func (c *Client) ResetSystem(ctx context.Context) (err error) {
 		deadline = time.Now().Add(c.readWriteTimeout)
 	}
 
-	_, _, err = c.SendCommandWaitReply("EMU_RESET", deadline)
+	_, _, err = c.SendCommandWaitReply("EMULATION_RESET", deadline)
 	return
 }
 
@@ -501,9 +543,9 @@ func (c *Client) PauseUnpause(ctx context.Context, pausedState bool) (newState b
 
 	newState = pausedState
 	if pausedState {
-		_, _, err = c.SendCommandWaitReply("EMU_PAUSE", deadline)
+		_, _, err = c.SendCommandWaitReply("EMULATION_PAUSE", deadline)
 	} else {
-		_, _, err = c.SendCommandWaitReply("EMU_RESUME", deadline)
+		_, _, err = c.SendCommandWaitReply("EMULATION_RESUME", deadline)
 	}
 
 	return
@@ -526,6 +568,112 @@ func (c *Client) NWACommand(ctx context.Context, cmd string, args string, binary
 	} else {
 		line = fmt.Sprintf("%s %s", cmd, args)
 		binaryReply, asciiReply, err = c.SendCommandWaitReply(line, deadline)
+	}
+
+	return
+}
+
+func getFirstValue(reply []map[string]string, name string) string {
+	if len(reply) == 0 {
+		return ""
+	}
+	return reply[0][name]
+}
+
+func (c *Client) FetchFields(ctx context.Context, fields ...sni.Field) (values []string, err error) {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(c.readWriteTimeout)
+	}
+
+	wantGameInfo := false        // RomFileName
+	wantCoreInfo := false        // CoreName, CoreVersion, CorePlatform
+	wantEmulatorInfo := false    // DeviceName, DeviceVersion
+	wantEmulationStatus := false // DeviceStatus
+
+	for _, field := range fields {
+		switch field {
+		case sni.Field_DeviceName:
+		case sni.Field_DeviceVersion:
+			wantEmulatorInfo = true
+			break
+		case sni.Field_DeviceStatus:
+			wantEmulationStatus = true
+			break
+		case sni.Field_CoreName:
+		case sni.Field_CoreVersion:
+		case sni.Field_CorePlatform:
+			wantCoreInfo = true
+			break
+		case sni.Field_RomFileName:
+			wantGameInfo = true
+			break
+		}
+	}
+
+	var (
+		gameInfo        []map[string]string
+		coreInfo        []map[string]string
+		emulatorInfo    []map[string]string
+		emulationStatus []map[string]string
+	)
+
+	// make the necessary requests based on which fields are requested:
+	if wantGameInfo {
+		_, gameInfo, err = c.SendCommandWaitReply("GAME_INFO", deadline)
+		if err != nil {
+			return
+		}
+	}
+
+	if wantCoreInfo {
+		_, coreInfo, err = c.SendCommandWaitReply("CORE_CURRENT_INFO", deadline)
+		if err != nil {
+			return
+		}
+	}
+
+	if wantEmulatorInfo {
+		_, emulatorInfo, err = c.SendCommandWaitReply("EMULATOR_INFO", deadline)
+		if err != nil {
+			return
+		}
+	}
+
+	if wantEmulationStatus {
+		_, emulationStatus, err = c.SendCommandWaitReply("EMULATION_STATUS", deadline)
+		if err != nil {
+			return
+		}
+	}
+
+	for _, field := range fields {
+		switch field {
+		case sni.Field_DeviceName:
+			values = append(values, getFirstValue(emulatorInfo, "name"))
+			break
+		case sni.Field_DeviceVersion:
+			values = append(values, getFirstValue(emulatorInfo, "version"))
+			break
+		case sni.Field_DeviceStatus:
+			values = append(values, getFirstValue(emulationStatus, "state"))
+			break
+		case sni.Field_CoreName:
+			values = append(values, getFirstValue(coreInfo, "name"))
+			break
+		case sni.Field_CoreVersion:
+			values = append(values, getFirstValue(coreInfo, "version"))
+			break
+		case sni.Field_CorePlatform:
+			values = append(values, getFirstValue(coreInfo, "platform"))
+			break
+		case sni.Field_RomFileName:
+			values = append(values, getFirstValue(gameInfo, "file"))
+			break
+		default:
+			values = append(values, "")
+			break
+		}
 	}
 
 	return

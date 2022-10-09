@@ -7,12 +7,16 @@ import (
 	"log"
 	"net"
 	"sni/devices"
+	"sni/protos/sni"
+	"sni/util"
 	"strings"
 	"sync"
 	"time"
 )
 
 type Device struct {
+	stateLock sync.Mutex
+
 	lock sync.Mutex
 	c    *net.TCPConn
 
@@ -53,22 +57,30 @@ func (d *Device) Init() {
 }
 
 func (d *Device) initConnection() {
+	defer util.Recover()
+
 	var err error
+	remoteAddr := d.c.RemoteAddr()
+
 	defer func() {
 		if err != nil {
 			log.Printf("luabridge: %v\n", err)
-			err := d.Close()
-			if err != nil {
-				log.Printf("luabridge: close error: %v\n", err)
-				return
-			}
 		}
+
+		err := d.Close()
+		if err != nil {
+			log.Printf("luabridge: close error: %v\n", err)
+		}
+
+		log.Printf("luabridge: connection closed for %s\n", remoteAddr)
+		driver.DeleteDevice(remoteAddr.String())
 	}()
 
 	_ = d.c.SetNoDelay(true)
 
 	err = d.CheckVersion()
 	if err != nil {
+		// defer above checks and logs err
 		return
 	}
 
@@ -87,6 +99,9 @@ func (d *Device) initConnection() {
 }
 
 func (d *Device) CheckVersion() (err error) {
+	defer d.stateLock.Unlock()
+	d.stateLock.Lock()
+
 	var b []byte
 	b, err = d.WriteThenReadUntilNewline([]byte("Version\n"), time.Now().Add(time.Second*15))
 	if err != nil {
@@ -123,13 +138,13 @@ func (d *Device) CheckVersion() (err error) {
 	return
 }
 
-func (d *Device) FetchFields(ctx context.Context, fields ...devices.Field) (values []string, err error) {
+func (d *Device) FetchFields(ctx context.Context, fields ...sni.Field) (values []string, err error) {
 	for _, field := range fields {
 		switch field {
-		case devices.Field_DeviceName:
+		case sni.Field_DeviceName:
 			values = append(values, d.clientName+"|"+d.host)
 			break
-		case devices.Field_DeviceVersion:
+		case sni.Field_DeviceVersion:
 			values = append(values, d.version)
 			break
 		default:

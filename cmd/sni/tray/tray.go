@@ -13,8 +13,8 @@ import (
 	"sni/cmd/sni/appversion"
 	"sni/cmd/sni/config"
 	"sni/cmd/sni/icon"
-	"sni/cmd/sni/logging"
 	"sni/devices"
+	"sni/util"
 	"strings"
 	"sync"
 	"time"
@@ -25,7 +25,6 @@ const maxItems = 10
 var (
 	deviceMenuItemsMu sync.Mutex
 	deviceMenuItems   [maxItems]*systray.MenuItem
-	deviceDescriptors []devices.DeviceDescriptor
 )
 
 func Init() (err error) {
@@ -33,13 +32,9 @@ func Init() (err error) {
 	return
 }
 
-func UpdateDeviceList(descriptors []devices.DeviceDescriptor) {
-	deviceDescriptors = descriptors[:]
+func UpdateDeviceList(deviceDescriptors []devices.DeviceDescriptor) {
+	defer util.Recover()
 
-	updateDeviceList()
-}
-
-func updateDeviceList() {
 	defer deviceMenuItemsMu.Unlock()
 	deviceMenuItemsMu.Lock()
 
@@ -71,6 +66,24 @@ func CreateSystray() {
 	// Start up a systray:
 	systray.Run(trayStart, trayExit)
 	log.Println("tray: exited main loop")
+}
+
+func ShowMessage(appName, title, msg string) {
+	systray.Run(
+		func() {
+			systray.SetIcon(icon.Data)
+
+			versionText := fmt.Sprintf("Super Nintendo Interface %s (%s)", appversion.Version, appversion.Commit)
+			systray.SetTooltip(versionText)
+
+			// show balloon notification for 10 seconds:
+			systray.ShowMessage(appName, title, msg)
+			time.Sleep(10 * time.Second)
+
+			systray.Quit()
+		},
+		func() {},
+	)
 }
 
 func quitSystray() {
@@ -163,7 +176,6 @@ func trayStart() {
 		deviceMenuItems[i] = devicesMenu.AddSubMenuItemCheckbox("_", "_", false)
 		deviceMenuItems[i].Hide()
 	}
-	updateDeviceList()
 
 	appsMenuItems := make([]*systray.MenuItem, 0, 10)
 	appConfigs := make([]*appConfig, 0, 10)
@@ -252,7 +264,7 @@ func trayStart() {
 			Dir:     "",
 			Path:    "",
 			Args:    nil,
-			Url:     logging.Dir,
+			Url:     config.Dir,
 		})
 	}
 
@@ -301,6 +313,8 @@ func trayStart() {
 
 	// refresh device list periodically:
 	go func() {
+		defer util.Recover()
+
 		refreshPeriod := time.Tick(time.Second * 2)
 		for range refreshPeriod {
 			RefreshDeviceList()
@@ -318,5 +332,6 @@ func RefreshDeviceList() {
 
 		descriptors = append(descriptors, d...)
 	}
+
 	UpdateDeviceList(descriptors)
 }

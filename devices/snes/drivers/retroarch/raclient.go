@@ -13,6 +13,7 @@ import (
 	"sni/devices/snes/mapping"
 	"sni/protos/sni"
 	"sni/udpclient"
+	"sni/util"
 	"strconv"
 	"strings"
 	"sync"
@@ -52,6 +53,7 @@ type rwRequest struct {
 
 type RAClient struct {
 	udpclient.UDPClient
+	stateLock sync.Mutex
 
 	addr *net.UDPAddr
 
@@ -115,12 +117,53 @@ func (c *RAClient) Close() (err error) {
 	return
 }
 
+func (c *RAClient) Connect(addr *net.UDPAddr) (err error) {
+	if err = c.UDPClient.Connect(addr); err != nil {
+		return
+	}
+
+	return
+}
+
+func (c *RAClient) DetectLoopback(others []*RAClient) bool {
+	for i := range others {
+		other := others[i]
+
+		// detect loopback condition:
+		laddr := c.UDPClient.LocalAddr()
+		raddr := other.UDPClient.RemoteAddr()
+		if laddr == nil {
+			continue
+		}
+		if raddr == nil {
+			continue
+		}
+		if laddr.Port == raddr.Port {
+			if laddr.IP.Equal(raddr.IP) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 func (c *RAClient) GetId() string {
 	return c.addr.String()
 }
 
-func (c *RAClient) Version() string  { return c.version }
-func (c *RAClient) HasVersion() bool { return c.version != "" }
+func (c *RAClient) Version() string {
+	defer c.stateLock.Unlock()
+	c.stateLock.Lock()
+
+	return c.version
+}
+func (c *RAClient) HasVersion() bool {
+	defer c.stateLock.Unlock()
+	c.stateLock.Lock()
+
+	return c.version != ""
+}
 
 func (c *RAClient) DetermineVersion() (err error) {
 	var rsp []byte
@@ -134,12 +177,16 @@ func (c *RAClient) DetermineVersion() (err error) {
 	}
 
 	if rsp == nil {
-		return
+		return fmt.Errorf("no response received")
 	}
 
 	if logDetector {
 		log.Printf("retroarch: < %s", rsp)
 	}
+
+	defer c.stateLock.Unlock()
+	c.stateLock.Lock()
+
 	c.version = strings.TrimSpace(string(rsp))
 
 	// parse the version string:
@@ -244,7 +291,7 @@ func (d *RAClient) GetStatus(ctx context.Context) (raStatus, coreName, romFileNa
 	return
 }
 
-func (d *RAClient) FetchFields(ctx context.Context, fields ...devices.Field) (values []string, err error) {
+func (d *RAClient) FetchFields(ctx context.Context, fields ...sni.Field) (values []string, err error) {
 	var raStatus string
 	var coreName string
 	var romFileName string
@@ -257,22 +304,25 @@ func (d *RAClient) FetchFields(ctx context.Context, fields ...devices.Field) (va
 
 	for _, field := range fields {
 		switch field {
-		case devices.Field_DeviceName:
+		case sni.Field_DeviceName:
 			values = append(values, "retroarch")
 			break
-		case devices.Field_DeviceVersion:
+		case sni.Field_DeviceVersion:
 			values = append(values, d.version)
 			break
-		case devices.Field_DeviceStatus:
+		case sni.Field_DeviceStatus:
 			values = append(values, raStatus)
 			break
-		case devices.Field_CoreName:
+		case sni.Field_CoreName:
 			values = append(values, coreName)
 			break
-		case devices.Field_RomFileName:
+		case sni.Field_RomFileName:
 			values = append(values, romFileName)
 			break
-		case devices.Field_RomCRC32:
+		case sni.Field_RomHashType:
+			values = append(values, "crc32")
+			break
+		case sni.Field_RomHashValue:
 			values = append(values, strconv.FormatUint(uint64(romCRC32), 16))
 			break
 		default:
@@ -289,6 +339,9 @@ func (d *RAClient) FetchFields(ctx context.Context, fields ...devices.Field) (va
 const maxReadSize = 2048
 
 func (c *RAClient) readCommand() string {
+	defer c.stateLock.Unlock()
+	c.stateLock.Lock()
+
 	if c.useRCR {
 		return "READ_CORE_RAM"
 	} else {
@@ -297,6 +350,9 @@ func (c *RAClient) readCommand() string {
 }
 
 func (c *RAClient) writeCommand() string {
+	defer c.stateLock.Unlock()
+	c.stateLock.Lock()
+
 	if c.useRCR {
 		return "WRITE_CORE_RAM"
 	} else {
@@ -541,6 +597,12 @@ func (c *RAClient) MultiWriteMemory(ctx context.Context, writes ...devices.Memor
 }
 
 func (c *RAClient) handleOutgoing() {
+	defer util.Recover()
+
+	c.stateLock.Lock()
+	useRCR := c.useRCR
+	c.stateLock.Unlock()
+
 	for rwreq := range c.outgoing {
 		var sb strings.Builder
 
@@ -584,7 +646,7 @@ func (c *RAClient) handleOutgoing() {
 				return
 			}
 
-			if c.useRCR && rwreq.isWrite {
+			if useRCR && rwreq.isWrite {
 				// fake a response since we don't get any from WRITE_CORE_RAM:
 				rwreq.R <- nil
 			} else {
@@ -597,6 +659,8 @@ func (c *RAClient) handleOutgoing() {
 }
 
 func (c *RAClient) handleIncoming() {
+	defer util.Recover()
+
 	for rwreq := range c.expectedIncoming {
 		rsp, err := c.ReadWithDeadline(rwreq.deadline)
 		if err != nil {
@@ -630,6 +694,10 @@ func (r *readResponseError) IsFatal() bool {
 }
 
 func (c *RAClient) parseCommandResponse(rsp []byte, rwreq *rwRequest) (err error) {
+	c.stateLock.Lock()
+	useRCR := c.useRCR
+	c.stateLock.Unlock()
+
 	r := bytes.NewReader(rsp)
 
 	var cmd string
@@ -649,7 +717,7 @@ func (c *RAClient) parseCommandResponse(rsp []byte, rwreq *rwRequest) (err error
 		n, err = fmt.Fscanf(t, "%d", &test)
 		if n == 1 && test < 0 {
 			// read a -1:
-			if c.useRCR {
+			if useRCR {
 				err = &readResponseError{addr, ""}
 				return
 			} else {
