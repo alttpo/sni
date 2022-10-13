@@ -10,42 +10,58 @@ import (
 )
 
 type domain struct {
-	name  string
-	start uint32
-	size  uint32
+	domainRef *sni.MemoryDomainRef
+	start     uint32
+	size      uint32
+	writeable bool
 }
 
-var domains = []domain{
-	{"CARTROM", 0x00_0000, 0xE0_0000},
-	{"SRAM", 0xE0_0000, 0x10_0000},
-	{"WRAM", 0xF5_0000, 0x02_0000},
-	{"VRAM", 0xF7_0000, 0x01_0000},
-	{"APURAM", 0xF8_0000, 0x01_0000},
-	{"CGRAM", 0xF9_0000, 0x0200},
-	{"OAM", 0xF9_0200, 0x0420 - 0x0200},
-	{"MISC", 0xF9_0420, 0x0500 - 0x0420},
-	{"PPUREG", 0xF9_0500, 0x0700 - 0x0500},
-	{"CPUREG", 0xF9_0700, 0x0200},
+func s(v string) *string {
+	return &v
 }
-var domainMap map[string]domain
+
+var domainRefs = [...]*sni.MemoryDomainRef_Snes{
+	{Snes: sni.MemoryDomainTypeSnes_SNESCustomName},
+	{Snes: sni.MemoryDomainTypeSnes_SNESCartROM},
+	{Snes: sni.MemoryDomainTypeSnes_SNESCartSRAM},
+	{Snes: sni.MemoryDomainTypeSnes_SNESWorkRAM},
+	{Snes: sni.MemoryDomainTypeSnes_SNESVRAM},
+	{Snes: sni.MemoryDomainTypeSnes_SNESAPURAM},
+	{Snes: sni.MemoryDomainTypeSnes_SNESCGRAM},
+	{Snes: sni.MemoryDomainTypeSnes_SNESOAM},
+}
+
+var domainDescs = [...]domain{
+	{&sni.MemoryDomainRef{Name: s("CARTROM"), Type: domainRefs[1]}, 0x00_0000, 0xE0_0000, true},
+	{&sni.MemoryDomainRef{Name: s("SRAM"), Type: domainRefs[2]}, 0xE0_0000, 0x10_0000, true},
+	// TODO: convert WRAM writes to asm generation and nmi exe feature
+	{&sni.MemoryDomainRef{Name: s("WRAM"), Type: domainRefs[3]}, 0xF5_0000, 0x02_0000, true},
+	{&sni.MemoryDomainRef{Name: s("VRAM"), Type: domainRefs[4]}, 0xF7_0000, 0x01_0000, false},
+	{&sni.MemoryDomainRef{Name: s("APURAM"), Type: domainRefs[5]}, 0xF8_0000, 0x01_0000, false},
+	{&sni.MemoryDomainRef{Name: s("CGRAM"), Type: domainRefs[6]}, 0xF9_0000, 0x0200, false},
+	{&sni.MemoryDomainRef{Name: s("OAM"), Type: domainRefs[7]}, 0xF9_0200, 0x0420 - 0x0200, false},
+	{&sni.MemoryDomainRef{Name: s("MISC"), Type: domainRefs[0]}, 0xF9_0420, 0x0500 - 0x0420, false},
+	{&sni.MemoryDomainRef{Name: s("PPUREG"), Type: domainRefs[0]}, 0xF9_0500, 0x0700 - 0x0500, false},
+	{&sni.MemoryDomainRef{Name: s("CPUREG"), Type: domainRefs[0]}, 0xF9_0700, 0x0200, false},
+}
+var domains []*sni.MemoryDomain
 
 func init() {
-	domainMap = make(map[string]domain, len(domains))
-	for _, d := range domains {
-		domainMap[d.name] = d
+	domains = make([]*sni.MemoryDomain, 0, len(domainDescs))
+
+	for _, d := range domainDescs {
+		domains = append(domains, &sni.MemoryDomain{
+			Domain:    d.domainRef,
+			Size:      d.size,
+			Readable:  true,
+			Writeable: d.writeable,
+		})
 	}
 }
 
 func (d *Device) MemoryDomains(ctx context.Context, request *sni.MemoryDomainsRequest) (rsp *sni.MemoryDomainsResponse, err error) {
 	rsp = &sni.MemoryDomainsResponse{
-		Domains: make([]*sni.MemoryDomain, 0, len(domains)),
-	}
-
-	for _, d := range domains {
-		rsp.Domains = append(rsp.Domains, &sni.MemoryDomain{
-			DomainName: d.name,
-			Size:       d.size,
-		})
+		Domains: domains,
 	}
 
 	return
@@ -56,7 +72,7 @@ func (d *Device) MultiDomainRead(ctx context.Context, request *sni.MultiDomainRe
 	rsp = &sni.MultiDomainReadResponse{
 		Responses: make([]*sni.GroupedDomainReadResponses, len(request.Requests)),
 	}
-	addressDatas := make([]*sni.GroupedDomainReadResponses_AddressData, 0)
+	addressDatas := make([]*sni.MemoryDomainAddressData, 0)
 
 	for i, domainReqs := range request.Requests {
 		domainName := strings.ToUpper(domainReqs.DomainName)
@@ -68,7 +84,7 @@ func (d *Device) MultiDomainRead(ctx context.Context, request *sni.MultiDomainRe
 
 		rsp.Responses[i] = &sni.GroupedDomainReadResponses{
 			DomainName: domainName,
-			Reads:      make([]*sni.GroupedDomainReadResponses_AddressData, len(domainReqs.Reads)),
+			Reads:      make([]*sni.MemoryDomainAddressData, len(domainReqs.Reads)),
 		}
 		for j, read := range domainReqs.Reads {
 			if read.Address >= dm.size {

@@ -314,27 +314,105 @@ message MultiWriteMemoryResponse {
   repeated WriteMemoryResponse responses = 2;
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// memory domain messages
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+enum MemoryDomainTypeSnes {
+  SNESCustomName = 0;
+
+  SNESSystemBus = 1;
+
+  SNESWRAM = 2;
+  SNESAPURAM = 3;
+  SNESVRAM = 4;
+  SNESOAM = 5;
+  SNESCGRAM = 6;
+  SNESCPUREG = 7;
+  SNESPPUREG = 8;
+
+  SNESCartROM = 4;
+  SNESCartSRAM = 3;
+
+  SNESSGBWorkRAM = 9;
+  SNESSGBHRAM = 10;
+  SNESSGBCartRAM = 11;
+
+  SNESSufamiSlotARAM = 12;
+  SNESSufamiSlotBRAM = 13;
+
+  SNESBSXSRAM = 14;
+  SNESBSXPSRAM = 15;
+
+  //SNESRTC
+}
+enum MemoryDomainTypeN64 {
+  N64CustomName = 0;
+
+  N64SystemBus = 1;
+
+  N64RDRAM = 2;
+
+  N64CartROM = 3;
+  N64CartSRAM = 4;
+  N64CartEEPROM = 5;
+  N64CartFlash = 6;
+
+  N64PIFROM = 7;
+  N64PIFRAM = 8;
+
+  N64RSPDataMem = 9;
+  N64RSPInstMem = 10;
+
+  N64MemPak1RAM = 11;
+  N64MemPak2RAM = 12;
+  N64MemPak3RAM = 13;
+  N64MemPak4RAM = 14;
+
+  N64TransferPak1ROM = 15;
+  N64TransferPak1RAM = 16;
+  N64TransferPak2ROM = 17;
+  N64TransferPak2RAM = 18;
+  N64TransferPak3ROM = 19;
+  N64TransferPak3RAM = 20;
+  N64TransferPak4ROM = 21;
+  N64TransferPak4RAM = 22;
+}
+message MemoryDomainRef {
+  oneof type {
+    MemoryDomainTypeSnes    snes = 1;
+    MemoryDomainTypeN64     n64 = 2;
+  }
+  optional string name = 3;
+}
+message MemoryDomainAddressSize {
+  uint32 address = 1;
+  uint32 size = 2;
+}
+message MemoryDomainAddressData {
+  uint32 address = 1;
+  bytes  data = 2;
+}
+
 
 message MemoryDomainsRequest {
   string uri = 1;
 }
 message MemoryDomain {
-  string domainName = 1;
+  MemoryDomainRef domain = 1;
   uint32 size = 2;
+  bool readable = 3;
+  bool writeable = 4;
 }
 message MemoryDomainsResponse {
   string uri = 1;
   repeated MemoryDomain domains = 2;
 }
 
-message GroupedDomainReadRequests {
-  message AddressSize {
-    uint32 address = 1;
-    uint32 size = 2;
-  }
 
-  string domainName = 1;
-  repeated AddressSize reads = 2;
+message GroupedDomainReadRequests {
+  MemoryDomainRef domain = 1;
+  repeated MemoryDomainAddressSize reads = 2;
 }
 message MultiDomainReadRequest {
   string uri = 1;
@@ -342,13 +420,8 @@ message MultiDomainReadRequest {
 }
 
 message GroupedDomainReadResponses {
-  message AddressData {
-    uint32 address = 1;
-    bytes  data = 2;
-  }
-
-  string domainName = 1;
-  repeated AddressData reads = 2;
+  MemoryDomainRef domain = 1;
+  repeated MemoryDomainAddressData reads = 2;
 }
 message MultiDomainReadResponse {
   string uri = 1;
@@ -356,13 +429,8 @@ message MultiDomainReadResponse {
 }
 
 message GroupedDomainWriteRequests {
-  message AddressData {
-    uint32 address = 1;
-    bytes  data = 2;
-  }
-
-  string domainName = 1;
-  repeated AddressData writes = 2;
+  MemoryDomainRef domain = 1;
+  repeated MemoryDomainAddressData writes = 2;
 }
 message MultiDomainWriteRequest {
   string uri = 1;
@@ -370,13 +438,8 @@ message MultiDomainWriteRequest {
 }
 
 message GroupedDomainWriteResponses {
-  message AddressSize {
-    uint32 address = 1;
-    uint32 size = 2;
-  }
-
-  string domainName = 1;
-  repeated AddressSize writes = 2;
+  MemoryDomainRef domain = 1;
+  repeated MemoryDomainAddressSize writes = 2;
 }
 message MultiDomainWriteResponse {
   string uri = 1;
