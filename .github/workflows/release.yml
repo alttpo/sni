@@ -158,8 +158,8 @@ jobs:
           repository: zig-for/snfm
 
       - name: Bundle SNI
-        if: ${{ matrix.snfm_regex }}
-        run: gh release download --repo zig-for/snfm ${{ steps.snfm_version.outputs.release }} --pattern ${{ matrix.snfm_regex }} --dir ${{env.basename}}
+        if: ${{ matrix.snfm }}
+        run: gh release download --repo zig-for/snfm ${{ steps.snfm_version.outputs.release }} --pattern ${{ matrix.snfm }} --dir ${{env.basename}}
         
       - name: Package ${{env.basename}}.${{matrix.suffix}} for MacOS
         if: ${{ matrix.os == 'macos-latest' }}
