@@ -170,7 +170,7 @@ jobs:
         run: Compress-Archive -DestinationPath ${{env.basename}}.${{matrix.suffix}} -Path ${{env.basename}}/*
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
           name: ${{env.basename}}.${{matrix.suffix}}
           path: ${{github.workspace}}/${{env.basename}}.${{matrix.suffix}}
@@ -245,7 +245,7 @@ jobs:
           tar cJf ${{env.basename}}.tar.xz ${{env.basename}}/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
           name: ${{env.basename}}.tar.xz
           path: ${{github.workspace}}/${{env.basename}}.tar.xz
