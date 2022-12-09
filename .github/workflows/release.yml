@@ -6,8 +6,6 @@ on:
      - v*
     branches:
      - '*'
-  #pull_request:
-  #  branches: [ main ]
 jobs:
   go-test:
     name: Go Tests
