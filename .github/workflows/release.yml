@@ -2,10 +2,10 @@ name: Release
 
 on:
   push:
-    tags:
-     - v*
-    branches:
-     - '*'
+    tags: [ 'v*' ]
+    branches: [ '*' ]
+  pull_request:
+    branches: [ main ]
 jobs:
   go-test:
     name: Go Tests
