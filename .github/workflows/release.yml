@@ -169,6 +169,12 @@ jobs:
         if: ${{ matrix.os == 'windows-latest' }}
         run: Compress-Archive -DestinationPath ${{env.basename}}.${{matrix.suffix}} -Path ${{env.basename}}/*
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: ${{env.basename}}.${{matrix.suffix}}
+          path: ${{github.workspace}}/${{env.basename}}.${{matrix.suffix}}
+
       - name: Upload binaries to release
         if: github.event_name == 'release' && startsWith(github.event.ref, 'refs/tags/v')
         uses: svenstaro/upload-release-action@v2
@@ -178,6 +184,7 @@ jobs:
           overwrite: true
           asset_name: ${{env.basename}}.${{matrix.suffix}}
           file: ${{ github.workspace }}/${{env.basename}}.${{matrix.suffix}}
+
 
   manylinux2014:
     runs-on: ubuntu-latest
@@ -236,6 +243,12 @@ jobs:
         run: |
           ldd ${{env.basename}}/sni
           tar cJf ${{env.basename}}.tar.xz ${{env.basename}}/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: ${{env.basename}}.tar.xz
+          path: ${{github.workspace}}/${{env.basename}}.tar.xz
 
       - name: Upload binaries to release
         if: github.event_name == 'release' && startsWith(github.event.ref, 'refs/tags/v')
