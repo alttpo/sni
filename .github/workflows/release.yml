@@ -151,21 +151,13 @@ jobs:
 
       - name: Download SNFM
         if: ${{ matrix.snfm }}
-        run: gh release download --repo zig-for/snfm --pattern ${{ matrix.snfm }} --dir ${{env.basename}}
+        run: gh release download --repo zig-for/snfm --pattern ${{ matrix.snfm }} --dir ${{ runner.temp }}
         env:
           GH_TOKEN: ${{ github.token }}
 
       - name: Extract SNFM
         if: ${{ matrix.snfm }}
-        run: 7z x ${{ matrix.snfm }}
-        
-      - name: Delete SNFM zip (Windows)
-        if: ${{ matrix.snfm && matrix.os == 'windows-latest' }}
-        run: rem ${{ matrix.snfm }}
-        
-      - name: Delete SNFM zip (Unix)
-        if: ${{ matrix.snfm && matrix.os != 'windows-latest' }}
-        run: rm ${{ matrix.snfm }}
+        run: 7z x ${{ runner.temp }}/${{ matrix.snfm }} ${{env.basename}}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
