@@ -157,23 +157,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Package ${{env.basename}}.${{matrix.suffix}} for MacOS
-        if: ${{ matrix.os == 'macos-latest' }}
-        run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
-
-      - name: Package ${{env.basename}}.${{matrix.suffix}} for Linux
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
-
-      - name: Package ${{env.basename}}.${{matrix.suffix}} for Windows
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: Compress-Archive -DestinationPath ${{env.basename}}.${{matrix.suffix}} -Path ${{env.basename}}/*
-
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: ${{env.basename}}.${{matrix.suffix}}
-          path: ${{github.workspace}}/${{env.basename}}.${{matrix.suffix}}
+          path: ${{env.basename}}/
+          
+      - name: Package ${{env.basename}}.${{matrix.suffix}} for MacOS
+        if: ${{ matrix.os == 'macos-latest' }} && github.event_name == 'release' && startsWith(github.event.ref, 'refs/tags/v')
+        run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
+
+      - name: Package ${{env.basename}}.${{matrix.suffix}} for Linux
+        if: ${{ matrix.os == 'ubuntu-latest' }} && github.event_name == 'release' && startsWith(github.event.ref, 'refs/tags/v')
+        run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
+
+      - name: Package ${{env.basename}}.${{matrix.suffix}} for Windows
+        if: ${{ matrix.os == 'windows-latest' }} && github.event_name == 'release' && startsWith(github.event.ref, 'refs/tags/v')
+        run: Compress-Archive -DestinationPath ${{env.basename}}.${{matrix.suffix}} -Path ${{env.basename}}/*
 
       - name: Upload binaries to release
         if: github.event_name == 'release' && startsWith(github.event.ref, 'refs/tags/v')
