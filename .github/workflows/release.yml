@@ -152,16 +152,25 @@ jobs:
       #    ${{env.basename}}/
       - name: "Get latest release for SNFM"
         if: ${{ matrix.snfm }}
+        run: |
+          echo 'SNFM_RELEASE_RAW<<EOF' >> $GITHUB_ENV
+          gh release list --repo zig-for/snfm --exclude-drafts --limit 1 >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - uses: actions-ecosystem/action-regex-match@v2
         id: snfm_version
-        uses: pozetroninc/github-action-get-latest-release@master
         with:
-          repository: zig-for/snfm
+          text: ${{ env.SNFM_RELEASE_RAW }}
+          regex: 'Latest\s+(v\d+\.\d+\.\d+)'
 
       - name: Bundle SNI
         if: ${{ matrix.snfm }}
-        run: gh release download --repo zig-for/snfm ${{ steps.snfm_version.outputs.release }} --pattern ${{ matrix.snfm }} --dir ${{env.basename}}
+        run: gh release download --repo zig-for/snfm ${{ steps.snfm_version.outputs.group1 }} --pattern ${{ matrix.snfm }} --dir ${{env.basename}}
         env:
           GH_TOKEN: ${{ github.token }}
+
       - name: Package ${{env.basename}}.${{matrix.suffix}} for MacOS
         if: ${{ matrix.os == 'macos-latest' }}
         run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
