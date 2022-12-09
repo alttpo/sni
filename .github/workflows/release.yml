@@ -154,15 +154,14 @@ jobs:
         if: ${{ matrix.snfm }}
         id: snfm_version
         uses: pozetroninc/github-action-get-latest-release@master
-        env:
-          GH_TOKEN: ${{ github.token }}
         with:
           repository: zig-for/snfm
 
       - name: Bundle SNI
         if: ${{ matrix.snfm }}
         run: gh release download --repo zig-for/snfm ${{ steps.snfm_version.outputs.release }} --pattern ${{ matrix.snfm }} --dir ${{env.basename}}
-        
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Package ${{env.basename}}.${{matrix.suffix}} for MacOS
         if: ${{ matrix.os == 'macos-latest' }}
         run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
