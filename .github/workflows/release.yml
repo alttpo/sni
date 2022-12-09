@@ -157,12 +157,12 @@ jobs:
 
       - name: Extract SNFM
         if: ${{ matrix.snfm }}
-        run: 7z x ${{ runner.temp }}/${{ matrix.snfm }} ${{env.basename}}
+        run: 7z x ${{ runner.temp }}/${{ matrix.snfm }} -o${{env.basename}}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: ${{env.basename}}.${{matrix.suffix}}
+          name: ${{env.basename}}
           path: ${{env.basename}}/
           
       - name: Package ${{env.basename}}.${{matrix.suffix}} for MacOS
