@@ -154,6 +154,8 @@ jobs:
         if: ${{ matrix.snfm }}
         id: snfm_version
         uses: pozetroninc/github-action-get-latest-release@master
+        env:
+          GH_TOKEN: ${{ github.token }}
         with:
           repository: zig-for/snfm
 
