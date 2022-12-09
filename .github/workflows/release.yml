@@ -33,6 +33,7 @@ jobs:
             goos: darwin
             goarch: amd64
             suffix: tar.gz
+            snfm: snfm-*-macos-x64-release.zip
           #- os: macos-latest
           #  goos: darwin
           #  goarch: arm64
@@ -41,6 +42,7 @@ jobs:
             goarch: amd64
             exesuffix: .exe
             suffix: zip
+            snfm: snfm-*-windows-x64-release.zip
           - os: windows-latest
             goos: windows
             goarch: "386"
@@ -59,7 +61,8 @@ jobs:
           - os: ubuntu-latest
             goos: linux
             goarch: amd64
-            suffix: tar.xz
+            suffix: tar.xz\
+            snfm: snfm-*-linux-x64-release.zip
           #- os: ubuntu-latest
           #  goos: linux
           #  goarch: "386"
@@ -144,7 +147,17 @@ jobs:
       #    -o ${{env.basename}}.tar.gz
       #    -strip ${{env.basename}}/
       #    ${{env.basename}}/
+      - name: "Get latest release for SNFM"
+        if: ${{ matrix.snfm }}
+        id: snfm_version
+        uses: pozetroninc/github-action-get-latest-release@master
+        with:
+          repository: zig-for/snfm
 
+      - name: Bundle SNI
+        if: ${{ matrix.snfm_regex }}
+        run: gh release download --repo zig-for/snfm ${{ steps.snfm_version.outputs.release }} --pattern ${{ matrix.snfm_regex }} --dir ${{env.basename}}
+        
       - name: Package ${{env.basename}}.${{matrix.suffix}} for MacOS
         if: ${{ matrix.os == 'macos-latest' }}
         run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
