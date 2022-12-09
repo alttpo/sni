@@ -162,19 +162,19 @@ jobs:
           path: ${{env.basename}}/
           
       - name: Package ${{env.basename}}.${{matrix.suffix}} for MacOS
-        if: ${{ matrix.os == 'macos-latest' && github.event_name == 'release' && startsWith(github.event.ref, 'refs/tags/v') }}
+        if: ${{ matrix.os == 'macos-latest' && github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
         run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
 
       - name: Package ${{env.basename}}.${{matrix.suffix}} for Linux
-        if: ${{ matrix.os == 'ubuntu-latest' && github.event_name == 'release' && startsWith(github.event.ref, 'refs/tags/v') }}
+        if: ${{ matrix.os == 'ubuntu-latest' && github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
         run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
 
       - name: Package ${{env.basename}}.${{matrix.suffix}} for Windows
-        if: ${{ matrix.os == 'windows-latest' && github.event_name == 'release' && startsWith(github.event.ref, 'refs/tags/v') }}
+        if: ${{ matrix.os == 'windows-latest' && github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
         run: Compress-Archive -DestinationPath ${{env.basename}}.${{matrix.suffix}} -Path ${{env.basename}}/*
 
       - name: Upload binaries to release
-        if: ${{ github.event_name == 'release' && startsWith(github.event.ref, 'refs/tags/v') }}
+        if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -249,7 +249,7 @@ jobs:
           path: ${{github.workspace}}/${{env.basename}}.tar.xz
 
       - name: Upload binaries to release
-        if: ${{ github.event_name == 'release' && startsWith(github.event.ref, 'refs/tags/v') }}
+        if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
