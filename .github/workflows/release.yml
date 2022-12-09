@@ -36,7 +36,7 @@ jobs:
             goos: darwin
             goarch: amd64
             suffix: tar.gz
-            snfm: snfm-*-macos-x64-release.zip
+            snfm: snfm-*-macos-x64.zip
           #- os: macos-latest
           #  goos: darwin
           #  goarch: arm64
@@ -45,7 +45,7 @@ jobs:
             goarch: amd64
             exesuffix: .exe
             suffix: zip
-            snfm: snfm-*-windows-x64-release.zip
+            snfm: snfm-*-windows-x64.zip
           - os: windows-latest
             goos: windows
             goarch: "386"
@@ -150,24 +150,10 @@ jobs:
       #    -o ${{env.basename}}.tar.gz
       #    -strip ${{env.basename}}/
       #    ${{env.basename}}/
-      - name: "Get latest release for SNFM"
-        if: ${{ matrix.snfm }}
-        run: |
-          echo 'SNFM_RELEASE_RAW<<EOF' >> $GITHUB_ENV
-          gh release list --repo zig-for/snfm --exclude-drafts --limit 1 >> $GITHUB_ENV
-          echo 'EOF' >> $GITHUB_ENV
-        env:
-          GH_TOKEN: ${{ github.token }}
 
-      - uses: actions-ecosystem/action-regex-match@v2
-        id: snfm_version
-        with:
-          text: ${{ env.SNFM_RELEASE_RAW }}
-          regex: 'Latest\s+(v\d+\.\d+\.\d+)'
-
-      - name: Bundle SNI
+      - name: Bundle SNFM
         if: ${{ matrix.snfm }}
-        run: gh release download --repo zig-for/snfm ${{ steps.snfm_version.outputs.group1 }} --pattern ${{ matrix.snfm }} --dir ${{env.basename}}
+        run: gh release download --repo zig-for/snfm --pattern ${{ matrix.snfm }} --dir ${{env.basename}}
         env:
           GH_TOKEN: ${{ github.token }}
 
