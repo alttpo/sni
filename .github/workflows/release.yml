@@ -157,7 +157,7 @@ jobs:
 
       - name: Extract SNFM
         if: ${{ matrix.snfm }}
-        run: 7z x ${{ runner.temp }}/${{ matrix.snfm }} -o${{env.basename}}
+        run: 7z x -o"${{env.basename}}" "${{ runner.temp }}/${{ matrix.snfm }}" 
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
