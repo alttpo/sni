@@ -86,11 +86,12 @@ func (d *Driver) openDevice(uri *url.URL) (q devices.Device, err error) {
 
 	c.MuteLog(false)
 
-	err = c.DetermineVersion()
+	_, err = c.DetermineVersionAndSystemAndApi()
 	if err != nil {
 		_ = c.Close()
 		return
 	}
+	c.LogRCR()
 
 	q = c
 	return
@@ -140,8 +141,9 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 				}
 			}
 
-			// we need to check if the retroarch device is listening:
-			err = detector.DetermineVersion()
+			// we need to check if the retroarch device is listening and running a snes:
+			var systemId string
+			systemId, err = detector.DetermineVersionAndSystemAndApi()
 			if err != nil {
 				if logDetector {
 					log.Printf("retroarch: detect: detector[%d]: %s\n", i, err)
@@ -150,6 +152,18 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 				return
 			}
 			if !detector.HasVersion() {
+				return
+			}
+			if systemId == "" {
+				if logDetector {
+					log.Printf("retroarch: no system loaded\n")
+				}
+				return
+			}
+			if systemId != "super_nes" {
+				if logDetector {
+					log.Printf("retroarch: running unrecognized system_id '%s'\n", systemId)
+				}
 				return
 			}
 

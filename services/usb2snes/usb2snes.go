@@ -317,7 +317,10 @@ serverLoop:
 			deviceMemoryMapping, _, _, err = mapping.Detect(context.Background(), device, nil, nil)
 			if err != nil {
 				log.Printf("usb2snes: %s: could not detect memory mapping: %s\n", clientName, err)
-				break serverLoop
+				// some drivers like retroarch can accept certain requests (such as for RAM and SRAM)
+				// without knowing the memory mapping. so allow the connection to go forward and
+				// individual requests can fail
+				err = nil
 			}
 			break
 		case "Info":
