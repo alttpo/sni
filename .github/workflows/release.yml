@@ -2,9 +2,10 @@ name: Release
 
 on:
   push:
-    tags:
-    - v*
-
+    tags: [ 'v*' ]
+    branches: [ '*' ]
+  pull_request:
+    branches: [ main ]
 jobs:
   go-test:
     name: Go Tests
@@ -33,6 +34,7 @@ jobs:
             goos: darwin
             goarch: amd64
             suffix: tar.gz
+            snfm: snfm-*-macos-x64.zip
           #- os: macos-latest
           #  goos: darwin
           #  goarch: arm64
@@ -41,6 +43,7 @@ jobs:
             goarch: amd64
             exesuffix: .exe
             suffix: zip
+            snfm: snfm-*-windows-x64.zip
           - os: windows-latest
             goos: windows
             goarch: "386"
@@ -60,6 +63,7 @@ jobs:
             goos: linux
             goarch: amd64
             suffix: tar.xz
+            snfm: snfm-*-linux-x64.zip
           #- os: ubuntu-latest
           #  goos: linux
           #  goarch: "386"
@@ -145,19 +149,36 @@ jobs:
       #    -strip ${{env.basename}}/
       #    ${{env.basename}}/
 
+      - name: Download SNFM
+        if: ${{ matrix.snfm }}
+        run: gh release download --repo zig-for/snfm --pattern ${{ matrix.snfm }} --dir ${{ runner.temp }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Extract SNFM
+        if: ${{ matrix.snfm }}
+        run: 7z x -o"${{env.basename}}" "${{ runner.temp }}/${{ matrix.snfm }}" 
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{env.basename}}
+          path: ${{env.basename}}/
+          
       - name: Package ${{env.basename}}.${{matrix.suffix}} for MacOS
-        if: ${{ matrix.os == 'macos-latest' }}
+        if: ${{ matrix.os == 'macos-latest' && github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
         run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
 
       - name: Package ${{env.basename}}.${{matrix.suffix}} for Linux
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.os == 'ubuntu-latest' && github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
         run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
 
       - name: Package ${{env.basename}}.${{matrix.suffix}} for Windows
-        if: ${{ matrix.os == 'windows-latest' }}
+        if: ${{ matrix.os == 'windows-latest' && github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
         run: Compress-Archive -DestinationPath ${{env.basename}}.${{matrix.suffix}} -Path ${{env.basename}}/*
 
       - name: Upload binaries to release
+        if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -165,6 +186,7 @@ jobs:
           overwrite: true
           asset_name: ${{env.basename}}.${{matrix.suffix}}
           file: ${{ github.workspace }}/${{env.basename}}.${{matrix.suffix}}
+
 
   manylinux2014:
     runs-on: ubuntu-latest
@@ -224,7 +246,14 @@ jobs:
           ldd ${{env.basename}}/sni
           tar cJf ${{env.basename}}.tar.xz ${{env.basename}}/
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{env.basename}}.tar.xz
+          path: ${{github.workspace}}/${{env.basename}}.tar.xz
+
       - name: Upload binaries to release
+        if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
