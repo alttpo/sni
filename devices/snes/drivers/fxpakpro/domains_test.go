@@ -45,6 +45,51 @@ func (d *testablePort) SetRTS(rts bool) error                { return nil }
 func (d *testablePort) SetReadTimeout(t time.Duration) error { return nil }
 func (d *testablePort) Close() error                         { return nil }
 
+var testDomainRefs = [...]sni.MemoryDomainRef_Snes{
+	{Snes: sni.MemoryDomainTypeSNES_SNESCartROM},
+	{Snes: sni.MemoryDomainTypeSNES_SNESCartRAM},
+	{Snes: sni.MemoryDomainTypeSNES_SNESWorkRAM},
+	{Snes: sni.MemoryDomainTypeSNES_SNESAPURAM},
+	{Snes: sni.MemoryDomainTypeSNES_SNESVideoRAM},
+	{Snes: sni.MemoryDomainTypeSNES_SNESCGRAM},
+	{Snes: sni.MemoryDomainTypeSNES_SNESObjectAttributeMemory},
+	{Snes: sni.MemoryDomainTypeSNES_SNESCoreSpecificMemory},
+	{Snes: sni.MemoryDomainTypeSNES_SNESCoreSpecificMemory},
+}
+var testDomainNames = [...]string{
+	"CARTROM",
+	"CARTRAM",
+	"WRAM",
+	"APURAM",
+	"VRAM",
+	"CGRAM",
+	"OAM",
+	"FXPAKPRO_SNES",
+	"FXPAKPRO_CMD",
+}
+var testDomainSizes = [...]uint32{
+	0xE0_0000,
+	0x10_0000,
+	0x02_0000,
+	0x01_0000,
+	0x01_0000,
+	0x0200,
+	0x0420 - 0x0200,
+	0x100_0000,
+	0x100_0000,
+}
+var testDomainWritable = [...]bool{
+	true,
+	true,
+	false,
+	false,
+	false,
+	false,
+	false,
+	true,
+	true,
+}
+
 func TestDevice_MemoryDomains(t *testing.T) {
 	type fields struct {
 		f serial.Port
@@ -66,20 +111,24 @@ func TestDevice_MemoryDomains(t *testing.T) {
 			fields: fields{
 				f: nil,
 			},
-			args: args{},
+			args: args{
+				ctx: context.Background(),
+				request: &sni.MemoryDomainsRequest{
+					Uri: "test",
+				},
+			},
 			wantRsp: &sni.MemoryDomainsResponse{
 				Uri: "",
 				Domains: []*sni.MemoryDomain{
-					{DomainName: "CARTROM", Size: 0xE0_0000},
-					{DomainName: "SRAM", Size: 0x10_0000},
-					{DomainName: "WRAM", Size: 0x02_0000},
-					{DomainName: "VRAM", Size: 0x01_0000},
-					{DomainName: "APURAM", Size: 0x01_0000},
-					{DomainName: "CGRAM", Size: 0x0200},
-					{DomainName: "OAM", Size: 0x0420 - 0x0200},
-					{DomainName: "MISC", Size: 0x0500 - 0x0420},
-					{DomainName: "PPUREG", Size: 0x0700 - 0x0500},
-					{DomainName: "CPUREG", Size: 0x0200},
+					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[0], Type: &testDomainRefs[0]}, Size: testDomainSizes[0], Readable: true, Writeable: testDomainWritable[0]},
+					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[1], Type: &testDomainRefs[1]}, Size: testDomainSizes[1], Readable: true, Writeable: testDomainWritable[1]},
+					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[2], Type: &testDomainRefs[2]}, Size: testDomainSizes[2], Readable: true, Writeable: testDomainWritable[2]},
+					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[3], Type: &testDomainRefs[3]}, Size: testDomainSizes[3], Readable: true, Writeable: testDomainWritable[3]},
+					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[4], Type: &testDomainRefs[4]}, Size: testDomainSizes[4], Readable: true, Writeable: testDomainWritable[4]},
+					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[5], Type: &testDomainRefs[5]}, Size: testDomainSizes[5], Readable: true, Writeable: testDomainWritable[5]},
+					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[6], Type: &testDomainRefs[6]}, Size: testDomainSizes[6], Readable: true, Writeable: testDomainWritable[6]},
+					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[7], Type: &testDomainRefs[7]}, Size: testDomainSizes[7], Readable: true, Writeable: testDomainWritable[7]},
+					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[8], Type: &testDomainRefs[8]}, Size: testDomainSizes[8], Readable: true, Writeable: testDomainWritable[8]},
 				},
 			},
 			wantErr: false,
@@ -134,8 +183,9 @@ func TestDevice_MultiDomainRead(t *testing.T) {
 					Uri: "",
 					Requests: []*sni.GroupedDomainReadRequests{
 						{
-							DomainName: "WRAM",
-							Reads: []*sni.GroupedDomainReadRequests_AddressSize{
+							// WRAM:
+							Domain: &sni.MemoryDomainRef{Type: &domainRefs[2]},
+							Reads: []*sni.MemoryDomainAddressSize{
 								{
 									Address: 0,
 									Size:    0x10,
@@ -149,8 +199,9 @@ func TestDevice_MultiDomainRead(t *testing.T) {
 				Uri: "",
 				Responses: []*sni.GroupedDomainReadResponses{
 					{
-						DomainName: "WRAM",
-						Reads: []*sni.GroupedDomainReadResponses_AddressData{
+						// WRAM:
+						Domain: &sni.MemoryDomainRef{Type: &domainRefs[2]},
+						Reads: []*sni.MemoryDomainAddressData{
 							{
 								Address: 0,
 								Data: []byte{
@@ -183,36 +234,36 @@ func TestDevice_MultiDomainRead(t *testing.T) {
 	}
 }
 
-func TestDevice_MultiDomainWrite(t *testing.T) {
-	type fields struct {
-		f serial.Port
-	}
-	type args struct {
-		ctx     context.Context
-		request *sni.MultiDomainWriteRequest
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *sni.MultiDomainWriteResponse
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &Device{
-				f: tt.fields.f,
-			}
-			got, err := d.MultiDomainWrite(tt.args.ctx, tt.args.request)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("MultiDomainWrite() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("MultiDomainWrite() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+//func TestDevice_MultiDomainWrite(t *testing.T) {
+//	type fields struct {
+//		f serial.Port
+//	}
+//	type args struct {
+//		ctx     context.Context
+//		request *sni.MultiDomainWriteRequest
+//	}
+//	tests := []struct {
+//		name    string
+//		fields  fields
+//		args    args
+//		want    *sni.MultiDomainWriteResponse
+//		wantErr bool
+//	}{
+//		// TODO: Add test cases.
+//	}
+//	for _, tt := range tests {
+//		t.Run(tt.name, func(t *testing.T) {
+//			d := &Device{
+//				f: tt.fields.f,
+//			}
+//			got, err := d.MultiDomainWrite(tt.args.ctx, tt.args.request)
+//			if (err != nil) != tt.wantErr {
+//				t.Errorf("MultiDomainWrite() error = %v, wantErr %v", err, tt.wantErr)
+//				return
+//			}
+//			if !reflect.DeepEqual(got, tt.want) {
+//				t.Errorf("MultiDomainWrite() got = %v, want %v", got, tt.want)
+//			}
+//		})
+//	}
+//}
