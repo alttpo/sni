@@ -104,6 +104,7 @@ func init() {
 	for i := range domainDescs {
 		d := &domainDescs[i]
 		domains = append(domains, &sni.MemoryDomain{
+			Core:      driverName,
 			Domain:    d.domainRef,
 			Notes:     d.notes,
 			Size:      d.size,
@@ -134,7 +135,7 @@ func (d *Device) MultiDomainRead(ctx context.Context, request *sni.MultiDomainRe
 	for i, domainReqs := range request.Requests {
 		snesDomainRef, ok := domainReqs.Domain.Type.(*sni.MemoryDomainRef_Snes)
 		if !ok {
-			err = status.Errorf(codes.InvalidArgument, "MemoryDomainRef must be of SNES type")
+			err = status.Errorf(codes.InvalidArgument, "Domain.Type must be of SNES type")
 			return
 		}
 
@@ -150,6 +151,12 @@ func (d *Device) MultiDomainRead(ctx context.Context, request *sni.MultiDomainRe
 			dm, ok = domainDescByName[domainName]
 			if !ok {
 				err = status.Errorf(codes.InvalidArgument, "invalid domain name '%s'", domainName)
+				return
+			}
+		} else {
+			dm, ok = domainDescByType[snesDomainRef.Snes]
+			if !ok {
+				err = status.Errorf(codes.InvalidArgument, "invalid domain type '%s'", snesDomainRef.Snes)
 				return
 			}
 		}

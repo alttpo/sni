@@ -99,6 +99,20 @@ func TestDevice_MemoryDomains(t *testing.T) {
 		request *sni.MemoryDomainsRequest
 	}
 
+	createDomainFromDesc := func(i int) *sni.MemoryDomain {
+		return &sni.MemoryDomain{
+			Core: driverName,
+			Domain: &sni.MemoryDomainRef{
+				Name: domainDescs[i].domainRef.Name,
+				Type: domainDescs[i].domainRef.Type,
+			},
+			Notes:     domainDescs[i].notes,
+			Size:      domainDescs[i].size,
+			Readable:  true,
+			Writeable: domainDescs[i].writeable,
+		}
+	}
+
 	tests := []struct {
 		name    string
 		fields  fields
@@ -120,15 +134,15 @@ func TestDevice_MemoryDomains(t *testing.T) {
 			wantRsp: &sni.MemoryDomainsResponse{
 				Uri: "",
 				Domains: []*sni.MemoryDomain{
-					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[0], Type: &testDomainRefs[0]}, Size: testDomainSizes[0], Readable: true, Writeable: testDomainWritable[0]},
-					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[1], Type: &testDomainRefs[1]}, Size: testDomainSizes[1], Readable: true, Writeable: testDomainWritable[1]},
-					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[2], Type: &testDomainRefs[2]}, Size: testDomainSizes[2], Readable: true, Writeable: testDomainWritable[2]},
-					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[3], Type: &testDomainRefs[3]}, Size: testDomainSizes[3], Readable: true, Writeable: testDomainWritable[3]},
-					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[4], Type: &testDomainRefs[4]}, Size: testDomainSizes[4], Readable: true, Writeable: testDomainWritable[4]},
-					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[5], Type: &testDomainRefs[5]}, Size: testDomainSizes[5], Readable: true, Writeable: testDomainWritable[5]},
-					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[6], Type: &testDomainRefs[6]}, Size: testDomainSizes[6], Readable: true, Writeable: testDomainWritable[6]},
-					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[7], Type: &testDomainRefs[7]}, Size: testDomainSizes[7], Readable: true, Writeable: testDomainWritable[7]},
-					{Domain: &sni.MemoryDomainRef{Name: &testDomainNames[8], Type: &testDomainRefs[8]}, Size: testDomainSizes[8], Readable: true, Writeable: testDomainWritable[8]},
+					createDomainFromDesc(0),
+					createDomainFromDesc(1),
+					createDomainFromDesc(2),
+					createDomainFromDesc(3),
+					createDomainFromDesc(4),
+					createDomainFromDesc(5),
+					createDomainFromDesc(6),
+					createDomainFromDesc(7),
+					createDomainFromDesc(8),
 				},
 			},
 			wantErr: false,
@@ -173,8 +187,16 @@ func TestDevice_MultiDomainRead(t *testing.T) {
 			name: "",
 			fields: fields{
 				&testablePort{
-					DidWrite: nil,
-					NextRead: nil,
+					DidWrite: func(p []byte) (int, error) {
+						return 0, io.EOF
+					},
+					NextRead: func(p []byte) (n int, err error) {
+						n = copy(p, []byte{
+							0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+							0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+						})
+						return
+					},
 				},
 			},
 			args: args{
