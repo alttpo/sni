@@ -47,6 +47,7 @@ service DeviceMemory {
   rpc StreamWrite(stream MultiWriteMemoryRequest) returns (stream MultiWriteMemoryResponse) {}
 }
 
+// this service obsoletes DeviceMemory and supports non-SNES devices
 service DeviceMemoryDomains {
   rpc MemoryDomains(MemoryDomainsRequest) returns (MemoryDomainsResponse) {}
 
@@ -318,72 +319,69 @@ message MultiWriteMemoryResponse {
 // memory domain messages
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-enum MemoryDomainTypeSnes {
+enum MemoryDomainTypeSNES {
   SNESCustomName = 0;
 
-  SNESSystemBus = 1;
+  SNESCartROM = 1;
+  SNESCartRAM = 2;
 
-  SNESWRAM = 2;
-  SNESAPURAM = 3;
-  SNESVRAM = 4;
-  SNESOAM = 5;
-  SNESCGRAM = 6;
-  SNESCPUREG = 7;
-  SNESPPUREG = 8;
-
-  SNESCartROM = 4;
-  SNESCartSRAM = 3;
-
-  SNESSGBWorkRAM = 9;
-  SNESSGBHRAM = 10;
-  SNESSGBCartRAM = 11;
-
-  SNESSufamiSlotARAM = 12;
-  SNESSufamiSlotBRAM = 13;
-
-  SNESBSXSRAM = 14;
-  SNESBSXPSRAM = 15;
-
-  //SNESRTC
+  SNESWorkRAM = 3;
+  SNESAPURAM = 4;
+  SNESVideoRAM = 5;
+  SNESObjectAttributeMemory = 6;
+  SNESCGRAM = 7;
+  SNESCPUREG = 8;
+  SNESPPUREG = 9;
 }
 enum MemoryDomainTypeN64 {
   N64CustomName = 0;
 
-  N64SystemBus = 1;
+  N64CartROM = 1;
+  N64CartRAM = 2;
+  N64CartEEPROM = 3;
+  N64CartFlash = 4;
 
-  N64RDRAM = 2;
+  N64MemPak1RAM = 5;
+  N64MemPak2RAM = 6;
+  N64MemPak3RAM = 7;
+  N64MemPak4RAM = 8;
 
-  N64CartROM = 3;
-  N64CartSRAM = 4;
-  N64CartEEPROM = 5;
-  N64CartFlash = 6;
+  N64TransferPak1ROM = 9;
+  N64TransferPak1RAM = 10;
+  N64TransferPak2ROM = 11;
+  N64TransferPak2RAM = 12;
+  N64TransferPak3ROM = 13;
+  N64TransferPak3RAM = 14;
+  N64TransferPak4ROM = 15;
+  N64TransferPak4RAM = 16;
 
-  N64PIFROM = 7;
-  N64PIFRAM = 8;
+  N64RDRAM = 17;
 
-  N64RSPDataMem = 9;
-  N64RSPInstMem = 10;
+  N64PIFROM = 18;
+  N64PIFRAM = 19;
 
-  N64MemPak1RAM = 11;
-  N64MemPak2RAM = 12;
-  N64MemPak3RAM = 13;
-  N64MemPak4RAM = 14;
+  N64RSPDataMem = 20;
+  N64RSPInstMem = 21;
+}
+enum MemoryDomainTypeGBC {
+  GBCCustomName = 0;
 
-  N64TransferPak1ROM = 15;
-  N64TransferPak1RAM = 16;
-  N64TransferPak2ROM = 17;
-  N64TransferPak2RAM = 18;
-  N64TransferPak3ROM = 19;
-  N64TransferPak3RAM = 20;
-  N64TransferPak4ROM = 21;
-  N64TransferPak4RAM = 22;
+  GBCCartROM = 1;
+  GBCCartRAM = 2;
+
+  GBCVideoRAM = 3;
+  GBCWorkRAM = 4;
+  GBCObjectAttributeMemory = 5;
+  GBCIORegisters = 6;
+  GBCHighRAM = 7;
 }
 message MemoryDomainRef {
+  optional string name = 1;
   oneof type {
-    MemoryDomainTypeSnes    snes = 1;
-    MemoryDomainTypeN64     n64 = 2;
+    MemoryDomainTypeSNES    snes = 2;
+    MemoryDomainTypeN64     n64 = 3;
+    MemoryDomainTypeGBC     gbc = 4;
   }
-  optional string name = 3;
 }
 message MemoryDomainAddressSize {
   uint32 address = 1;
@@ -400,13 +398,16 @@ message MemoryDomainsRequest {
 }
 message MemoryDomain {
   MemoryDomainRef domain = 1;
-  uint32 size = 2;
-  bool readable = 3;
-  bool writeable = 4;
+  string notes = 2;
+
+  uint32 size = 3;
+  bool readable = 4;
+  bool writeable = 5;
 }
 message MemoryDomainsResponse {
   string uri = 1;
-  repeated MemoryDomain domains = 2;
+  string core = 2;
+  repeated MemoryDomain domains = 3;
 }
 
 
