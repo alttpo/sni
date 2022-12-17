@@ -320,7 +320,7 @@ message MultiWriteMemoryResponse {
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 enum MemoryDomainTypeSNES {
-  SNESCustomName = 0;
+  SNESCoreSpecificMemory = 0;
 
   SNESCartROM = 1;
   SNESCartRAM = 2;
@@ -328,13 +328,11 @@ enum MemoryDomainTypeSNES {
   SNESWorkRAM = 3;
   SNESAPURAM = 4;
   SNESVideoRAM = 5;
-  SNESObjectAttributeMemory = 6;
-  SNESCGRAM = 7;
-  SNESCPUREG = 8;
-  SNESPPUREG = 9;
+  SNESCGRAM = 6;
+  SNESObjectAttributeMemory = 7;
 }
 enum MemoryDomainTypeN64 {
-  N64CustomName = 0;
+  N64CoreSpecificMemory = 0;
 
   N64CartROM = 1;
   N64CartRAM = 2;
@@ -364,7 +362,7 @@ enum MemoryDomainTypeN64 {
   N64RSPInstMem = 21;
 }
 enum MemoryDomainTypeGBC {
-  GBCCustomName = 0;
+  GBCCoreSpecificMemory = 0;
 
   GBCCartROM = 1;
   GBCCartRAM = 2;
@@ -397,17 +395,17 @@ message MemoryDomainsRequest {
   string uri = 1;
 }
 message MemoryDomain {
-  MemoryDomainRef domain = 1;
-  string notes = 2;
+  string core = 1;
+  MemoryDomainRef domain = 2;
+  string notes = 3;
 
-  uint32 size = 3;
-  bool readable = 4;
-  bool writeable = 5;
+  uint32 size = 4;
+  bool readable = 5;
+  bool writeable = 6;
 }
 message MemoryDomainsResponse {
   string uri = 1;
-  string core = 2;
-  repeated MemoryDomain domains = 3;
+  repeated MemoryDomain domains = 2;
 }
 
 
