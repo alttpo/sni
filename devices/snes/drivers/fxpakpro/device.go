@@ -4,27 +4,18 @@ import (
 	"context"
 	"fmt"
 	"go.bug.st/serial"
-	"sni/devices"
 	"sync"
 )
 
 type Device struct {
 	lock sync.Mutex
-	f    serial.Port
+	c    commands
 
 	isClosed bool
 }
 
 func testableDevice(f serial.Port) *Device {
-	return &Device{f: f}
-}
-
-func (d *Device) FatalError(cause error) devices.DeviceError {
-	return devices.DeviceFatal(fmt.Sprintf("fxpakpro: %v", cause), cause)
-}
-
-func (d *Device) NonFatalError(cause error) devices.DeviceError {
-	return devices.DeviceNonFatal(fmt.Sprintf("fxpakpro: %v", cause), cause)
+	return &Device{c: &fxpakCommands{f: f}}
 }
 
 func (d *Device) Init() error {
@@ -36,7 +27,7 @@ func (d *Device) IsClosed() bool {
 }
 
 func (d *Device) Close() (err error) {
-	err = d.f.Close()
+	err = d.c.Close()
 	d.isClosed = true
 	return
 }

@@ -11,7 +11,7 @@ func (d *Device) FetchFields(ctx context.Context, fields ...sni.Field) (values [
 	var deviceName string
 	var rom string
 
-	version, deviceName, rom, err = d.info(ctx)
+	version, deviceName, rom, err = d.c.info(ctx)
 	if err != nil {
 		return
 	}
@@ -37,7 +37,7 @@ func (d *Device) FetchFields(ctx context.Context, fields ...sni.Field) (values [
 	return
 }
 
-func (d *Device) info(ctx context.Context) (version, device, rom string, err error) {
+func (d *fxpakCommands) info(ctx context.Context) (version, device, rom string, err error) {
 	sb := make([]byte, 512)
 	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpINFO)

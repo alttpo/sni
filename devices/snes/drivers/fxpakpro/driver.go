@@ -196,7 +196,7 @@ func (d *Driver) openDevice(uri *url.URL) (device devices.Device, err error) {
 		return
 	}
 
-	dev := &Device{f: f}
+	dev := &Device{c: &fxpakCommands{f: f}}
 	err = dev.Init()
 
 	device = dev

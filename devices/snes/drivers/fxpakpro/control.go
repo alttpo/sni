@@ -6,6 +6,10 @@ import (
 )
 
 func (d *Device) ResetSystem(ctx context.Context) (err error) {
+	return d.c.resetSystem(ctx)
+}
+
+func (d *fxpakCommands) resetSystem(ctx context.Context) (err error) {
 	sb := make([]byte, 512)
 	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpRESET)
@@ -44,6 +48,10 @@ func (d *Device) ResetSystem(ctx context.Context) (err error) {
 }
 
 func (d *Device) ResetToMenu(ctx context.Context) (err error) {
+	return d.c.resetToMenu(ctx)
+}
+
+func (d *fxpakCommands) resetToMenu(ctx context.Context) (err error) {
 	sb := make([]byte, 512)
 	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpMENU_RESET)

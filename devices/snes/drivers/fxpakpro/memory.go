@@ -92,7 +92,7 @@ func (d *Device) MultiReadMemory(
 			})
 
 			if len(chunks[space]) == 8 {
-				err = d.vget(subctx, pakSpace, chunks[space]...)
+				err = d.c.vget(subctx, pakSpace, chunks[space]...)
 				if err != nil {
 					return
 				}
@@ -107,14 +107,14 @@ func (d *Device) MultiReadMemory(
 	}
 
 	if len(chunks[spaceSNES]) > 0 {
-		err = d.vget(subctx, SpaceSNES, chunks[spaceSNES]...)
+		err = d.c.vget(subctx, SpaceSNES, chunks[spaceSNES]...)
 		if err != nil {
 			return
 		}
 	}
 
 	if len(chunks[spaceCMD]) > 0 {
-		err = d.vget(subctx, SpaceCMD, chunks[spaceCMD]...)
+		err = d.c.vget(subctx, SpaceCMD, chunks[spaceCMD]...)
 		if err != nil {
 			return
 		}
@@ -205,7 +205,7 @@ func (d *Device) MultiWriteMemory(
 			})
 
 			if len(chunks[space]) == 8 {
-				err = d.vput(subctx, pakSpace, chunks[space]...)
+				err = d.c.vput(subctx, pakSpace, chunks[space]...)
 				if err != nil {
 					return
 				}
@@ -219,14 +219,14 @@ func (d *Device) MultiWriteMemory(
 	}
 
 	if len(chunks[spaceSNES]) > 0 {
-		err = d.vput(subctx, SpaceSNES, chunks[spaceSNES]...)
+		err = d.c.vput(subctx, SpaceSNES, chunks[spaceSNES]...)
 		if err != nil {
 			return
 		}
 	}
 
 	if len(chunks[spaceCMD]) > 0 {
-		err = d.vput(subctx, SpaceCMD, chunks[spaceCMD]...)
+		err = d.c.vput(subctx, SpaceCMD, chunks[spaceCMD]...)
 		if err != nil {
 			return
 		}
@@ -299,7 +299,7 @@ func (d *Device) MultiWriteMemory(
 		}
 
 		// VPUT command to CMD space:
-		err = d.vput(awaitctx, SpaceCMD, chunks...)
+		err = d.c.vput(awaitctx, SpaceCMD, chunks...)
 		if err != nil {
 			err = fmt.Errorf("fxpakpro: could not VPUT to NMI EXE: %w", err)
 			return
@@ -333,7 +333,7 @@ func (d *Device) awaitNMIEXE(ctx context.Context) (ok bool, err error) {
 
 	for time.Now().Before(deadline) {
 		tmpctx, tmpcancel := context.WithTimeout(ctx, time.Second)
-		err = d.vget(tmpctx, SpaceCMD, vgetChunk{addr: 0x2C00, size: 1, target: check})
+		err = d.c.vget(tmpctx, SpaceCMD, vgetChunk{addr: 0x2C00, size: 1, target: check})
 		tmpcancel()
 		if err != nil {
 			return

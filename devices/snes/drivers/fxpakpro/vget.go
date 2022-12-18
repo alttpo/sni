@@ -11,7 +11,7 @@ type vgetChunk struct {
 	target []byte
 }
 
-func (d *Device) vget(ctx context.Context, space space, chunks ...vgetChunk) (err error) {
+func (d *fxpakCommands) vget(ctx context.Context, space space, chunks ...vgetChunk) (err error) {
 	if len(chunks) > 8 {
 		return fmt.Errorf("VGET cannot accept more than 8 chunks")
 	}

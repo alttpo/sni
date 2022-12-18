@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func (d *Device) mkdir(ctx context.Context, path string) (err error) {
+func (d *fxpakCommands) mkdir(ctx context.Context, path string) (err error) {
 	sb := make([]byte, 512)
 	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpMKDIR)

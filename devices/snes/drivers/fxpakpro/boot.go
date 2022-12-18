@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func (d *Device) boot(ctx context.Context, path string) (err error) {
+func (d *fxpakCommands) boot(ctx context.Context, path string) (err error) {
 	sb := make([]byte, 512)
 	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpBOOT)

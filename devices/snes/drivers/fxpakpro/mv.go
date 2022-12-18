@@ -6,7 +6,7 @@ import (
 )
 
 // mv does not allow moving files between folders; only renaming a file in an existing folder to a new filename
-func (d *Device) mv(ctx context.Context, path, newFilename string) (err error) {
+func (d *fxpakCommands) mv(ctx context.Context, path, newFilename string) (err error) {
 	sb := make([]byte, 512)
 	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpMV)

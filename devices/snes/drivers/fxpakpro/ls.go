@@ -8,7 +8,7 @@ import (
 	"sni/protos/sni"
 )
 
-func (d *Device) listFiles(ctx context.Context, path string) (files []devices.DirEntry, err error) {
+func (d *fxpakCommands) listFiles(ctx context.Context, path string) (files []devices.DirEntry, err error) {
 	sb := make([]byte, 512)
 	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpLS)

@@ -8,13 +8,7 @@ import (
 	"sni/devices"
 )
 
-type putFileRequest struct {
-	path   string
-	rom    []byte
-	report devices.ProgressReportFunc
-}
-
-func (d *Device) putFile(ctx context.Context, path string, size uint32, r io.Reader, progress devices.ProgressReportFunc) (n uint32, err error) {
+func (d *fxpakCommands) putFile(ctx context.Context, path string, size uint32, r io.Reader, progress devices.ProgressReportFunc) (n uint32, err error) {
 	sb := make([]byte, 512)
 	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpPUT)

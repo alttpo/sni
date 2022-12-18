@@ -10,7 +10,7 @@ type vputChunk struct {
 	data []byte
 }
 
-func (d *Device) vput(ctx context.Context, space space, chunks ...vputChunk) (err error) {
+func (d *fxpakCommands) vput(ctx context.Context, space space, chunks ...vputChunk) (err error) {
 	if len(chunks) > 8 {
 		return fmt.Errorf("VPUT cannot accept more than 8 chunks")
 	}

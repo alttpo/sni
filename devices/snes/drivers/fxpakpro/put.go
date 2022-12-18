@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func (d *Device) put(ctx context.Context, space space, address uint32, data []byte) (err error) {
+func (d *fxpakCommands) put(ctx context.Context, space space, address uint32, data []byte) (err error) {
 	sb := make([]byte, 512)
 	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpPUT)
