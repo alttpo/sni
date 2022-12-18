@@ -186,7 +186,7 @@ func (d *Device) MultiDomainRead(ctx context.Context, request *sni.MultiDomainRe
 			mreqs = append(mreqs, mreq)
 
 			addressData := &sni.MemoryDomainAddressData{
-				Address: mreq.RequestAddress.Address,
+				Address: read.Address,
 				Data:    nil,
 			}
 			addressDatas = append(addressDatas, addressData)
@@ -201,9 +201,6 @@ func (d *Device) MultiDomainRead(ctx context.Context, request *sni.MultiDomainRe
 	}
 
 	for k := range mrsp {
-		if addressDatas[k].Address != mrsp[k].RequestAddress.Address {
-			err = status.Errorf(codes.Internal, "internal consistency error aligning read response with request")
-		}
 		// update the `GroupedDomainReadResponses_AddressData`s across the groupings:
 		addressDatas[k].Data = mrsp[k].Data
 	}
