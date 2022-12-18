@@ -2,48 +2,10 @@ package fxpakpro
 
 import (
 	"context"
-	"go.bug.st/serial"
-	"io"
 	"reflect"
 	"sni/protos/sni"
 	"testing"
-	"time"
 )
-
-type RWFunc = func(p []byte) (int, error)
-
-type testablePort struct {
-	DidWrite RWFunc
-	NextRead RWFunc
-}
-
-func (d *testablePort) Read(p []byte) (n int, err error) {
-	f := d.NextRead
-	if f == nil {
-		return 0, io.EOF
-	}
-	return f(p)
-}
-
-func (d *testablePort) Write(p []byte) (n int, err error) {
-	f := d.DidWrite
-	if f == nil {
-		return 0, io.EOF
-	}
-	return f(p)
-}
-
-func (d *testablePort) GetModemStatusBits() (*serial.ModemStatusBits, error) {
-	return &serial.ModemStatusBits{}, nil
-}
-
-func (d *testablePort) SetMode(mode *serial.Mode) error      { return nil }
-func (d *testablePort) ResetInputBuffer() error              { return nil }
-func (d *testablePort) ResetOutputBuffer() error             { return nil }
-func (d *testablePort) SetDTR(dtr bool) error                { return nil }
-func (d *testablePort) SetRTS(rts bool) error                { return nil }
-func (d *testablePort) SetReadTimeout(t time.Duration) error { return nil }
-func (d *testablePort) Close() error                         { return nil }
 
 var testDomainRefs = [...]sni.MemoryDomainRef_Snes{
 	{Snes: sni.MemoryDomainTypeSNES_SNESCartROM},
@@ -92,7 +54,7 @@ var testDomainWritable = [...]bool{
 
 func TestDevice_MemoryDomains(t *testing.T) {
 	type fields struct {
-		f serial.Port
+		commands commands
 	}
 	type args struct {
 		ctx     context.Context
@@ -123,7 +85,7 @@ func TestDevice_MemoryDomains(t *testing.T) {
 		{
 			name: "list",
 			fields: fields{
-				f: nil,
+				commands: nil,
 			},
 			args: args{
 				ctx: context.Background(),
@@ -152,7 +114,7 @@ func TestDevice_MemoryDomains(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &Device{
-				f: tt.fields.f,
+				c: tt.fields.commands,
 			}
 			gotRsp, err := d.MemoryDomains(tt.args.ctx, tt.args.request)
 			if (err != nil) != tt.wantErr {
@@ -169,7 +131,7 @@ func TestDevice_MemoryDomains(t *testing.T) {
 
 func TestDevice_MultiDomainRead(t *testing.T) {
 	type fields struct {
-		f serial.Port
+		c commands
 	}
 	type args struct {
 		ctx     context.Context
@@ -186,16 +148,9 @@ func TestDevice_MultiDomainRead(t *testing.T) {
 		{
 			name: "",
 			fields: fields{
-				&testablePort{
-					DidWrite: func(p []byte) (int, error) {
-						return 0, io.EOF
-					},
-					NextRead: func(p []byte) (n int, err error) {
-						n = copy(p, []byte{
-							0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-							0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-						})
-						return
+				c: &commandsMock{
+					vgetMock: func(ctx context.Context, space space, chunks ...vgetChunk) (err error) {
+						return nil
 					},
 				},
 			},
@@ -242,7 +197,7 @@ func TestDevice_MultiDomainRead(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &Device{
-				f: tt.fields.f,
+				c: tt.fields.c,
 			}
 			gotRsp, err := d.MultiDomainRead(tt.args.ctx, tt.args.request)
 			if (err != nil) != tt.wantErr {
