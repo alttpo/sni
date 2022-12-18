@@ -20,6 +20,7 @@ type AutoCloseableDevice interface {
 	io.Closer
 	DeviceControl
 	DeviceMemory
+	DeviceMemoryDomains
 	DeviceFilesystem
 	DeviceInfo
 	DeviceNWA
@@ -127,10 +128,14 @@ func (a *autoCloseableDevice) Close() error {
 
 func (a *autoCloseableDevice) ResetSystem(ctx context.Context) (err error) {
 	err = a.EnsureOpened(func(device Device) (err error) {
+		inf, ok := device.(DeviceControl)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceControl not implemented"))
+		}
 		if a.logger != nil {
 			a.logger.Printf("ResetSystem() {\n")
 		}
-		err = device.ResetSystem(ctx)
+		err = inf.ResetSystem(ctx)
 		if a.logger != nil {
 			a.logger.Printf("ResetSystem() } -> (%#v)\n", err)
 		}
@@ -141,10 +146,14 @@ func (a *autoCloseableDevice) ResetSystem(ctx context.Context) (err error) {
 
 func (a *autoCloseableDevice) ResetToMenu(ctx context.Context) (err error) {
 	err = a.EnsureOpened(func(device Device) (err error) {
+		inf, ok := device.(DeviceControl)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceControl not implemented"))
+		}
 		if a.logger != nil {
 			a.logger.Printf("ResetToMenu() {\n")
 		}
-		err = device.ResetToMenu(ctx)
+		err = inf.ResetToMenu(ctx)
 		if a.logger != nil {
 			a.logger.Printf("ResetToMenu() } -> (%#v)\n", err)
 		}
@@ -155,10 +164,14 @@ func (a *autoCloseableDevice) ResetToMenu(ctx context.Context) (err error) {
 
 func (a *autoCloseableDevice) PauseUnpause(ctx context.Context, pausedState bool) (ok bool, err error) {
 	err = a.EnsureOpened(func(device Device) (err error) {
+		inf, ok := device.(DeviceControl)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceControl not implemented"))
+		}
 		if a.logger != nil {
 			a.logger.Printf("PauseUnpause(%#v) {\n", pausedState)
 		}
-		ok, err = device.PauseUnpause(ctx, pausedState)
+		ok, err = inf.PauseUnpause(ctx, pausedState)
 		if a.logger != nil {
 			a.logger.Printf("PauseUnpause(%#v) } -> (%#v, %#v)\n", pausedState, ok, err)
 		}
@@ -169,10 +182,14 @@ func (a *autoCloseableDevice) PauseUnpause(ctx context.Context, pausedState bool
 
 func (a *autoCloseableDevice) PauseToggle(ctx context.Context) (err error) {
 	err = a.EnsureOpened(func(device Device) (err error) {
+		inf, ok := device.(DeviceControl)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceControl not implemented"))
+		}
 		if a.logger != nil {
 			a.logger.Printf("PauseToggle() {\n")
 		}
-		err = device.PauseToggle(ctx)
+		err = inf.PauseToggle(ctx)
 		if a.logger != nil {
 			a.logger.Printf("PauseToggle() } -> (%#v)\n", err)
 		}
@@ -183,10 +200,14 @@ func (a *autoCloseableDevice) PauseToggle(ctx context.Context) (err error) {
 
 func (a *autoCloseableDevice) DefaultAddressSpace(ctx context.Context) (space sni.AddressSpace, err error) {
 	err = a.EnsureOpened(func(device Device) (err error) {
+		inf, ok := device.(DeviceMemory)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceMemory not implemented"))
+		}
 		if a.logger != nil {
 			a.logger.Printf("DefaultAddressSpace() {\n")
 		}
-		space, err = device.DefaultAddressSpace(ctx)
+		space, err = inf.DefaultAddressSpace(ctx)
 		if a.logger != nil {
 			a.logger.Printf("DefaultAddressSpace() } -> (%#v, %#v)\n", space, err)
 		}
@@ -197,10 +218,14 @@ func (a *autoCloseableDevice) DefaultAddressSpace(ctx context.Context) (space sn
 
 func (a *autoCloseableDevice) MultiReadMemory(ctx context.Context, reads ...MemoryReadRequest) (rsp []MemoryReadResponse, err error) {
 	err = a.EnsureOpened(func(device Device) (err error) {
+		inf, ok := device.(DeviceMemory)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceMemory not implemented"))
+		}
 		if a.logger != nil {
 			a.logger.Printf("MultiReadMemory(%#v) {\n", reads)
 		}
-		rsp, err = device.MultiReadMemory(ctx, reads...)
+		rsp, err = inf.MultiReadMemory(ctx, reads...)
 		if a.logger != nil {
 			a.logger.Printf("MultiReadMemory(%#v) } -> (%#v, %#v)\n", reads, rsp, err)
 		}
@@ -211,12 +236,70 @@ func (a *autoCloseableDevice) MultiReadMemory(ctx context.Context, reads ...Memo
 
 func (a *autoCloseableDevice) MultiWriteMemory(ctx context.Context, writes ...MemoryWriteRequest) (rsp []MemoryWriteResponse, err error) {
 	err = a.EnsureOpened(func(device Device) (err error) {
+		inf, ok := device.(DeviceMemory)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceMemory not implemented"))
+		}
 		if a.logger != nil {
 			a.logger.Printf("MultiWriteMemory(%#v) {\n", writes)
 		}
-		rsp, err = device.MultiWriteMemory(ctx, writes...)
+		rsp, err = inf.MultiWriteMemory(ctx, writes...)
 		if a.logger != nil {
 			a.logger.Printf("MultiWriteMemory(%#v) } -> (%#v, %#v)\n", writes, rsp, err)
+		}
+		return
+	})
+	return
+}
+
+func (a *autoCloseableDevice) MemoryDomains(ctx context.Context, request *sni.MemoryDomainsRequest) (rsp *sni.MemoryDomainsResponse, err error) {
+	err = a.EnsureOpened(func(device Device) (err error) {
+		inf, ok := device.(DeviceMemoryDomains)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceMemoryDomains not implemented"))
+		}
+		if a.logger != nil {
+			a.logger.Printf("MemoryDomains(%#v) {\n", request)
+		}
+		rsp, err = inf.MemoryDomains(ctx, request)
+		if a.logger != nil {
+			a.logger.Printf("MemoryDomains(%#v) } -> (%#v, %#v)\n", request, rsp, err)
+		}
+		return
+	})
+	return
+}
+
+func (a *autoCloseableDevice) MultiDomainRead(ctx context.Context, request *sni.MultiDomainReadRequest) (rsp *sni.MultiDomainReadResponse, err error) {
+	err = a.EnsureOpened(func(device Device) (err error) {
+		inf, ok := device.(DeviceMemoryDomains)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceMemoryDomains not implemented"))
+		}
+		if a.logger != nil {
+			a.logger.Printf("MultiDomainRead(%#v) {\n", request)
+		}
+		rsp, err = inf.MultiDomainRead(ctx, request)
+		if a.logger != nil {
+			a.logger.Printf("MultiDomainRead(%#v) } -> (%#v, %#v)\n", request, rsp, err)
+		}
+		return
+	})
+	return
+}
+
+func (a *autoCloseableDevice) MultiDomainWrite(ctx context.Context, request *sni.MultiDomainWriteRequest) (rsp *sni.MultiDomainWriteResponse, err error) {
+	err = a.EnsureOpened(func(device Device) (err error) {
+		inf, ok := device.(DeviceMemoryDomains)
+		if !ok {
+			return WithCode(codes.Unimplemented, fmt.Errorf("DeviceMemoryDomains not implemented"))
+		}
+		if a.logger != nil {
+			a.logger.Printf("MultiDomainWrite(%#v) {\n", request)
+		}
+		rsp, err = inf.MultiDomainWrite(ctx, request)
+		if a.logger != nil {
+			a.logger.Printf("MultiDomainWrite(%#v) } -> (%#v, %#v)\n", request, rsp, err)
 		}
 		return
 	})
