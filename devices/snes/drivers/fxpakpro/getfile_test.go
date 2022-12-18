@@ -12,7 +12,7 @@ func DoNotTestDevice_getFile_bug(t *testing.T) {
 
 	ctx := context.Background()
 	{
-		n, err := d.PutFile(ctx, "romloader/Super Metroid (JU).sfc", 0, bytes.NewReader(nil), nil)
+		n, err := d.putFile(ctx, "romloader/Super Metroid (JU).sfc", 0, bytes.NewReader(nil), nil)
 		if err != nil {
 			t.Error(err)
 			return
@@ -20,7 +20,7 @@ func DoNotTestDevice_getFile_bug(t *testing.T) {
 		_ = n
 	}
 	{
-		n, err := d.PutFile(ctx, "romloader/Super Metroid (JU).sfc", 0, bytes.NewReader(nil), nil)
+		n, err := d.putFile(ctx, "romloader/Super Metroid (JU).sfc", 0, bytes.NewReader(nil), nil)
 		if err != nil {
 			t.Error(err)
 			return
@@ -83,7 +83,7 @@ func TestDevice_getFile_oddSizes(t *testing.T) {
 	const size2 = 1024*17 + 599
 	ctx := context.Background()
 	{
-		n, err := d.PutFile(ctx, "unittest/test1.sfc", size1, bytes.NewReader(make([]byte, size1)), nil)
+		n, err := d.putFile(ctx, "unittest/test1.sfc", size1, bytes.NewReader(make([]byte, size1)), nil)
 		if err != nil {
 			t.Error(err)
 			return
@@ -91,7 +91,7 @@ func TestDevice_getFile_oddSizes(t *testing.T) {
 		_ = n
 	}
 	{
-		n, err := d.PutFile(ctx, "unittest/test2.sfc", size2, bytes.NewReader(make([]byte, size2)), nil)
+		n, err := d.putFile(ctx, "unittest/test2.sfc", size2, bytes.NewReader(make([]byte, size2)), nil)
 		if err != nil {
 			t.Error(err)
 			return

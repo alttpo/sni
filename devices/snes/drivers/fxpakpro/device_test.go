@@ -35,7 +35,7 @@ func openAutoCloseableDevice(b testing.TB) devices.AutoCloseableDevice {
 	return d
 }
 
-func openExactDevice(tb testing.TB) *Device {
+func openExactDevice(tb testing.TB) *fxpakCommands {
 	var err error
 
 	// detect fxpakpro devices connected to the system:
@@ -57,7 +57,7 @@ func openExactDevice(tb testing.TB) *Device {
 		tb.Fatal(err)
 	}
 
-	d := gendev.(*Device)
+	d := gendev.(*Device).c.(*fxpakCommands)
 
 	return d
 }
