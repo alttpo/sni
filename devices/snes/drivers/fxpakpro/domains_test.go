@@ -196,6 +196,76 @@ func TestDevice_MultiDomainRead(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "WRAM read 2 chunks",
+			fields: fields{
+				c: &commandsMock{
+					vgetMock: func(ctx context.Context, space space, chunks ...vgetChunk) (err error) {
+						if chunks[0].addr == 0xf5_0010 {
+							copy(chunks[0].target, []byte{
+								0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+								0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+							})
+						}
+						if chunks[1].addr == 0xf5_0400 {
+							copy(chunks[1].target, []byte{
+								0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+								0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+							})
+						}
+						return nil
+					},
+				},
+			},
+			args: args{
+				ctx: context.Background(),
+				request: &sni.MultiDomainReadRequest{
+					Uri: "",
+					Requests: []*sni.GroupedDomainReadRequests{
+						{
+							// WRAM:
+							Domain: &sni.MemoryDomainRef{Type: &domainRefs[3]},
+							Reads: []*sni.MemoryDomainAddressSize{
+								{
+									Address: 0x10,
+									Size:    0x10,
+								},
+								{
+									Address: 0x400,
+									Size:    0x10,
+								},
+							},
+						},
+					},
+				},
+			},
+			wantRsp: &sni.MultiDomainReadResponse{
+				Uri: "",
+				Responses: []*sni.GroupedDomainReadResponses{
+					{
+						// WRAM:
+						Domain: &sni.MemoryDomainRef{Name: s("WRAM"), Type: &domainRefs[3]},
+						Reads: []*sni.MemoryDomainAddressData{
+							{
+								Address: 0x10,
+								Data: []byte{
+									0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+									0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+								},
+							},
+							{
+								Address: 0x400,
+								Data: []byte{
+									0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+									0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
