@@ -2,6 +2,7 @@ package fxpakpro
 
 import (
 	"context"
+	"encoding/hex"
 	"reflect"
 	"sni/protos/sni"
 	"testing"
@@ -285,36 +286,110 @@ func TestDevice_MultiDomainRead(t *testing.T) {
 	}
 }
 
-//func TestDevice_MultiDomainWrite(t *testing.T) {
-//	type fields struct {
-//		f serial.Port
-//	}
-//	type args struct {
-//		ctx     context.Context
-//		request *sni.MultiDomainWriteRequest
-//	}
-//	tests := []struct {
-//		name    string
-//		fields  fields
-//		args    args
-//		want    *sni.MultiDomainWriteResponse
-//		wantErr bool
-//	}{
-//		// TODO: Add test cases.
-//	}
-//	for _, tt := range tests {
-//		t.Run(tt.name, func(t *testing.T) {
-//			d := &Device{
-//				f: tt.fields.f,
-//			}
-//			got, err := d.MultiDomainWrite(tt.args.ctx, tt.args.request)
-//			if (err != nil) != tt.wantErr {
-//				t.Errorf("MultiDomainWrite() error = %v, wantErr %v", err, tt.wantErr)
-//				return
-//			}
-//			if !reflect.DeepEqual(got, tt.want) {
-//				t.Errorf("MultiDomainWrite() got = %v, want %v", got, tt.want)
-//			}
-//		})
-//	}
-//}
+func TestDevice_MultiDomainWrite(t *testing.T) {
+	type fields struct {
+		c *commandsMock
+	}
+	type args struct {
+		ctx     context.Context
+		request *sni.MultiDomainWriteRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *sni.MultiDomainWriteResponse
+		wantErr bool
+	}{
+		{
+			name: "WRAM write",
+			fields: fields{
+				c: &commandsMock{
+					// encode test expectations:
+					t: t,
+					next: func(c *commandsMock) {
+						c.vgetMock = nil
+						c.vputMock = nil
+						if c.n == 0 || c.n == 2 {
+							c.vgetMock = func(ctx context.Context, space space, chunks ...vgetChunk) (err error) {
+								if len(chunks) != 1 {
+									c.t.Errorf("expected len(chunks)=1; got %d", len(chunks))
+								}
+								if space != SpaceCMD {
+									c.t.Errorf("expected space=CMD; got %s", space)
+								}
+								if chunks[0].addr != 0x00_2c00 {
+									c.t.Errorf("expected addr=002c00; got %06x", chunks[0].addr)
+								}
+								t.Log(hex.Dump(chunks[0].target))
+								return nil
+							}
+						} else if c.n == 1 {
+							c.vputMock = func(ctx context.Context, space space, chunks ...vputChunk) (err error) {
+								return nil
+							}
+						}
+					},
+					teardown: func(c *commandsMock) {
+						if c.n != 3 {
+							c.t.Errorf("expected 3 calls to commands interface; got %d", c.n)
+						}
+					},
+				},
+			},
+			args: args{
+				ctx: context.Background(),
+				request: &sni.MultiDomainWriteRequest{
+					Uri: "",
+					Requests: []*sni.GroupedDomainWriteRequests{
+						{
+							Domain: &sni.MemoryDomainRef{Name: s("WRAM"), Type: &domainRefs[3]},
+							Writes: []*sni.MemoryDomainAddressData{
+								{
+									Address: 0x10,
+									Data:    []byte{0x11},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: &sni.MultiDomainWriteResponse{
+				Uri: "",
+				Responses: []*sni.GroupedDomainWriteResponses{
+					{
+						Domain: &sni.MemoryDomainRef{
+							Name: s("WRAM"),
+							Type: &domainRefs[3],
+						},
+						Writes: []*sni.MemoryDomainAddressSize{
+							{
+								Address: 0x10,
+								Size:    1,
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &Device{
+				c: tt.fields.c,
+			}
+			got, err := d.MultiDomainWrite(tt.args.ctx, tt.args.request)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MultiDomainWrite() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.fields.c.teardown != nil {
+				tt.fields.c.teardown(tt.fields.c)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MultiDomainWrite() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

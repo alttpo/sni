@@ -25,6 +25,23 @@ const (
 
 type space uint8
 
+func (s space) String() string {
+	switch s {
+	case SpaceFILE:
+		return "FILE"
+	case SpaceSNES:
+		return "SNES"
+	case SpaceMSU:
+		return "MSU"
+	case SpaceCMD:
+		return "CMD"
+	case SpaceCONFIG:
+		return "CONFIG"
+	default:
+		return "unknown"
+	}
+}
+
 const (
 	SpaceFILE space = iota
 	SpaceSNES
