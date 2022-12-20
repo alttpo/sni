@@ -1,0 +1,69 @@
+
+platforms:
+  snes:
+    desc: "Super Nintendo"
+    domains:
+      - name: "snes/console/WRAM"
+      - name: "snes/console/VRAM"
+      - name: "snes/console/CGRAM"
+      - name: "snes/console/OAM"
+      - name: "snes/cart/ROM"
+      - name: "snes/cart/SRAM"
+  n64:
+    desc: "Nintendo 64"
+    domains:
+      - name: "n64/console/RDRAM"
+      - name: "n64/console/PIFROM"
+      - name: "n64/console/PIFRAM"
+      - name: "n64/console/RSPDataMem"
+      - name: "n64/console/RSPInstMem"
+      - name: "n64/cart/ROM"
+      - name: "n64/cart/RAM"
+      - name: "n64/cart/EEPROM"
+      - name: "n64/cart/Flash"
+      - name: "n64/mempak1/RAM"
+      - name: "n64/mempak2/RAM"
+      - name: "n64/mempak3/RAM"
+      - name: "n64/mempak4/RAM"
+      - name: "n64/transferpak1/ROM"
+      - name: "n64/transferpak1/RAM"
+      - name: "n64/transferpak2/ROM"
+      - name: "n64/transferpak2/RAM"
+      - name: "n64/transferpak3/ROM"
+      - name: "n64/transferpak3/RAM"
+      - name: "n64/transferpak4/ROM"
+      - name: "n64/transferpak4/RAM"
+  gbc:
+    desc: "GameBoy Color"
+    domains:
+      - name: "gbc/console/VRAM"
+      - name: "gbc/console/WRAM"
+      - name: "gbc/console/OAM"
+      - name: "gbc/console/IO"
+      - name: "gbc/console/HRAM"
+      - name: "gbc/cart/ROM"
+      - name: "gbc/cart/SRAM"
+
+drivers:
+  emunwa:
+    cores:
+      # snes9x
+      - nameRegex: "^snes9x"
+        platform:  "snes"
+        domainMapping:
+          "WRAM":    "snes/console/WRAM"
+          "VRAM":    "snes/console/VRAM"
+          "CGRAM":   "snes/console/CGRAM"
+          "OAM":     "snes/console/OAM"
+          "CARTROM": "snes/cart/ROM"
+          "SRAM":    "snes/cart/SRAM"
+      # bsnes
+      - nameRegex: "^bsnes"
+        platform:  "snes"
+        domainMapping:
+          "WRAM":    "snes/console/WRAM"
+          "VRAM":    "snes/console/VRAM"
+          "CGRAM":   "snes/console/CGRAM"
+          "OAM":     "snes/console/OAM"
+          "CARTROM": "snes/cart/ROM"
+          "SRAM":    "snes/cart/SRAM"
