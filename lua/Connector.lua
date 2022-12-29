@@ -77,6 +77,7 @@ local function onMessage(s)
         parts[#parts + 1] = part
     end
     if parts[1] == "Read" then
+        -- Read|address|size|domain\n
         local adr = tonumber(parts[2])
         local length = tonumber(parts[3])
         local domain
@@ -86,6 +87,7 @@ local function onMessage(s)
         local byteRange = readbyterange(adr, length, domain)
         connection:send(table.concat(byteRange) .. "\n")
     elseif parts[1] == "Write" then
+        -- Write|address|domain|..data..\n
         local adr = tonumber(parts[2])
         local domain
         local offset = 2

@@ -39,31 +39,73 @@ platforms:
       - name: "gbc/console/VRAM"
       - name: "gbc/console/WRAM"
       - name: "gbc/console/OAM"
-      - name: "gbc/console/IO"
       - name: "gbc/console/HRAM"
       - name: "gbc/cart/ROM"
       - name: "gbc/cart/SRAM"
+  gb:
+    desc: "GameBoy"
+    domains:
+      - name: "gb/console/VRAM"
+      - name: "gb/console/WRAM"
+      - name: "gb/console/OAM"
+      - name: "gb/console/HRAM"
+      - name: "gb/cart/ROM"
+      - name: "gb/cart/SRAM"
 
 drivers:
   emunwa:
     cores:
-      # snes9x
-      - nameRegex: "^snes9x"
-        platform:  "snes"
-        domainMapping:
-          "WRAM":    "snes/console/WRAM"
-          "VRAM":    "snes/console/VRAM"
-          "CGRAM":   "snes/console/CGRAM"
-          "OAM":     "snes/console/OAM"
-          "CARTROM": "snes/cart/ROM"
-          "SRAM":    "snes/cart/SRAM"
-      # bsnes
-      - nameRegex: "^bsnes"
-        platform:  "snes"
-        domainMapping:
-          "WRAM":    "snes/console/WRAM"
-          "VRAM":    "snes/console/VRAM"
-          "CGRAM":   "snes/console/CGRAM"
-          "OAM":     "snes/console/OAM"
-          "CARTROM": "snes/cart/ROM"
-          "SRAM":    "snes/cart/SRAM"
+      # snes9x-emunwa
+      - matches:
+          coreName:         '^snes9x'
+        define:
+          platform:         "snes"
+          domainMapping:
+            "WRAM":         "snes/console/WRAM"
+            "VRAM":         "snes/console/VRAM"
+            "CGRAM":        "snes/console/CGRAM"
+            "OAM":          "snes/console/OAM"
+            "CARTROM":      "snes/cart/ROM"
+            "SRAM":         "snes/cart/SRAM"
+      # bsnes-plus-nwa
+      - matches:
+          coreName:         '^bsnes'
+        define:
+          platform:         "snes"
+          domainMapping:
+            "WRAM":         "snes/console/WRAM"
+            "VRAM":         "snes/console/VRAM"
+            "CGRAM":        "snes/console/CGRAM"
+            "OAM":          "snes/console/OAM"
+            "CARTROM":      "snes/cart/ROM"
+            "SRAM":         "snes/cart/SRAM"
+  luabridge:
+    cores:
+      # bizhawk GBC (Gambatte)
+      - matches:
+          emulatorName:     '^bizhawk'
+          systemId:         '^gbc$'
+        define:
+          platform:         "gbc"
+          domainMapping:
+            "WRAM":         "gbc/console/WRAM"
+            "VRAM":         "gbc/console/VRAM"
+            "OAM":          "gbc/console/OAM"
+            "HRAM":         "gbc/console/HRAM"
+            "ROM":          "gbc/cart/ROM"
+            "CartRAM":      "gbc/cart/SRAM"
+            #"System Bus"
+      # bizhawk GB
+      - matches:
+          emulatorName:     '^bizhawk'
+          systemId:         '^gb$'
+        define:
+          platform:         "gb"
+          domainMapping:
+            "WRAM":         "gb/console/WRAM"
+            "VRAM":         "gb/console/VRAM"
+            "OAM":          "gb/console/OAM"
+            "HRAM":         "gb/console/HRAM"
+            "ROM":          "gb/cart/ROM"
+            "CartRAM":      "gb/cart/SRAM"
+            #"System Bus"

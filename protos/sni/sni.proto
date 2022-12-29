@@ -47,17 +47,6 @@ service DeviceMemory {
   rpc StreamWrite(stream MultiWriteMemoryRequest) returns (stream MultiWriteMemoryResponse) {}
 }
 
-// this service obsoletes DeviceMemory and supports non-SNES devices
-service DeviceMemoryDomains {
-  rpc MemoryDomains(MemoryDomainsRequest) returns (MemoryDomainsResponse) {}
-
-  rpc MultiDomainRead(MultiDomainReadRequest) returns (MultiDomainReadResponse) {}
-  rpc MultiDomainWrite(MultiDomainWriteRequest) returns (MultiDomainWriteResponse) {}
-
-  rpc StreamDomainRead(stream MultiDomainReadRequest) returns (stream MultiDomainReadResponse) {}
-  rpc StreamDomainWrite(stream MultiDomainWriteRequest) returns (stream MultiDomainWriteResponse) {}
-}
-
 service DeviceFilesystem {
   rpc ReadDirectory(ReadDirectoryRequest) returns (ReadDirectoryResponse) {}
   rpc MakeDirectory(MakeDirectoryRequest) returns (MakeDirectoryResponse) {}
@@ -75,6 +64,18 @@ service DeviceInfo {
 service DeviceNWA {
   rpc NWACommand(NWACommandRequest) returns (NWACommandResponse) {}
 }
+
+// this service obsoletes DeviceMemory and supports non-SNES devices
+service DeviceMemoryDomains {
+  rpc MemoryDomains(MemoryDomainsRequest) returns (MemoryDomainsResponse) {}
+
+  rpc MultiDomainRead(MultiDomainReadRequest) returns (MultiDomainReadResponse) {}
+  rpc MultiDomainWrite(MultiDomainWriteRequest) returns (MultiDomainWriteResponse) {}
+
+  rpc StreamDomainRead(stream MultiDomainReadRequest) returns (stream MultiDomainReadResponse) {}
+  rpc StreamDomainWrite(stream MultiDomainWriteRequest) returns (stream MultiDomainWriteResponse) {}
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // enums
@@ -319,67 +320,9 @@ message MultiWriteMemoryResponse {
 // memory domain messages
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-enum MemoryDomainTypeSNES {
-  SNESCoreSpecificMemory = 0;
-
-  SNESCartROM = 1;
-  SNESCartRAM = 2;
-
-  SNESWorkRAM = 3;
-  SNESAPURAM = 4;
-  SNESVideoRAM = 5;
-  SNESCGRAM = 6;
-  SNESObjectAttributeMemory = 7;
-}
-enum MemoryDomainTypeN64 {
-  N64CoreSpecificMemory = 0;
-
-  N64CartROM = 1;
-  N64CartRAM = 2;
-  N64CartEEPROM = 3;
-  N64CartFlash = 4;
-
-  N64MemPak1RAM = 5;
-  N64MemPak2RAM = 6;
-  N64MemPak3RAM = 7;
-  N64MemPak4RAM = 8;
-
-  N64TransferPak1ROM = 9;
-  N64TransferPak1RAM = 10;
-  N64TransferPak2ROM = 11;
-  N64TransferPak2RAM = 12;
-  N64TransferPak3ROM = 13;
-  N64TransferPak3RAM = 14;
-  N64TransferPak4ROM = 15;
-  N64TransferPak4RAM = 16;
-
-  N64RDRAM = 17;
-
-  N64PIFROM = 18;
-  N64PIFRAM = 19;
-
-  N64RSPDataMem = 20;
-  N64RSPInstMem = 21;
-}
-enum MemoryDomainTypeGBC {
-  GBCCoreSpecificMemory = 0;
-
-  GBCCartROM = 1;
-  GBCCartRAM = 2;
-
-  GBCVideoRAM = 3;
-  GBCWorkRAM = 4;
-  GBCObjectAttributeMemory = 5;
-  GBCIORegisters = 6;
-  GBCHighRAM = 7;
-}
 message MemoryDomainRef {
-  optional string name = 1;
-  oneof type {
-    MemoryDomainTypeSNES    snes = 2;
-    MemoryDomainTypeN64     n64 = 3;
-    MemoryDomainTypeGBC     gbc = 4;
-  }
+  // memory domain name formatted as "platform/location/memory" e.g. "snes/console/WRAM"
+  string name = 1;
 }
 message MemoryDomainAddressSize {
   uint32 address = 1;
