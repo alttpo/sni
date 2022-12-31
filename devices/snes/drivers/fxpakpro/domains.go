@@ -2,7 +2,11 @@ package fxpakpro
 
 import (
 	"context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"sni/devices"
 	"sni/protos/sni"
+	"strings"
 )
 
 type snesDomain struct {
@@ -22,56 +26,100 @@ var allDomains []snesDomain
 var domainByName map[string]*snesDomain
 
 func (d *Device) MemoryDomains(_ context.Context, request *sni.MemoryDomainsRequest) (rsp *sni.MemoryDomainsResponse, err error) {
+	domains := make([]*sni.MemoryDomain, len(allDomains))
+	for i := range allDomains {
+		domains[i] = &sni.MemoryDomain{
+			Name:      allDomains[i].name,
+			Exposed:   allDomains[i].isExposed,
+			Readable:  allDomains[i].isReadable,
+			Writeable: allDomains[i].isWriteable,
+		}
+
+		if allDomains[i].notes != "" {
+			domains[i].Notes = &allDomains[i].notes
+		}
+
+		size := uint64(allDomains[i].size)
+		if size > 0 {
+			domains[i].Size = new(uint64)
+			*domains[i].Size = size
+		}
+	}
+
 	rsp = &sni.MemoryDomainsResponse{
-		Uri: request.Uri,
-		//Domains: domains,
+		Uri:     request.Uri,
+		Domains: domains,
 	}
 
 	return
 }
 
 func (d *Device) MultiDomainRead(ctx context.Context, request *sni.MultiDomainReadRequest) (rsp *sni.MultiDomainReadResponse, err error) {
-	//mreqs := make([]devices.MemoryReadRequest, 0)
-	//rsp = &sni.MultiDomainReadResponse{
-	//	Responses: make([]*sni.GroupedDomainReadResponses, len(request.Requests)),
-	//}
-	//addressDatas := make([]*sni.MemoryDomainOffsetData, 0)
-	//
-	//for i, domainReqs := range request.Requests {
-	//	rsp.Responses[i] = &sni.GroupedDomainReadResponses{
-	//		Name:  domainReqs.Name,
-	//		Reads: make([]*sni.MemoryDomainOffsetData, len(domainReqs.Reads)),
-	//	}
-	//	for j, read := range domainReqs.Reads {
-	//		mreq := devices.MemoryReadRequest{
-	//			RequestAddress: devices.AddressTuple{
-	//				Address:       dm.start + read.Address,
-	//				AddressSpace:  sni.AddressSpace_FxPakPro,
-	//				MemoryMapping: sni.MemoryMapping_Unknown,
-	//			},
-	//			Size: int(read.Size),
-	//		}
-	//		mreqs = append(mreqs, mreq)
-	//
-	//		addressData := &sni.MemoryDomainOffsetData{
-	//			Offset: read.Offset,
-	//			Data:   nil,
-	//		}
-	//		addressDatas = append(addressDatas, addressData)
-	//		rsp.Responses[i].Reads[j] = addressData
-	//	}
-	//}
-	//
-	//var mrsp []devices.MemoryReadResponse
-	//mrsp, err = d.MultiReadMemory(ctx, mreqs...)
-	//if err != nil {
-	//	return
-	//}
-	//
-	//for k := range mrsp {
-	//	// update the `GroupedDomainReadResponses_AddressData`s across the groupings:
-	//	addressDatas[k].Data = mrsp[k].Data
-	//}
+	devReads := make([]devices.MemoryReadRequest, 0, 8)
+	readResponses := make([]*sni.MemoryDomainOffsetData, 0, 8)
+	rsp = &sni.MultiDomainReadResponse{
+		Uri:       request.Uri,
+		Responses: make([]*sni.GroupedDomainReadResponses, len(request.Requests)),
+	}
+
+	for i, requests := range request.Requests {
+		domainName := requests.Name
+		domainNameLower := strings.ToLower(domainName)
+
+		var domain *snesDomain
+		var ok bool
+		domain, ok = domainByName[domainNameLower]
+		if !ok {
+			rsp = nil
+			err = status.Errorf(codes.InvalidArgument, "fxpakpro: unrecognized domain name '%s'", domainName)
+			return
+		}
+
+		rsp.Responses[i] = &sni.GroupedDomainReadResponses{
+			Name:  requests.Name,
+			Reads: make([]*sni.MemoryDomainOffsetData, len(requests.Reads)),
+		}
+
+		for j, read := range requests.Reads {
+			// validate offset and size pair:
+			if read.Offset >= uint64(domain.size) {
+				rsp = nil
+				err = status.Errorf(codes.InvalidArgument, "fxpakpro: read of domain '%s', offset %d would exceed domain size %d", domainName, read.Offset, domain.size)
+				return
+			}
+			if read.Offset+read.Size > uint64(domain.size) {
+				rsp = nil
+				err = status.Errorf(codes.InvalidArgument, "fxpakpro: read of domain '%s', offset + size = %d would exceed domain size %d", domainName, read.Offset+read.Size, domain.size)
+				return
+			}
+
+			rsp.Responses[i].Reads[j] = &sni.MemoryDomainOffsetData{
+				Offset: read.Offset,
+				Data:   nil,
+			}
+			readResponses = append(readResponses, rsp.Responses[i].Reads[j])
+
+			devReads = append(devReads, devices.MemoryReadRequest{
+				RequestAddress: devices.AddressTuple{
+					Address:       domain.start + uint32(read.Offset),
+					AddressSpace:  sni.AddressSpace_FxPakPro,
+					MemoryMapping: sni.MemoryMapping_Unknown,
+				},
+				Size: int(read.Size),
+			})
+		}
+	}
+
+	var mrsp []devices.MemoryReadResponse
+	mrsp, err = d.MultiReadMemory(ctx, devReads...)
+	if err != nil {
+		rsp = nil
+		return
+	}
+
+	for i := range mrsp {
+		readResponses[i].Data = mrsp[i].Data
+	}
 
 	return
 }

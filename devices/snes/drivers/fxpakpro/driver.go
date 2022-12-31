@@ -76,6 +76,8 @@ var driverCapabilities = []sni.DeviceCapability{
 	sni.DeviceCapability_PutFile,
 	sni.DeviceCapability_GetFile,
 	sni.DeviceCapability_BootFile,
+	// memory domains:
+	sni.DeviceCapability_ReadMemoryDomain,
 }
 
 func (d *Driver) HasCapabilities(capabilities ...sni.DeviceCapability) (bool, error) {
