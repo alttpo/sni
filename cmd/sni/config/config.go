@@ -30,9 +30,10 @@ var (
 )
 
 var (
-	Dir    string
-	Config *viper.Viper = viper.New()
-	Apps   *viper.Viper = viper.New()
+	Dir     string
+	Config  *viper.Viper = viper.New()
+	Apps    *viper.Viper = viper.New()
+	Domains *viper.Viper = viper.New()
 )
 
 func InitDir() {
@@ -55,6 +56,7 @@ func InitDir() {
 func Load() {
 	log.Printf("config: load\n")
 
+	loadDomains()
 	loadConfig()
 	loadApps()
 }
@@ -150,4 +152,19 @@ func ReloadApps() {
 	}
 
 	appsObservable.Set(Apps)
+}
+
+func loadDomains() {
+	Domains.SetConfigName("domains")
+	Domains.SetConfigType("yaml")
+	Domains.AddConfigPath(".")
+	err := Domains.ReadInConfig()
+	if err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			// no problem.
+		} else {
+			log.Printf("%s\n", err)
+		}
+		return
+	}
 }

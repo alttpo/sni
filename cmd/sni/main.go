@@ -86,6 +86,7 @@ func main() {
 
 	// explicitly initialize all the drivers:
 	fxpakpro.DriverInit()
+	fxpakpro.DriverConfig(config.Domains)
 	emunwa.DriverInit()
 	luabridge.DriverInit()
 	retroarch.DriverInit()

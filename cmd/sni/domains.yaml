@@ -2,15 +2,28 @@
 platforms:
   snes:
     desc: "Super Nintendo"
+    buses:
+      - name: "snes/system/bus"
+        size: 0x1000000
     domains:
       - name: "snes/console/WRAM"
+        size:   0x20000
       - name: "snes/console/VRAM"
+        size:   0x10000
+      - name: "snes/console/APURAM"
+        size:  0x010000
       - name: "snes/console/CGRAM"
+        size:     0x200
       - name: "snes/console/OAM"
+        size:     0x220
       - name: "snes/cart/ROM"
+        size:  0xE00000
       - name: "snes/cart/SRAM"
+        size:  0x100000
   n64:
     desc: "Nintendo 64"
+    buses:
+      - name: "n64/system/bus"
     domains:
       - name: "n64/console/RDRAM"
       - name: "n64/console/PIFROM"
@@ -18,23 +31,25 @@ platforms:
       - name: "n64/console/RSPDataMem"
       - name: "n64/console/RSPInstMem"
       - name: "n64/cart/ROM"
-      - name: "n64/cart/RAM"
+      - name: "n64/cart/SRAM"
       - name: "n64/cart/EEPROM"
-      - name: "n64/cart/Flash"
-      - name: "n64/mempak1/RAM"
-      - name: "n64/mempak2/RAM"
-      - name: "n64/mempak3/RAM"
-      - name: "n64/mempak4/RAM"
-      - name: "n64/transferpak1/ROM"
-      - name: "n64/transferpak1/RAM"
-      - name: "n64/transferpak2/ROM"
-      - name: "n64/transferpak2/RAM"
-      - name: "n64/transferpak3/ROM"
-      - name: "n64/transferpak3/RAM"
-      - name: "n64/transferpak4/ROM"
-      - name: "n64/transferpak4/RAM"
+      - name: "n64/cart/FlashRAM"
+      - name: "n64/port1/MemPakRAM"
+      - name: "n64/port1/TransferPakROM"
+      - name: "n64/port1/TransferPakRAM"
+      - name: "n64/port2/MemPakRAM"
+      - name: "n64/port2/TransferPakROM"
+      - name: "n64/port2/TransferPakRAM"
+      - name: "n64/port3/MemPakRAM"
+      - name: "n64/port3/TransferPakROM"
+      - name: "n64/port3/TransferPakRAM"
+      - name: "n64/port4/MemPakRAM"
+      - name: "n64/port4/TransferPakROM"
+      - name: "n64/port4/TransferPakRAM"
   gbc:
     desc: "GameBoy Color"
+    buses:
+      - name: "gbc/system/bus"
     domains:
       - name: "gbc/console/VRAM"
       - name: "gbc/console/WRAM"
@@ -44,6 +59,8 @@ platforms:
       - name: "gbc/cart/SRAM"
   gb:
     desc: "GameBoy"
+    buses:
+      - name: "gb/system/bus"
     domains:
       - name: "gb/console/VRAM"
       - name: "gb/console/WRAM"
@@ -53,6 +70,30 @@ platforms:
       - name: "gb/cart/SRAM"
 
 drivers:
+  fxpakpro:
+    domains:
+      - name: "snes/cart/ROM"
+        start: 0x000000
+        size:  0xE00000
+      - name: "snes/cart/SRAM"
+        start: 0xE00000
+        size:  0x100000
+      - name: "snes/console/WRAM"
+        start: 0xF50000
+        size:  0x020000
+      - name: "snes/console/VRAM"
+        start: 0xF70000
+        size:  0x010000
+      - name: "snes/console/APURAM"
+        start: 0xF80000
+        size:  0x010000
+      - name: "snes/console/CGRAM"
+        start: 0xF90000
+        size:  0x000200
+      - name: "snes/console/OAM"
+        start: 0xF90200
+        size:  0x000220
+
   emunwa:
     cores:
       # snes9x-emunwa
@@ -79,14 +120,25 @@ drivers:
             "OAM":          "snes/console/OAM"
             "CARTROM":      "snes/cart/ROM"
             "SRAM":         "snes/cart/SRAM"
+
   luabridge:
     cores:
+      # snes9x-rr has no memory domain support:
+      - matches:
+          emulatorName:     '^snes9x'
+        define:
+          platform:         "snes"
+          domainMapping:
+            "System Bus":   "snes/system/bus"
+
       # bizhawk GBC (Gambatte)
       - matches:
           emulatorName:     '^bizhawk'
           systemId:         '^gbc$'
         define:
           platform:         "gbc"
+          busMapping:
+            "System Bus":   "gbc/system/bus"
           domainMapping:
             "WRAM":         "gbc/console/WRAM"
             "VRAM":         "gbc/console/VRAM"
@@ -94,13 +146,14 @@ drivers:
             "HRAM":         "gbc/console/HRAM"
             "ROM":          "gbc/cart/ROM"
             "CartRAM":      "gbc/cart/SRAM"
-            #"System Bus"
       # bizhawk GB
       - matches:
           emulatorName:     '^bizhawk'
           systemId:         '^gb$'
         define:
           platform:         "gb"
+          busMapping:
+            "System Bus":   "gb/system/bus"
           domainMapping:
             "WRAM":         "gb/console/WRAM"
             "VRAM":         "gb/console/VRAM"
@@ -108,4 +161,27 @@ drivers:
             "HRAM":         "gb/console/HRAM"
             "ROM":          "gb/cart/ROM"
             "CartRAM":      "gb/cart/SRAM"
-            #"System Bus"
+      # bizhawk N64 (mupen64plus)
+      - matches:
+          emulatorName:     '^bizhawk'
+          systemId:         '^n64$'
+        define:
+          platform:         "n64"
+          busMapping:
+            "System Bus":   "n64/system/bus"
+          domainMapping:
+            "RDRAM":        "n64/console/RDRAM"
+            #"PI Register":  "n64/console/IO"
+            #"SI Register":  "n64/console/IO"
+            #"VI Register":  "n64/console/IO"
+            #"RI Register":  "n64/console/IO"
+            #"AI Register":  "n64/console/IO"
+            "ROM":          "n64/cart/ROM"
+            "SRAM":         "n64/cart/SRAM"
+            "EEPROM":       "n64/cart/EEPROM"
+            "FlashRAM":     "n64/cart/FlashRAM"
+            "Mempak 1":     "n64/port1/MemPakRAM"
+            "Mempak 2":     "n64/port2/MemPakRAM"
+            "Mempak 3":     "n64/port3/MemPakRAM"
+            "Mempak 4":     "n64/port4/MemPakRAM"
+            # no transfer pak exposure

@@ -2,6 +2,7 @@ package fxpakpro
 
 import (
 	"fmt"
+	"github.com/spf13/viper"
 	"go.bug.st/serial"
 	"go.bug.st/serial/enumerator"
 	"log"
@@ -212,6 +213,197 @@ func (d *Driver) Device(uri *url.URL) devices.AutoCloseableDevice {
 }
 
 var debugLog *log.Logger
+
+func DriverConfig(c *viper.Viper) {
+	if c == nil {
+		return
+	}
+
+	var ok bool
+
+	// read all domain names for our platform:
+	{
+		plats := c.GetStringMap("platforms")
+
+		var snesIntf interface{}
+		snesIntf, ok = plats["snes"]
+		if !ok {
+			log.Fatalf("fxpakpro: domains: platforms.snes must exist")
+			return
+		}
+
+		var snes map[string]interface{}
+		snes, ok = snesIntf.(map[string]interface{})
+		if !ok {
+			log.Fatalf("fxpakpro: domains: platforms.snes must be a key-value map")
+			return
+		}
+
+		var domainsIntf interface{}
+		domainsIntf, ok = snes["domains"]
+		if !ok {
+			log.Fatalf("fxpakpro: domains: platforms.snes.domains must exist")
+			return
+		}
+
+		var domains []interface{}
+		domains, ok = domainsIntf.([]interface{})
+		if !ok {
+			log.Fatalf("fxpakpro: domains: platforms.snes.domains must be a list")
+			return
+		}
+
+		allDomains = make([]snesDomain, 0, len(domains))
+		domainByName = make(map[string]*snesDomain, len(domains))
+		for i, domainIntf := range domains {
+			domain, ok := domainIntf.(map[string]interface{})
+			if !ok {
+				log.Fatalf("fxpakpro: domains: platforms.snes.domains[%d] must be a key-value map", i)
+				return
+			}
+
+			nameIntf, ok := domain["name"]
+			if !ok {
+				log.Fatalf("fxpakpro: domains: platforms.snes.domains[%d].name must exist", i)
+				return
+			}
+			name, ok := nameIntf.(string)
+			if !ok {
+				log.Fatalf("fxpakpro: domains: platforms.snes.domains[%d].name has unexpected type: %#+v", i, nameIntf)
+				return
+			}
+
+			var sizeOpt uint64
+			if sizeIntf, ok := domain["size"]; ok {
+				if size, ok := sizeIntf.(int); ok {
+					sizeOpt = uint64(size)
+				} else if size, ok := sizeIntf.(uint); ok {
+					sizeOpt = uint64(size)
+				} else if size, ok := sizeIntf.(uint64); ok {
+					sizeOpt = size
+				} else if size, ok := sizeIntf.(uint32); ok {
+					sizeOpt = uint64(size)
+				} else if size, ok := sizeIntf.(int64); ok {
+					sizeOpt = uint64(size)
+				} else if size, ok := sizeIntf.(int32); ok {
+					sizeOpt = uint64(size)
+				} else {
+					log.Fatalf("fxpakpro: domains: platforms.snes.domains[%d].size has unexpected type: %#+v", i, sizeIntf)
+					return
+				}
+			}
+
+			var notes string
+			if notesIntf, ok := domain["notes"]; ok {
+				notes = notesIntf.(string)
+			}
+
+			allDomains = append(allDomains, snesDomain{
+				name:        name,
+				isExposed:   false,
+				notes:       notes,
+				start:       0,
+				size:        uint32(sizeOpt),
+				isReadable:  false,
+				isWriteable: false,
+			})
+			domainByName[strings.ToLower(name)] = &allDomains[len(allDomains)-1]
+		}
+	}
+
+	// read fxpakpro specific domain details:
+	{
+		dmap := c.GetStringMap("drivers")
+		if dmap == nil {
+			log.Fatalf("fxpakpro: domains: drivers must exist")
+			return
+		}
+
+		var oursIntf interface{}
+		oursIntf, ok = dmap["fxpakpro"]
+		if !ok {
+			log.Fatalf("fxpakpro: domains: drivers.fxpakpro must exist")
+			return
+		}
+
+		var ours map[string]interface{}
+		ours, ok = oursIntf.(map[string]interface{})
+		if !ok {
+			log.Fatalf("fxpakpro: domains: drivers.fxpakpro must be a key-value map")
+			return
+		}
+
+		var domainsIntf interface{}
+		domainsIntf, ok = ours["domains"]
+		if !ok {
+			log.Fatalf("fxpakpro: domains: drivers.fxpakpro.domains must exist")
+			return
+		}
+
+		var domainsList []interface{}
+		domainsList, ok = domainsIntf.([]interface{})
+		if !ok {
+			log.Fatalf("fxpakpro: domains: drivers.fxpakpro.domains must be a list")
+			return
+		}
+		for i, domainIntf := range domainsList {
+			if domainIntf == nil {
+				log.Fatalf("fxpakpro: domains: drivers.fxpakpro.domains[%d] cannot be null", i)
+				return
+			}
+
+			var domain map[string]interface{}
+			domain, ok = domainIntf.(map[string]interface{})
+			if !ok {
+				log.Fatalf("fxpakpro: domains: drivers.fxpakpro.domains[%d] must be a key-value map", i)
+				return
+			}
+
+			var nameIntf interface{}
+			nameIntf, ok = domain["name"]
+			if !ok {
+				log.Fatalf("fxpakpro: domains: drivers.fxpakpro.domains[%d] is missing 'name'", i)
+				return
+			}
+
+			var name string
+			name, ok = nameIntf.(string)
+			if !ok {
+				log.Fatalf("fxpakpro: domains: drivers.fxpakpro.domains[%d] has unexpected type for 'name': %#+v", i, nameIntf)
+				return
+			}
+
+			var start uint32
+			if startIntf, ok := domain["start"]; ok {
+				if val, ok := startIntf.(int); ok {
+					start = uint32(val)
+				} else if val, ok := startIntf.(uint); ok {
+					start = uint32(val)
+				} else if val, ok := startIntf.(uint64); ok {
+					start = uint32(val)
+				} else if val, ok := startIntf.(uint32); ok {
+					start = val
+				} else if val, ok := startIntf.(int64); ok {
+					start = uint32(val)
+				} else if val, ok := startIntf.(int32); ok {
+					start = uint32(val)
+				} else {
+					log.Fatalf("fxpakpro: domains: drivers.fxpakpro.domains[%d] (name='%s') has unexpected type for 'start': %#+v", i, name, startIntf)
+					return
+				}
+			}
+
+			var snesDomain *snesDomain
+			snesDomain, ok = domainByName[strings.ToLower(name)]
+			if !ok {
+				log.Fatalf("fxpakpro: domains: drivers.fxpakpro.domains[%d] (name='%s') not found in 'snes' platform names", i, name)
+				return
+			}
+			snesDomain.isExposed = true
+			snesDomain.start = start
+		}
+	}
+}
 
 func DriverInit() {
 	if util.IsTruthy(env.GetOrDefault("SNI_FXPAKPRO_DISABLE", "0")) {
