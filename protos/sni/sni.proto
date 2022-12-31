@@ -320,68 +320,65 @@ message MultiWriteMemoryResponse {
 // memory domain messages
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-message MemoryDomainRef {
+message MemoryDomain {
   // memory domain name formatted as "platform/location/memory" e.g. "snes/console/WRAM"
   string name = 1;
-}
-message MemoryDomainAddressSize {
-  uint32 address = 1;
-  uint32 size = 2;
-}
-message MemoryDomainAddressData {
-  uint32 address = 1;
-  bytes  data = 2;
-}
+  // whether or not the current core exposes this memory domain:
+  bool   exposed = 2;
 
+  optional string notes = 3;
+
+  optional uint64 size = 4;
+  bool readable = 5;
+  bool writeable = 6;
+}
 
 message MemoryDomainsRequest {
   string uri = 1;
-}
-message MemoryDomain {
-  string core = 1;
-  MemoryDomainRef domain = 2;
-  string notes = 3;
-
-  uint32 size = 4;
-  bool readable = 5;
-  bool writeable = 6;
 }
 message MemoryDomainsResponse {
   string uri = 1;
   repeated MemoryDomain domains = 2;
 }
 
+message MemoryDomainOffsetSize {
+  uint64 offset = 1;
+  uint64 size = 2;
+}
+message MemoryDomainOffsetData {
+  uint64 offset = 1;
+  bytes  data = 2;
+}
 
 message GroupedDomainReadRequests {
-  MemoryDomainRef domain = 1;
-  repeated MemoryDomainAddressSize reads = 2;
+  string name = 1;
+  repeated MemoryDomainOffsetSize reads = 2;
 }
+message GroupedDomainReadResponses {
+  string name = 1;
+  repeated MemoryDomainOffsetData reads = 2;
+}
+message GroupedDomainWriteRequests {
+  string name = 1;
+  repeated MemoryDomainOffsetData writes = 2;
+}
+message GroupedDomainWriteResponses {
+  string name = 1;
+  repeated MemoryDomainOffsetSize writes = 2;
+}
+
 message MultiDomainReadRequest {
   string uri = 1;
   repeated GroupedDomainReadRequests requests = 2;
-}
-
-message GroupedDomainReadResponses {
-  MemoryDomainRef domain = 1;
-  repeated MemoryDomainAddressData reads = 2;
 }
 message MultiDomainReadResponse {
   string uri = 1;
   repeated GroupedDomainReadResponses responses = 2;
 }
 
-message GroupedDomainWriteRequests {
-  MemoryDomainRef domain = 1;
-  repeated MemoryDomainAddressData writes = 2;
-}
 message MultiDomainWriteRequest {
   string uri = 1;
   repeated GroupedDomainWriteRequests requests = 2;
-}
-
-message GroupedDomainWriteResponses {
-  MemoryDomainRef domain = 1;
-  repeated MemoryDomainAddressSize writes = 2;
 }
 message MultiDomainWriteResponse {
   string uri = 1;

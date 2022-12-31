@@ -689,301 +689,6 @@ var DeviceMemory_ServiceDesc = grpc.ServiceDesc{
 	Metadata: "sni.proto",
 }
 
-// DeviceMemoryDomainsClient is the client API for DeviceMemoryDomains service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type DeviceMemoryDomainsClient interface {
-	MemoryDomains(ctx context.Context, in *MemoryDomainsRequest, opts ...grpc.CallOption) (*MemoryDomainsResponse, error)
-	MultiDomainRead(ctx context.Context, in *MultiDomainReadRequest, opts ...grpc.CallOption) (*MultiDomainReadResponse, error)
-	MultiDomainWrite(ctx context.Context, in *MultiDomainWriteRequest, opts ...grpc.CallOption) (*MultiDomainWriteResponse, error)
-	StreamDomainRead(ctx context.Context, opts ...grpc.CallOption) (DeviceMemoryDomains_StreamDomainReadClient, error)
-	StreamDomainWrite(ctx context.Context, opts ...grpc.CallOption) (DeviceMemoryDomains_StreamDomainWriteClient, error)
-}
-
-type deviceMemoryDomainsClient struct {
-	cc grpc.ClientConnInterface
-}
-
-func NewDeviceMemoryDomainsClient(cc grpc.ClientConnInterface) DeviceMemoryDomainsClient {
-	return &deviceMemoryDomainsClient{cc}
-}
-
-func (c *deviceMemoryDomainsClient) MemoryDomains(ctx context.Context, in *MemoryDomainsRequest, opts ...grpc.CallOption) (*MemoryDomainsResponse, error) {
-	out := new(MemoryDomainsResponse)
-	err := c.cc.Invoke(ctx, "/DeviceMemoryDomains/MemoryDomains", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *deviceMemoryDomainsClient) MultiDomainRead(ctx context.Context, in *MultiDomainReadRequest, opts ...grpc.CallOption) (*MultiDomainReadResponse, error) {
-	out := new(MultiDomainReadResponse)
-	err := c.cc.Invoke(ctx, "/DeviceMemoryDomains/MultiDomainRead", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *deviceMemoryDomainsClient) MultiDomainWrite(ctx context.Context, in *MultiDomainWriteRequest, opts ...grpc.CallOption) (*MultiDomainWriteResponse, error) {
-	out := new(MultiDomainWriteResponse)
-	err := c.cc.Invoke(ctx, "/DeviceMemoryDomains/MultiDomainWrite", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *deviceMemoryDomainsClient) StreamDomainRead(ctx context.Context, opts ...grpc.CallOption) (DeviceMemoryDomains_StreamDomainReadClient, error) {
-	stream, err := c.cc.NewStream(ctx, &DeviceMemoryDomains_ServiceDesc.Streams[0], "/DeviceMemoryDomains/StreamDomainRead", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &deviceMemoryDomainsStreamDomainReadClient{stream}
-	return x, nil
-}
-
-type DeviceMemoryDomains_StreamDomainReadClient interface {
-	Send(*MultiDomainReadRequest) error
-	Recv() (*MultiDomainReadResponse, error)
-	grpc.ClientStream
-}
-
-type deviceMemoryDomainsStreamDomainReadClient struct {
-	grpc.ClientStream
-}
-
-func (x *deviceMemoryDomainsStreamDomainReadClient) Send(m *MultiDomainReadRequest) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *deviceMemoryDomainsStreamDomainReadClient) Recv() (*MultiDomainReadResponse, error) {
-	m := new(MultiDomainReadResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *deviceMemoryDomainsClient) StreamDomainWrite(ctx context.Context, opts ...grpc.CallOption) (DeviceMemoryDomains_StreamDomainWriteClient, error) {
-	stream, err := c.cc.NewStream(ctx, &DeviceMemoryDomains_ServiceDesc.Streams[1], "/DeviceMemoryDomains/StreamDomainWrite", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &deviceMemoryDomainsStreamDomainWriteClient{stream}
-	return x, nil
-}
-
-type DeviceMemoryDomains_StreamDomainWriteClient interface {
-	Send(*MultiDomainWriteRequest) error
-	Recv() (*MultiDomainWriteResponse, error)
-	grpc.ClientStream
-}
-
-type deviceMemoryDomainsStreamDomainWriteClient struct {
-	grpc.ClientStream
-}
-
-func (x *deviceMemoryDomainsStreamDomainWriteClient) Send(m *MultiDomainWriteRequest) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *deviceMemoryDomainsStreamDomainWriteClient) Recv() (*MultiDomainWriteResponse, error) {
-	m := new(MultiDomainWriteResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-// DeviceMemoryDomainsServer is the server API for DeviceMemoryDomains service.
-// All implementations must embed UnimplementedDeviceMemoryDomainsServer
-// for forward compatibility
-type DeviceMemoryDomainsServer interface {
-	MemoryDomains(context.Context, *MemoryDomainsRequest) (*MemoryDomainsResponse, error)
-	MultiDomainRead(context.Context, *MultiDomainReadRequest) (*MultiDomainReadResponse, error)
-	MultiDomainWrite(context.Context, *MultiDomainWriteRequest) (*MultiDomainWriteResponse, error)
-	StreamDomainRead(DeviceMemoryDomains_StreamDomainReadServer) error
-	StreamDomainWrite(DeviceMemoryDomains_StreamDomainWriteServer) error
-	mustEmbedUnimplementedDeviceMemoryDomainsServer()
-}
-
-// UnimplementedDeviceMemoryDomainsServer must be embedded to have forward compatible implementations.
-type UnimplementedDeviceMemoryDomainsServer struct {
-}
-
-func (UnimplementedDeviceMemoryDomainsServer) MemoryDomains(context.Context, *MemoryDomainsRequest) (*MemoryDomainsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method MemoryDomains not implemented")
-}
-func (UnimplementedDeviceMemoryDomainsServer) MultiDomainRead(context.Context, *MultiDomainReadRequest) (*MultiDomainReadResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method MultiDomainRead not implemented")
-}
-func (UnimplementedDeviceMemoryDomainsServer) MultiDomainWrite(context.Context, *MultiDomainWriteRequest) (*MultiDomainWriteResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method MultiDomainWrite not implemented")
-}
-func (UnimplementedDeviceMemoryDomainsServer) StreamDomainRead(DeviceMemoryDomains_StreamDomainReadServer) error {
-	return status.Errorf(codes.Unimplemented, "method StreamDomainRead not implemented")
-}
-func (UnimplementedDeviceMemoryDomainsServer) StreamDomainWrite(DeviceMemoryDomains_StreamDomainWriteServer) error {
-	return status.Errorf(codes.Unimplemented, "method StreamDomainWrite not implemented")
-}
-func (UnimplementedDeviceMemoryDomainsServer) mustEmbedUnimplementedDeviceMemoryDomainsServer() {}
-
-// UnsafeDeviceMemoryDomainsServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to DeviceMemoryDomainsServer will
-// result in compilation errors.
-type UnsafeDeviceMemoryDomainsServer interface {
-	mustEmbedUnimplementedDeviceMemoryDomainsServer()
-}
-
-func RegisterDeviceMemoryDomainsServer(s grpc.ServiceRegistrar, srv DeviceMemoryDomainsServer) {
-	s.RegisterService(&DeviceMemoryDomains_ServiceDesc, srv)
-}
-
-func _DeviceMemoryDomains_MemoryDomains_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MemoryDomainsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DeviceMemoryDomainsServer).MemoryDomains(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/DeviceMemoryDomains/MemoryDomains",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DeviceMemoryDomainsServer).MemoryDomains(ctx, req.(*MemoryDomainsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _DeviceMemoryDomains_MultiDomainRead_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MultiDomainReadRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DeviceMemoryDomainsServer).MultiDomainRead(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/DeviceMemoryDomains/MultiDomainRead",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DeviceMemoryDomainsServer).MultiDomainRead(ctx, req.(*MultiDomainReadRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _DeviceMemoryDomains_MultiDomainWrite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MultiDomainWriteRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DeviceMemoryDomainsServer).MultiDomainWrite(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/DeviceMemoryDomains/MultiDomainWrite",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DeviceMemoryDomainsServer).MultiDomainWrite(ctx, req.(*MultiDomainWriteRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _DeviceMemoryDomains_StreamDomainRead_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(DeviceMemoryDomainsServer).StreamDomainRead(&deviceMemoryDomainsStreamDomainReadServer{stream})
-}
-
-type DeviceMemoryDomains_StreamDomainReadServer interface {
-	Send(*MultiDomainReadResponse) error
-	Recv() (*MultiDomainReadRequest, error)
-	grpc.ServerStream
-}
-
-type deviceMemoryDomainsStreamDomainReadServer struct {
-	grpc.ServerStream
-}
-
-func (x *deviceMemoryDomainsStreamDomainReadServer) Send(m *MultiDomainReadResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *deviceMemoryDomainsStreamDomainReadServer) Recv() (*MultiDomainReadRequest, error) {
-	m := new(MultiDomainReadRequest)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func _DeviceMemoryDomains_StreamDomainWrite_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(DeviceMemoryDomainsServer).StreamDomainWrite(&deviceMemoryDomainsStreamDomainWriteServer{stream})
-}
-
-type DeviceMemoryDomains_StreamDomainWriteServer interface {
-	Send(*MultiDomainWriteResponse) error
-	Recv() (*MultiDomainWriteRequest, error)
-	grpc.ServerStream
-}
-
-type deviceMemoryDomainsStreamDomainWriteServer struct {
-	grpc.ServerStream
-}
-
-func (x *deviceMemoryDomainsStreamDomainWriteServer) Send(m *MultiDomainWriteResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *deviceMemoryDomainsStreamDomainWriteServer) Recv() (*MultiDomainWriteRequest, error) {
-	m := new(MultiDomainWriteRequest)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-// DeviceMemoryDomains_ServiceDesc is the grpc.ServiceDesc for DeviceMemoryDomains service.
-// It's only intended for direct use with grpc.RegisterService,
-// and not to be introspected or modified (even as a copy)
-var DeviceMemoryDomains_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "DeviceMemoryDomains",
-	HandlerType: (*DeviceMemoryDomainsServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "MemoryDomains",
-			Handler:    _DeviceMemoryDomains_MemoryDomains_Handler,
-		},
-		{
-			MethodName: "MultiDomainRead",
-			Handler:    _DeviceMemoryDomains_MultiDomainRead_Handler,
-		},
-		{
-			MethodName: "MultiDomainWrite",
-			Handler:    _DeviceMemoryDomains_MultiDomainWrite_Handler,
-		},
-	},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "StreamDomainRead",
-			Handler:       _DeviceMemoryDomains_StreamDomainRead_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
-		},
-		{
-			StreamName:    "StreamDomainWrite",
-			Handler:       _DeviceMemoryDomains_StreamDomainWrite_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
-		},
-	},
-	Metadata: "sni.proto",
-}
-
 // DeviceFilesystemClient is the client API for DeviceFilesystem service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
@@ -1455,5 +1160,300 @@ var DeviceNWA_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
+	Metadata: "sni.proto",
+}
+
+// DeviceMemoryDomainsClient is the client API for DeviceMemoryDomains service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type DeviceMemoryDomainsClient interface {
+	MemoryDomains(ctx context.Context, in *MemoryDomainsRequest, opts ...grpc.CallOption) (*MemoryDomainsResponse, error)
+	MultiDomainRead(ctx context.Context, in *MultiDomainReadRequest, opts ...grpc.CallOption) (*MultiDomainReadResponse, error)
+	MultiDomainWrite(ctx context.Context, in *MultiDomainWriteRequest, opts ...grpc.CallOption) (*MultiDomainWriteResponse, error)
+	StreamDomainRead(ctx context.Context, opts ...grpc.CallOption) (DeviceMemoryDomains_StreamDomainReadClient, error)
+	StreamDomainWrite(ctx context.Context, opts ...grpc.CallOption) (DeviceMemoryDomains_StreamDomainWriteClient, error)
+}
+
+type deviceMemoryDomainsClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewDeviceMemoryDomainsClient(cc grpc.ClientConnInterface) DeviceMemoryDomainsClient {
+	return &deviceMemoryDomainsClient{cc}
+}
+
+func (c *deviceMemoryDomainsClient) MemoryDomains(ctx context.Context, in *MemoryDomainsRequest, opts ...grpc.CallOption) (*MemoryDomainsResponse, error) {
+	out := new(MemoryDomainsResponse)
+	err := c.cc.Invoke(ctx, "/DeviceMemoryDomains/MemoryDomains", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deviceMemoryDomainsClient) MultiDomainRead(ctx context.Context, in *MultiDomainReadRequest, opts ...grpc.CallOption) (*MultiDomainReadResponse, error) {
+	out := new(MultiDomainReadResponse)
+	err := c.cc.Invoke(ctx, "/DeviceMemoryDomains/MultiDomainRead", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deviceMemoryDomainsClient) MultiDomainWrite(ctx context.Context, in *MultiDomainWriteRequest, opts ...grpc.CallOption) (*MultiDomainWriteResponse, error) {
+	out := new(MultiDomainWriteResponse)
+	err := c.cc.Invoke(ctx, "/DeviceMemoryDomains/MultiDomainWrite", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deviceMemoryDomainsClient) StreamDomainRead(ctx context.Context, opts ...grpc.CallOption) (DeviceMemoryDomains_StreamDomainReadClient, error) {
+	stream, err := c.cc.NewStream(ctx, &DeviceMemoryDomains_ServiceDesc.Streams[0], "/DeviceMemoryDomains/StreamDomainRead", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &deviceMemoryDomainsStreamDomainReadClient{stream}
+	return x, nil
+}
+
+type DeviceMemoryDomains_StreamDomainReadClient interface {
+	Send(*MultiDomainReadRequest) error
+	Recv() (*MultiDomainReadResponse, error)
+	grpc.ClientStream
+}
+
+type deviceMemoryDomainsStreamDomainReadClient struct {
+	grpc.ClientStream
+}
+
+func (x *deviceMemoryDomainsStreamDomainReadClient) Send(m *MultiDomainReadRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *deviceMemoryDomainsStreamDomainReadClient) Recv() (*MultiDomainReadResponse, error) {
+	m := new(MultiDomainReadResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *deviceMemoryDomainsClient) StreamDomainWrite(ctx context.Context, opts ...grpc.CallOption) (DeviceMemoryDomains_StreamDomainWriteClient, error) {
+	stream, err := c.cc.NewStream(ctx, &DeviceMemoryDomains_ServiceDesc.Streams[1], "/DeviceMemoryDomains/StreamDomainWrite", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &deviceMemoryDomainsStreamDomainWriteClient{stream}
+	return x, nil
+}
+
+type DeviceMemoryDomains_StreamDomainWriteClient interface {
+	Send(*MultiDomainWriteRequest) error
+	Recv() (*MultiDomainWriteResponse, error)
+	grpc.ClientStream
+}
+
+type deviceMemoryDomainsStreamDomainWriteClient struct {
+	grpc.ClientStream
+}
+
+func (x *deviceMemoryDomainsStreamDomainWriteClient) Send(m *MultiDomainWriteRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *deviceMemoryDomainsStreamDomainWriteClient) Recv() (*MultiDomainWriteResponse, error) {
+	m := new(MultiDomainWriteResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// DeviceMemoryDomainsServer is the server API for DeviceMemoryDomains service.
+// All implementations must embed UnimplementedDeviceMemoryDomainsServer
+// for forward compatibility
+type DeviceMemoryDomainsServer interface {
+	MemoryDomains(context.Context, *MemoryDomainsRequest) (*MemoryDomainsResponse, error)
+	MultiDomainRead(context.Context, *MultiDomainReadRequest) (*MultiDomainReadResponse, error)
+	MultiDomainWrite(context.Context, *MultiDomainWriteRequest) (*MultiDomainWriteResponse, error)
+	StreamDomainRead(DeviceMemoryDomains_StreamDomainReadServer) error
+	StreamDomainWrite(DeviceMemoryDomains_StreamDomainWriteServer) error
+	mustEmbedUnimplementedDeviceMemoryDomainsServer()
+}
+
+// UnimplementedDeviceMemoryDomainsServer must be embedded to have forward compatible implementations.
+type UnimplementedDeviceMemoryDomainsServer struct {
+}
+
+func (UnimplementedDeviceMemoryDomainsServer) MemoryDomains(context.Context, *MemoryDomainsRequest) (*MemoryDomainsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MemoryDomains not implemented")
+}
+func (UnimplementedDeviceMemoryDomainsServer) MultiDomainRead(context.Context, *MultiDomainReadRequest) (*MultiDomainReadResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MultiDomainRead not implemented")
+}
+func (UnimplementedDeviceMemoryDomainsServer) MultiDomainWrite(context.Context, *MultiDomainWriteRequest) (*MultiDomainWriteResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MultiDomainWrite not implemented")
+}
+func (UnimplementedDeviceMemoryDomainsServer) StreamDomainRead(DeviceMemoryDomains_StreamDomainReadServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamDomainRead not implemented")
+}
+func (UnimplementedDeviceMemoryDomainsServer) StreamDomainWrite(DeviceMemoryDomains_StreamDomainWriteServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamDomainWrite not implemented")
+}
+func (UnimplementedDeviceMemoryDomainsServer) mustEmbedUnimplementedDeviceMemoryDomainsServer() {}
+
+// UnsafeDeviceMemoryDomainsServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to DeviceMemoryDomainsServer will
+// result in compilation errors.
+type UnsafeDeviceMemoryDomainsServer interface {
+	mustEmbedUnimplementedDeviceMemoryDomainsServer()
+}
+
+func RegisterDeviceMemoryDomainsServer(s grpc.ServiceRegistrar, srv DeviceMemoryDomainsServer) {
+	s.RegisterService(&DeviceMemoryDomains_ServiceDesc, srv)
+}
+
+func _DeviceMemoryDomains_MemoryDomains_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MemoryDomainsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceMemoryDomainsServer).MemoryDomains(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceMemoryDomains/MemoryDomains",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceMemoryDomainsServer).MemoryDomains(ctx, req.(*MemoryDomainsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeviceMemoryDomains_MultiDomainRead_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MultiDomainReadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceMemoryDomainsServer).MultiDomainRead(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceMemoryDomains/MultiDomainRead",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceMemoryDomainsServer).MultiDomainRead(ctx, req.(*MultiDomainReadRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeviceMemoryDomains_MultiDomainWrite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MultiDomainWriteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeviceMemoryDomainsServer).MultiDomainWrite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DeviceMemoryDomains/MultiDomainWrite",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeviceMemoryDomainsServer).MultiDomainWrite(ctx, req.(*MultiDomainWriteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeviceMemoryDomains_StreamDomainRead_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(DeviceMemoryDomainsServer).StreamDomainRead(&deviceMemoryDomainsStreamDomainReadServer{stream})
+}
+
+type DeviceMemoryDomains_StreamDomainReadServer interface {
+	Send(*MultiDomainReadResponse) error
+	Recv() (*MultiDomainReadRequest, error)
+	grpc.ServerStream
+}
+
+type deviceMemoryDomainsStreamDomainReadServer struct {
+	grpc.ServerStream
+}
+
+func (x *deviceMemoryDomainsStreamDomainReadServer) Send(m *MultiDomainReadResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *deviceMemoryDomainsStreamDomainReadServer) Recv() (*MultiDomainReadRequest, error) {
+	m := new(MultiDomainReadRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func _DeviceMemoryDomains_StreamDomainWrite_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(DeviceMemoryDomainsServer).StreamDomainWrite(&deviceMemoryDomainsStreamDomainWriteServer{stream})
+}
+
+type DeviceMemoryDomains_StreamDomainWriteServer interface {
+	Send(*MultiDomainWriteResponse) error
+	Recv() (*MultiDomainWriteRequest, error)
+	grpc.ServerStream
+}
+
+type deviceMemoryDomainsStreamDomainWriteServer struct {
+	grpc.ServerStream
+}
+
+func (x *deviceMemoryDomainsStreamDomainWriteServer) Send(m *MultiDomainWriteResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *deviceMemoryDomainsStreamDomainWriteServer) Recv() (*MultiDomainWriteRequest, error) {
+	m := new(MultiDomainWriteRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// DeviceMemoryDomains_ServiceDesc is the grpc.ServiceDesc for DeviceMemoryDomains service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var DeviceMemoryDomains_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "DeviceMemoryDomains",
+	HandlerType: (*DeviceMemoryDomainsServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "MemoryDomains",
+			Handler:    _DeviceMemoryDomains_MemoryDomains_Handler,
+		},
+		{
+			MethodName: "MultiDomainRead",
+			Handler:    _DeviceMemoryDomains_MultiDomainRead_Handler,
+		},
+		{
+			MethodName: "MultiDomainWrite",
+			Handler:    _DeviceMemoryDomains_MultiDomainWrite_Handler,
+		},
+	},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "StreamDomainRead",
+			Handler:       _DeviceMemoryDomains_StreamDomainRead_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "StreamDomainWrite",
+			Handler:       _DeviceMemoryDomains_StreamDomainWrite_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "sni.proto",
 }
