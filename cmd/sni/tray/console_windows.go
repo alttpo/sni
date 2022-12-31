@@ -11,33 +11,41 @@ import (
 )
 
 var (
-	dllKernel32      *syscall.LazyDLL
-	dllUser32        *syscall.LazyDLL
-	procAllocConsole *syscall.LazyProc
-	procGetWin       *syscall.LazyProc
-	procShowWin      *syscall.LazyProc
-	consoleAllocated bool
+	dllKernel32       *syscall.LazyDLL
+	dllUser32         *syscall.LazyDLL
+	procAttachConsole *syscall.LazyProc
+	procAllocConsole  *syscall.LazyProc
+	procGetWin        *syscall.LazyProc
+	procShowWin       *syscall.LazyProc
+	consoleAllocated  bool
 )
 
 func initConsole() (err error) {
 	dllKernel32 = syscall.NewLazyDLL("kernel32.dll")
 	dllUser32 = syscall.NewLazyDLL("user32.dll")
 
+	procAttachConsole = dllKernel32.NewProc("AttachConsole")
 	procAllocConsole = dllKernel32.NewProc("AllocConsole")
 	procGetWin = dllKernel32.NewProc("GetConsoleWindow")
 	procShowWin = dllUser32.NewProc("ShowWindow")
 
 	var r0 uintptr
-	r0, _, err = syscall.Syscall(procAllocConsole.Addr(), 0, 0, 0, 0)
+	// attach to parent process console:
+	r0, _, err = procAttachConsole.Call(uintptr(^uint32(0)))
 	if r0 == 0 {
-		//err = fmt.Errorf("AllocConsole(): %w", err)
-		log.Printf("AllocConsole(): %v\n", err)
-		err = nil
-		return
+		// failed; allocated a new console:
+		r0, _, err = procAllocConsole.Call()
+		if r0 == 0 {
+			//err = fmt.Errorf("AllocConsole(): %w", err)
+			log.Printf("AllocConsole(): %v\n", err)
+			err = nil
+			return
+		}
 	}
 
 	consoleAllocated = true
 
+	// redirect stdin, stdout, stderr to console:
 	var hin, hout, herr syscall.Handle
 	hin, err = syscall.GetStdHandle(syscall.STD_INPUT_HANDLE)
 	if err != nil {
