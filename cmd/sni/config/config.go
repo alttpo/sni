@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"github.com/alttpo/observable"
 	"github.com/fsnotify/fsnotify"
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sni/devices/platforms"
+	"strings"
 )
 
 var (
@@ -163,8 +166,42 @@ func loadDomains() {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// no problem.
 		} else {
-			log.Printf("%s\n", err)
+			log.Printf("domains: %s\n", err)
 		}
+	}
+
+	// unmarshal the platforms section; the individual drivers unmarshal their own sections:
+	confMap := Domains.AllSettings()
+	err = parseDomainsConfigMap(confMap)
+	if err != nil {
+		log.Printf("domains: %s\n", err)
 		return
 	}
+}
+
+func parseDomainsConfigMap(confMap map[string]interface{}) (err error) {
+	err = mapstructure.Decode(confMap, &platforms.Config)
+	if err != nil {
+		return
+	}
+
+	// build platform lookup by name:
+	platforms.ByName = make(map[string]*platforms.PlatformConf)
+	for _, p := range platforms.Config.Platforms {
+		platformNameLower := strings.ToLower(p.Name)
+		platforms.ByName[platformNameLower] = p
+
+		platformNamePrefix := p.Name + "/"
+		platformNamePrefixLower := platformNameLower + "/"
+
+		for i := range p.Domains {
+			name := p.Domains[i].Name
+			nameLower := strings.ToLower(name)
+			if !strings.HasPrefix(nameLower, platformNamePrefixLower) {
+				log.Printf("domains: WARN: domain name '%s' does not begin with '%s'", name, platformNamePrefix)
+			}
+		}
+	}
+
+	return
 }

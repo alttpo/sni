@@ -86,10 +86,13 @@ func main() {
 
 	// explicitly initialize all the drivers:
 	fxpakpro.DriverInit()
-	fxpakpro.DriverConfig(config.Domains)
+	fxpakpro.DriverConfig(config.Domains.GetStringMap("drivers.fxpakpro"))
 	emunwa.DriverInit()
+	//emunwa.DriverConfig(config.Domains.GetStringMap("drivers.emunwa"))
 	luabridge.DriverInit()
+	//luabridge.DriverConfig(config.Domains.GetStringMap("drivers.luabridge"))
 	retroarch.DriverInit()
+	//retroarch.DriverConfig(config.Domains.GetStringMap("drivers.retroarch"))
 	mock.DriverInit()
 
 	// start the servers:

@@ -5,21 +5,16 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"sni/devices"
+	"sni/devices/platforms"
 	"sni/protos/sni"
 	"strings"
 )
 
 type snesDomain struct {
-	name      string
-	isExposed bool
+	platforms.Domain
 
-	notes string
-
-	isReadable  bool
-	isWriteable bool
-
+	// start address in the fx pak pro address space:
 	start uint32
-	size  uint32
 }
 
 var allDomains []snesDomain
@@ -29,26 +24,19 @@ func (d *Device) MemoryDomains(_ context.Context, request *sni.MemoryDomainsRequ
 	domains := make([]*sni.MemoryDomain, len(allDomains))
 	for i := range allDomains {
 		domains[i] = &sni.MemoryDomain{
-			Name:      allDomains[i].name,
-			Exposed:   allDomains[i].isExposed,
-			Readable:  allDomains[i].isReadable,
-			Writeable: allDomains[i].isWriteable,
-		}
-
-		if allDomains[i].notes != "" {
-			domains[i].Notes = &allDomains[i].notes
-		}
-
-		size := uint64(allDomains[i].size)
-		if size > 0 {
-			domains[i].Size = new(uint64)
-			*domains[i].Size = size
+			Name:           allDomains[i].Name,
+			IsExposed:      allDomains[i].IsExposed,
+			IsCoreSpecific: allDomains[i].IsCoreSpecific,
+			IsReadable:     allDomains[i].IsReadable,
+			IsWriteable:    allDomains[i].IsWriteable,
+			Size:           allDomains[i].Size,
 		}
 	}
 
 	rsp = &sni.MemoryDomainsResponse{
-		Uri:     request.Uri,
-		Domains: domains,
+		Uri:      request.Uri,
+		CoreName: driverName,
+		Domains:  domains,
 	}
 
 	return
@@ -82,14 +70,14 @@ func (d *Device) MultiDomainRead(ctx context.Context, request *sni.MultiDomainRe
 
 		for j, read := range requests.Reads {
 			// validate offset and size pair:
-			if read.Offset >= uint64(domain.size) {
+			if read.Offset >= domain.Size {
 				rsp = nil
-				err = status.Errorf(codes.InvalidArgument, "fxpakpro: read of domain '%s', offset %d would exceed domain size %d", domainName, read.Offset, domain.size)
+				err = status.Errorf(codes.InvalidArgument, "fxpakpro: read of domain '%s', offset %d would exceed domain size %d", domainName, read.Offset, domain.Size)
 				return
 			}
-			if read.Offset+read.Size > uint64(domain.size) {
+			if read.Offset+read.Size > domain.Size {
 				rsp = nil
-				err = status.Errorf(codes.InvalidArgument, "fxpakpro: read of domain '%s', offset + size = %d would exceed domain size %d", domainName, read.Offset+read.Size, domain.size)
+				err = status.Errorf(codes.InvalidArgument, "fxpakpro: read of domain '%s', offset + size = %d would exceed domain size %d", domainName, read.Offset+read.Size, domain.Size)
 				return
 			}
 

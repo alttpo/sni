@@ -321,16 +321,16 @@ message MultiWriteMemoryResponse {
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 message MemoryDomain {
-  // memory domain name formatted as "platform/location/memory" e.g. "snes/console/WRAM"
+  // memory domain name formatted as "{platform}/{type}/{location}/{name}" e.g. "snes/mem/system/WRAM"
   string name = 1;
-  // whether or not the current core exposes this memory domain:
-  bool   exposed = 2;
+  // if true, the current core exposes this memory domain:
+  bool   isExposed = 2;
+  // if true, the memory domain name is specific to this core and may not be available from other cores:
+  bool   isCoreSpecific = 3;
 
-  optional string notes = 3;
-
-  optional uint64 size = 4;
-  bool readable = 5;
-  bool writeable = 6;
+  uint64 size = 4;
+  bool isReadable = 5;
+  bool isWriteable = 6;
 }
 
 message MemoryDomainsRequest {
@@ -338,7 +338,8 @@ message MemoryDomainsRequest {
 }
 message MemoryDomainsResponse {
   string uri = 1;
-  repeated MemoryDomain domains = 2;
+  string coreName = 2;
+  repeated MemoryDomain domains = 3;
 }
 
 message MemoryDomainOffsetSize {
