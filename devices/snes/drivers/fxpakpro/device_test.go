@@ -3,12 +3,21 @@ package fxpakpro
 import (
 	"context"
 	"sni/devices"
+	"sni/devices/platforms"
 	"sni/protos/sni"
 	"testing"
 )
 
 func init() {
 	DriverInit()
+
+	var config *platforms.Config
+	var err error
+	config, err = platforms.LoadDefaults()
+	if err != nil {
+		panic(err)
+	}
+	DriverConfig(config)
 }
 
 func openAutoCloseableDevice(b testing.TB) devices.AutoCloseableDevice {

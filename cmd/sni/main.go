@@ -10,6 +10,7 @@ import (
 	"sni/cmd/sni/config"
 	"sni/cmd/sni/logging"
 	"sni/cmd/sni/tray"
+	"sni/devices/platforms"
 	"sni/devices/snes/drivers/emunwa"
 	"sni/devices/snes/drivers/fxpakpro"
 	"sni/devices/snes/drivers/luabridge"
@@ -87,6 +88,7 @@ func main() {
 
 	// explicitly initialize all the drivers:
 	fxpakpro.DriverInit()
+	fxpakpro.DriverConfig(platforms.Current)
 	emunwa.DriverInit()
 	luabridge.DriverInit()
 	retroarch.DriverInit()

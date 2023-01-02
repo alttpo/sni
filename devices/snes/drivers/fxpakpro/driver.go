@@ -331,6 +331,4 @@ func DriverInit() {
 	driver = &Driver{}
 	driver.container = devices.NewDeviceDriverContainer(driver.openDevice)
 	devices.Register(driverName, driver)
-
-	DriverConfig(platforms.Current)
 }

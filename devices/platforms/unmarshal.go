@@ -1,8 +1,10 @@
 package platforms
 
 import (
+	"bytes"
 	_ "embed"
 	"github.com/mitchellh/mapstructure"
+	"github.com/spf13/viper"
 	"log"
 	"strings"
 )
@@ -33,6 +35,23 @@ func Unmarshal(confMap map[string]interface{}) (config *Config, err error) {
 				log.Printf("platforms: WARN: domain name '%s' does not begin with '%s'", name, platformNamePrefix)
 			}
 		}
+	}
+
+	return
+}
+
+func LoadDefaults() (config *Config, err error) {
+	v := viper.New()
+
+	err = v.ReadConfig(bytes.NewReader(DefaultPlatformsYaml))
+	if err != nil {
+		return
+	}
+
+	config, err = Unmarshal(v.AllSettings())
+	if err != nil {
+		config = nil
+		return
 	}
 
 	return
