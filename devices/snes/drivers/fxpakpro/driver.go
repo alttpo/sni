@@ -250,7 +250,7 @@ func DriverConfig(config *platforms.Config) {
 					IsExposed:      false,
 					IsCoreSpecific: false,
 					// readable/writable status is driver-specific:
-					IsReadable:  true,
+					IsReadable:  false,
 					IsWriteable: false,
 				},
 				start: 0,

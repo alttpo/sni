@@ -17,8 +17,8 @@ var testDomains = [...]snesDomain{
 			},
 			IsExposed:      false,
 			IsCoreSpecific: false,
-			IsReadable:     true,
-			IsWriteable:    true,
+			IsReadable:     false,
+			IsWriteable:    false,
 		},
 		start: 0,
 	},
@@ -39,7 +39,7 @@ var testDomains = [...]snesDomain{
 	{
 		Domain: platforms.Domain{
 			DomainConf: platforms.DomainConf{
-				Name: "snes/mem/system/APURAM",
+				Name: "snes/mem/system/VRAM",
 				Size: 0x1_0000,
 			},
 			IsExposed:      true,
@@ -52,7 +52,7 @@ var testDomains = [...]snesDomain{
 	{
 		Domain: platforms.Domain{
 			DomainConf: platforms.DomainConf{
-				Name: "snes/mem/system/VRAM",
+				Name: "snes/mem/system/APURAM",
 				Size: 0x1_0000,
 			},
 			IsExposed:      true,
@@ -194,6 +194,7 @@ func TestDevice_MemoryDomains(t *testing.T) {
 					createDomainFromDesc(6),
 					createDomainFromDesc(7),
 					createDomainFromDesc(8),
+					createDomainFromDesc(9),
 				},
 			},
 			wantErr: false,

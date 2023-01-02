@@ -42,6 +42,7 @@ func Unmarshal(confMap map[string]interface{}) (config *Config, err error) {
 
 func LoadDefaults() (config *Config, err error) {
 	v := viper.New()
+	v.SetConfigType("yaml")
 
 	err = v.ReadConfig(bytes.NewReader(DefaultPlatformsYaml))
 	if err != nil {
