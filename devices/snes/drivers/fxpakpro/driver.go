@@ -218,19 +218,24 @@ func (d *Driver) Device(uri *url.URL) devices.AutoCloseableDevice {
 
 var debugLog *log.Logger
 
-func DriverConfig(conf map[string]interface{}) {
-	if conf == nil {
+func DriverConfig() {
+	var ok bool
+	var err error
+
+	var confIntf interface{}
+	confIntf, ok = platforms.Config.Drivers["fxpakpro"]
+	if !ok {
+		log.Printf("fxpakpro: config: missing fxpakpro driver config\n")
 		return
 	}
 
-	var ok bool
-	var err error
+	conf := confIntf.(map[string]interface{})
 
 	{
 		// translate general domain configurations into our driver-specific domains:
 		snesPlatform, ok := platforms.ByName["snes"]
 		if !ok {
-			log.Printf("fxpakpro: no domains defined\n")
+			log.Printf("fxpakpro: config: no snes platform defined\n")
 			return
 		}
 
@@ -318,4 +323,6 @@ func DriverInit() {
 	driver = &Driver{}
 	driver.container = devices.NewDeviceDriverContainer(driver.openDevice)
 	devices.Register(driverName, driver)
+
+	DriverConfig()
 }

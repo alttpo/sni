@@ -33,10 +33,10 @@ var (
 )
 
 var (
-	Dir     string
-	Config  *viper.Viper = viper.New()
-	Apps    *viper.Viper = viper.New()
-	Domains *viper.Viper = viper.New()
+	Dir       string
+	Config    *viper.Viper = viper.New()
+	Apps      *viper.Viper = viper.New()
+	Platforms *viper.Viper = viper.New()
 )
 
 func InitDir() {
@@ -59,7 +59,7 @@ func InitDir() {
 func Load() {
 	log.Printf("config: load\n")
 
-	loadDomains()
+	loadPlatforms()
 	loadConfig()
 	loadApps()
 }
@@ -157,29 +157,29 @@ func ReloadApps() {
 	appsObservable.Set(Apps)
 }
 
-func loadDomains() {
-	Domains.SetConfigName("domains")
-	Domains.SetConfigType("yaml")
-	Domains.AddConfigPath(".")
-	err := Domains.ReadInConfig()
+func loadPlatforms() {
+	Platforms.SetConfigName("platforms")
+	Platforms.SetConfigType("yaml")
+	Platforms.AddConfigPath(".")
+	err := Platforms.ReadInConfig()
 	if err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// no problem.
 		} else {
-			log.Printf("domains: %s\n", err)
+			log.Printf("platforms: %s\n", err)
 		}
 	}
 
 	// unmarshal the platforms section; the individual drivers unmarshal their own sections:
-	confMap := Domains.AllSettings()
-	err = parseDomainsConfigMap(confMap)
+	confMap := Platforms.AllSettings()
+	err = parsePlatformsConfigMap(confMap)
 	if err != nil {
-		log.Printf("domains: %s\n", err)
+		log.Printf("platforms: %s\n", err)
 		return
 	}
 }
 
-func parseDomainsConfigMap(confMap map[string]interface{}) (err error) {
+func parsePlatformsConfigMap(confMap map[string]interface{}) (err error) {
 	err = mapstructure.Decode(confMap, &platforms.Config)
 	if err != nil {
 		return
@@ -198,7 +198,7 @@ func parseDomainsConfigMap(confMap map[string]interface{}) (err error) {
 			name := p.Domains[i].Name
 			nameLower := strings.ToLower(name)
 			if !strings.HasPrefix(nameLower, platformNamePrefixLower) {
-				log.Printf("domains: WARN: domain name '%s' does not begin with '%s'", name, platformNamePrefix)
+				log.Printf("platforms: WARN: domain name '%s' does not begin with '%s'", name, platformNamePrefix)
 			}
 		}
 	}
