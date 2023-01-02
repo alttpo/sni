@@ -45,7 +45,7 @@ func (d *Device) MemoryDomains(_ context.Context, request *sni.MemoryDomainsRequ
 }
 
 func (d *Device) MultiDomainRead(ctx context.Context, request *sni.MultiDomainReadRequest) (rsp *sni.MultiDomainReadResponse, err error) {
-	devReads := make([]devices.MemoryReadRequest, 0, 8)
+	mreqs := make([]devices.MemoryReadRequest, 0, 8)
 	readResponses := make([]*sni.MemoryDomainOffsetData, 0, 8)
 	rsp = &sni.MultiDomainReadResponse{
 		Uri:       request.Uri,
@@ -89,9 +89,10 @@ func (d *Device) MultiDomainRead(ctx context.Context, request *sni.MultiDomainRe
 			}
 			readResponses = append(readResponses, rsp.Responses[i].Reads[j])
 
-			devReads = append(devReads, devices.MemoryReadRequest{
+			address := domain.start + uint32(read.Offset)
+			mreqs = append(mreqs, devices.MemoryReadRequest{
 				RequestAddress: devices.AddressTuple{
-					Address:       domain.start + uint32(read.Offset),
+					Address:       address,
 					AddressSpace:  sni.AddressSpace_FxPakPro,
 					MemoryMapping: sni.MemoryMapping_Unknown,
 				},
@@ -101,7 +102,7 @@ func (d *Device) MultiDomainRead(ctx context.Context, request *sni.MultiDomainRe
 	}
 
 	var mrsp []devices.MemoryReadResponse
-	mrsp, err = d.MultiReadMemory(ctx, devReads...)
+	mrsp, err = d.MultiReadMemory(ctx, mreqs...)
 	if err != nil {
 		rsp = nil
 		return
@@ -115,82 +116,64 @@ func (d *Device) MultiDomainRead(ctx context.Context, request *sni.MultiDomainRe
 }
 
 func (d *Device) MultiDomainWrite(ctx context.Context, request *sni.MultiDomainWriteRequest) (rsp *sni.MultiDomainWriteResponse, err error) {
-	//mreqs := make([]devices.MemoryWriteRequest, 0)
-	//rsp = &sni.MultiDomainWriteResponse{
-	//	Responses: make([]*sni.GroupedDomainWriteResponses, len(request.Requests)),
-	//}
-	//addressSizes := make([]*sni.MemoryDomainOffsetSize, 0)
-	//
-	//for i, domainReqs := range request.Requests {
-	//	snesDomainRef, ok := domainReqs.Domain.Type.(*sni.MemoryDomainRef_Snes)
-	//	if !ok {
-	//		err = status.Errorf(codes.InvalidArgument, "Domain.Type must be of SNES type")
-	//		return
-	//	}
-	//
-	//	var dm *domainDesc
-	//	if snesDomainRef.Snes == sni.MemoryDomainTypeSNES_SNESCoreSpecificMemory {
-	//		// look up by string name instead:
-	//		if domainReqs.Name == nil {
-	//			err = status.Error(codes.InvalidArgument, "domain name must be non-nil when using SNESCoreSpecificMemory type")
-	//			return
-	//		}
-	//
-	//		domainName := strings.ToUpper(*domainReqs.Domain.Name)
-	//		dm, ok = domainDescByName[domainName]
-	//		if !ok {
-	//			err = status.Errorf(codes.InvalidArgument, "invalid domain name '%s'", domainName)
-	//			return
-	//		}
-	//	} else {
-	//		dm, ok = domainDescByType[snesDomainRef.Snes]
-	//		if !ok {
-	//			err = status.Errorf(codes.InvalidArgument, "invalid domain type '%s'", snesDomainRef.Snes)
-	//			return
-	//		}
-	//	}
-	//
-	//	rsp.Responses[i] = &sni.GroupedDomainWriteResponses{
-	//		Domain: dm.domainRef,
-	//		Writes: make([]*sni.MemoryDomainOffsetSize, len(domainReqs.Writes)),
-	//	}
-	//	for j, write := range domainReqs.Writes {
-	//		if write.Address >= dm.size {
-	//			err = status.Errorf(codes.InvalidArgument, "request start address 0x%06x exceeds domain %s size 0x%06x", write.Address, *dm.domainRef.Name, dm.size)
-	//			return
-	//		}
-	//		size := uint32(len(write.Data))
-	//		if write.Address+size > dm.size {
-	//			err = status.Errorf(codes.InvalidArgument, "request end address 0x%06x exceeds domain %s size 0x%06x", write.Address+size, *dm.domainRef.Name, dm.size)
-	//			return
-	//		}
-	//
-	//		mreq := devices.MemoryWriteRequest{
-	//			RequestAddress: devices.AddressTuple{
-	//				Address:       dm.start + write.Address,
-	//				AddressSpace:  sni.AddressSpace_FxPakPro,
-	//				MemoryMapping: sni.MemoryMapping_Unknown,
-	//			},
-	//			Data: write.Data,
-	//		}
-	//		mreqs = append(mreqs, mreq)
-	//
-	//		addressSize := &sni.MemoryDomainOffsetSize{
-	//			Offset: write.Address,
-	//			Size:   size,
-	//		}
-	//		addressSizes = append(addressSizes, addressSize)
-	//		rsp.Responses[i].Writes[j] = addressSize
-	//	}
-	//}
-	//
-	//var mrsp []devices.MemoryWriteResponse
-	//mrsp, err = d.MultiWriteMemory(ctx, mreqs...)
-	//if err != nil {
-	//	return
-	//}
-	//
-	//_ = mrsp
+	mreqs := make([]devices.MemoryWriteRequest, 0)
+	rsp = &sni.MultiDomainWriteResponse{
+		Responses: make([]*sni.GroupedDomainWriteResponses, len(request.Requests)),
+	}
+
+	for i, requests := range request.Requests {
+		domainName := requests.Name
+		domainNameLower := strings.ToLower(domainName)
+
+		var domain *snesDomain
+		var ok bool
+		domain, ok = domainByName[domainNameLower]
+		if !ok {
+			rsp = nil
+			err = status.Errorf(codes.InvalidArgument, "fxpakpro: unrecognized domain name '%s'", domainName)
+			return
+		}
+
+		rsp.Responses[i] = &sni.GroupedDomainWriteResponses{
+			Name:   requests.Name,
+			Writes: make([]*sni.MemoryDomainOffsetSize, len(requests.Writes)),
+		}
+
+		for j, write := range requests.Writes {
+			// validate offset and size pair:
+			size := uint64(len(write.Data))
+			if write.Offset >= domain.Size {
+				rsp = nil
+				err = status.Errorf(codes.InvalidArgument, "fxpakpro: read of domain '%s', offset %d would exceed domain size %d", domainName, write.Offset, domain.Size)
+				return
+			}
+			if write.Offset+size > domain.Size {
+				rsp = nil
+				err = status.Errorf(codes.InvalidArgument, "fxpakpro: read of domain '%s', offset + size = %d would exceed domain size %d", domainName, write.Offset+size, domain.Size)
+				return
+			}
+
+			rsp.Responses[i].Writes[j] = &sni.MemoryDomainOffsetSize{
+				Offset: write.Offset,
+				Size:   size,
+			}
+
+			mreqs = append(mreqs, devices.MemoryWriteRequest{
+				RequestAddress: devices.AddressTuple{
+					Address:       domain.start + uint32(write.Offset),
+					AddressSpace:  sni.AddressSpace_FxPakPro,
+					MemoryMapping: sni.MemoryMapping_Unknown,
+				},
+				Data: write.Data,
+			})
+		}
+	}
+
+	_, err = d.MultiWriteMemory(ctx, mreqs...)
+	if err != nil {
+		rsp = nil
+		return
+	}
 
 	return
 }
