@@ -59,13 +59,17 @@ platforms:
 drivers:
   fxpakpro:
     domains:
-      - {name: "snes/mem/cart/ROM",      start: 0x000000, size: 0xE00000}
-      - {name: "snes/mem/cart/SRAM",     start: 0xE00000, size: 0x100000}
-      - {name: "snes/mem/system/WRAM",   start: 0xF50000, size: 0x020000}
-      - {name: "snes/mem/system/VRAM",   start: 0xF70000, size: 0x010000}
-      - {name: "snes/mem/system/APURAM", start: 0xF80000, size: 0x010000}
-      - {name: "snes/mem/system/CGRAM",  start: 0xF90000, size: 0x000200}
-      - {name: "snes/mem/system/OAM",    start: 0xF90200, size: 0x000220}
+      # standard domains:
+      - {name: "snes/mem/cart/ROM",        space: "SNES", start: 0x000000, size:  0xE00000, readable: true, writeable: true}
+      - {name: "snes/mem/cart/SRAM",       space: "SNES", start: 0xE00000, size:  0x100000, readable: true, writeable: true}
+      - {name: "snes/mem/system/WRAM",     space: "SNES", start: 0xF50000, size:  0x020000, readable: true, writeable: false}
+      - {name: "snes/mem/system/VRAM",     space: "SNES", start: 0xF70000, size:  0x010000, readable: true, writeable: false}
+      - {name: "snes/mem/system/APURAM",   space: "SNES", start: 0xF80000, size:  0x010000, readable: true, writeable: false}
+      - {name: "snes/mem/system/CGRAM",    space: "SNES", start: 0xF90000, size:  0x000200, readable: true, writeable: false}
+      - {name: "snes/mem/system/OAM",      space: "SNES", start: 0xF90200, size:  0x000220, readable: true, writeable: false}
+      # fxpakpro "space" domains for direct access:
+      - {name: "snes/space/fxpakpro/SNES", space: "SNES", start: 0x000000, size: 0x1000000, readable: true, writeable: true}
+      - {name: "snes/space/fxpakpro/CMD",  space: "CMD",  start: 0x000000, size: 0x1000000, readable: true, writeable: true}
 
   emunwa:
     cores:

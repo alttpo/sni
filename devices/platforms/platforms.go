@@ -13,14 +13,16 @@ type DomainConf struct {
 	Size uint64
 }
 
-type TopLevelConf struct {
+type Config struct {
 	Platforms []*PlatformConf
 	Drivers   map[string]interface{}
+
+	ByName map[string]*PlatformConf `mapstructure:"-"`
 }
 
-var Config TopLevelConf
-var ByName map[string]*PlatformConf
+var Current *Config
 
+// Domain is a base driver-specific configuration
 type Domain struct {
 	DomainConf
 

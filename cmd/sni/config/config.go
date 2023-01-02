@@ -1,17 +1,16 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/alttpo/observable"
 	"github.com/fsnotify/fsnotify"
-	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sni/devices/platforms"
-	"strings"
 )
 
 var (
@@ -59,7 +58,6 @@ func InitDir() {
 func Load() {
 	log.Printf("config: load\n")
 
-	loadPlatforms()
 	loadConfig()
 	loadApps()
 }
@@ -157,51 +155,34 @@ func ReloadApps() {
 	appsObservable.Set(Apps)
 }
 
-func loadPlatforms() {
+func LoadPlatforms() {
 	Platforms.SetConfigName("platforms")
 	Platforms.SetConfigType("yaml")
-	Platforms.AddConfigPath(".")
+	Platforms.AddConfigPath(Dir)
+
 	err := Platforms.ReadInConfig()
 	if err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			// no problem.
+			// no problem; use default instead:
+			log.Printf("platforms: %s\n", err)
 		} else {
 			log.Printf("platforms: %s\n", err)
+		}
+
+		// load default embedded configuration instead:
+		log.Printf("platforms: loading embedded default platforms.yaml\n")
+		err = Platforms.ReadConfig(bytes.NewReader(platforms.DefaultPlatformsYaml))
+		if err != nil {
+			log.Fatalf("platforms: could not load embedded default platforms.yaml: %s\n", err)
+			return
 		}
 	}
 
 	// unmarshal the platforms section; the individual drivers unmarshal their own sections:
 	confMap := Platforms.AllSettings()
-	err = parsePlatformsConfigMap(confMap)
+	platforms.Current, err = platforms.Unmarshal(confMap)
 	if err != nil {
-		log.Printf("platforms: %s\n", err)
+		log.Printf("platforms: unmarshal: %s\n", err)
 		return
 	}
-}
-
-func parsePlatformsConfigMap(confMap map[string]interface{}) (err error) {
-	err = mapstructure.Decode(confMap, &platforms.Config)
-	if err != nil {
-		return
-	}
-
-	// build platform lookup by name:
-	platforms.ByName = make(map[string]*platforms.PlatformConf)
-	for _, p := range platforms.Config.Platforms {
-		platformNameLower := strings.ToLower(p.Name)
-		platforms.ByName[platformNameLower] = p
-
-		platformNamePrefix := p.Name + "/"
-		platformNamePrefixLower := platformNameLower + "/"
-
-		for i := range p.Domains {
-			name := p.Domains[i].Name
-			nameLower := strings.ToLower(name)
-			if !strings.HasPrefix(nameLower, platformNamePrefixLower) {
-				log.Printf("platforms: WARN: domain name '%s' does not begin with '%s'", name, platformNamePrefix)
-			}
-		}
-	}
-
-	return
 }

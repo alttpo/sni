@@ -218,12 +218,12 @@ func (d *Driver) Device(uri *url.URL) devices.AutoCloseableDevice {
 
 var debugLog *log.Logger
 
-func DriverConfig() {
+func DriverConfig(config *platforms.Config) {
 	var ok bool
 	var err error
 
 	var confIntf interface{}
-	confIntf, ok = platforms.Config.Drivers["fxpakpro"]
+	confIntf, ok = config.Drivers["fxpakpro"]
 	if !ok {
 		log.Printf("fxpakpro: config: missing fxpakpro driver config\n")
 		return
@@ -233,7 +233,7 @@ func DriverConfig() {
 
 	{
 		// translate general domain configurations into our driver-specific domains:
-		snesPlatform, ok := platforms.ByName["snes"]
+		snesPlatform, ok := config.ByName["snes"]
 		if !ok {
 			log.Printf("fxpakpro: config: no snes platform defined\n")
 			return
@@ -263,9 +263,12 @@ func DriverConfig() {
 	{
 		var config struct {
 			Domains []*struct {
-				Name  string
-				Start uint32
-				Size  uint32
+				Name      string
+				Space     string
+				Start     uint32
+				Size      *uint64
+				Readable  bool
+				Writeable bool
 			}
 		}
 
@@ -286,21 +289,26 @@ func DriverConfig() {
 					Domain: platforms.Domain{
 						DomainConf: platforms.DomainConf{
 							Name: domainConf.Name,
-							Size: uint64(domainConf.Size),
 						},
-						IsExposed:      true,
 						IsCoreSpecific: true,
-						IsReadable:     true,
-						IsWriteable:    false,
 					},
 					start: 0,
 				})
-				domainByName[nameLower] = &allDomains[len(allDomains)-1]
+				d = &allDomains[len(allDomains)-1]
+				domainByName[nameLower] = d
 			}
+
+			// override properties:
+			if domainConf.Size != nil {
+				d.Size = *domainConf.Size
+			}
+			d.IsReadable = domainConf.Readable
+			d.IsWriteable = domainConf.Writeable
+			d.space = domainConf.Space
+			d.start = domainConf.Start
 
 			// mark domain as exposed:
 			d.IsExposed = true
-			d.start = domainConf.Start
 		}
 	}
 }
@@ -324,5 +332,5 @@ func DriverInit() {
 	driver.container = devices.NewDeviceDriverContainer(driver.openDevice)
 	devices.Register(driverName, driver)
 
-	DriverConfig()
+	DriverConfig(platforms.Current)
 }

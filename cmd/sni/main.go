@@ -83,6 +83,7 @@ func main() {
 
 	// load configuration:
 	config.Load()
+	config.LoadPlatforms()
 
 	// explicitly initialize all the drivers:
 	fxpakpro.DriverInit()

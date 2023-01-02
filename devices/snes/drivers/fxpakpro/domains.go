@@ -13,6 +13,8 @@ import (
 type snesDomain struct {
 	platforms.Domain
 
+	// space must be either "SNES" or "CMD"
+	space string
 	// start address in the fx pak pro address space:
 	start uint32
 }
