@@ -41,7 +41,8 @@ type Device interface {
 }
 
 type DeviceMemory interface {
-	DefaultAddressSpace(ctx context.Context) (space sni.AddressSpace, err error)
+	RequiresMemoryMappingForAddressSpace(ctx context.Context, addressSpace sni.AddressSpace) (bool, error)
+	RequiresMemoryMappingForAddress(ctx context.Context, address AddressTuple) (bool, error)
 	MultiReadMemory(ctx context.Context, reads ...MemoryReadRequest) ([]MemoryReadResponse, error)
 	MultiWriteMemory(ctx context.Context, writes ...MemoryWriteRequest) ([]MemoryWriteResponse, error)
 }

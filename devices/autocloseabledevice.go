@@ -180,14 +180,28 @@ func (a *autoCloseableDevice) PauseToggle(ctx context.Context) (err error) {
 	return
 }
 
-func (a *autoCloseableDevice) DefaultAddressSpace(ctx context.Context) (space sni.AddressSpace, err error) {
+func (a *autoCloseableDevice) RequiresMemoryMappingForAddressSpace(ctx context.Context, addressSpace sni.AddressSpace) (rsp bool, err error) {
 	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
 		if a.logger != nil {
-			a.logger.Printf("DefaultAddressSpace() {\n")
+			a.logger.Printf("RequiresMemoryMappingForAddressSpace(%#v) {\n", addressSpace)
 		}
-		space, err = device.DefaultAddressSpace(ctx)
+		rsp, err = device.RequiresMemoryMappingForAddressSpace(ctx, addressSpace)
 		if a.logger != nil {
-			a.logger.Printf("DefaultAddressSpace() } -> (%#v, %#v)\n", space, err)
+			a.logger.Printf("RequiresMemoryMappingForAddressSpace(%#v) } -> (%#v, %#v)\n", addressSpace, rsp, err)
+		}
+		return
+	})
+	return
+}
+
+func (a *autoCloseableDevice) RequiresMemoryMappingForAddress(ctx context.Context, address AddressTuple) (rsp bool, err error) {
+	err = a.ensureOpened(ctx, func(ctx context.Context, device Device) (err error) {
+		if a.logger != nil {
+			a.logger.Printf("RequiresMemoryMappingForAddress(%#v) {\n", address)
+		}
+		rsp, err = device.RequiresMemoryMappingForAddress(ctx, address)
+		if a.logger != nil {
+			a.logger.Printf("RequiresMemoryMappingForAddress(%#v) } -> (%#v, %#v)\n", address, rsp, err)
 		}
 		return
 	})

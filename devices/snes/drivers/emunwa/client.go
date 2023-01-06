@@ -141,10 +141,6 @@ func (c *Client) GetId() string {
 	return c.name
 }
 
-func (c *Client) DefaultAddressSpace(context.Context) (sni.AddressSpace, error) {
-	return defaultAddressSpace, nil
-}
-
 func (c *Client) writeWithDeadline(bytes []byte, deadline time.Time) (err error) {
 	err = c.c.SetWriteDeadline(deadline)
 	if err != nil {
@@ -326,6 +322,26 @@ type memRegion struct {
 	Data   []byte
 }
 
+func (c *Client) RequiresMemoryMappingForAddressSpace(ctx context.Context, addressSpace sni.AddressSpace) (bool, error) {
+	if addressSpace == sni.AddressSpace_Raw {
+		return false, nil
+	}
+	if addressSpace == sni.AddressSpace_FxPakPro {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (c *Client) RequiresMemoryMappingForAddress(ctx context.Context, address devices.AddressTuple) (bool, error) {
+	if address.AddressSpace == sni.AddressSpace_Raw {
+		return false, nil
+	}
+	if address.AddressSpace == sni.AddressSpace_FxPakPro {
+		return false, nil
+	}
+	return true, nil
+}
+
 func (c *Client) MultiReadMemory(ctx context.Context, reads ...devices.MemoryReadRequest) (mrsp []devices.MemoryReadResponse, err error) {
 	deadline, ok := ctx.Deadline()
 	if !ok {
@@ -340,8 +356,7 @@ func (c *Client) MultiReadMemory(ctx context.Context, reads ...devices.MemoryRea
 
 	// divide up the reads into memory type groups:
 	for j, read := range reads {
-		a := &read.RequestAddress
-		memType, pakAddress, offset := mapping.MemoryTypeFor(a)
+		memType, pakAddress, offset := mapping.MemoryTypeFor(read.RequestAddress)
 
 		mrsp[j].RequestAddress = read.RequestAddress
 		mrsp[j].DeviceAddress = devices.AddressTuple{
@@ -432,8 +447,7 @@ func (c *Client) MultiWriteMemory(ctx context.Context, writes ...devices.MemoryW
 
 	// divide up the writes into memory type groups:
 	for j, write := range writes {
-		a := &write.RequestAddress
-		memType, pakAddress, offset := mapping.MemoryTypeFor(a)
+		memType, pakAddress, offset := mapping.MemoryTypeFor(write.RequestAddress)
 
 		mrsp[j].RequestAddress = write.RequestAddress
 		mrsp[j].DeviceAddress = devices.AddressTuple{

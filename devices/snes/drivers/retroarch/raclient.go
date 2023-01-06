@@ -360,8 +360,24 @@ func (c *RAClient) writeCommand() string {
 	}
 }
 
-func (c *RAClient) DefaultAddressSpace(context.Context) (sni.AddressSpace, error) {
-	return defaultAddressSpace, nil
+func (c *RAClient) RequiresMemoryMappingForAddressSpace(ctx context.Context, addressSpace sni.AddressSpace) (bool, error) {
+	if addressSpace == sni.AddressSpace_Raw {
+		return false, nil
+	}
+	if addressSpace == sni.AddressSpace_SnesABus {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (c *RAClient) RequiresMemoryMappingForAddress(ctx context.Context, address devices.AddressTuple) (bool, error) {
+	if address.AddressSpace == sni.AddressSpace_Raw {
+		return false, nil
+	}
+	if address.AddressSpace == sni.AddressSpace_SnesABus {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (c *RAClient) MultiReadMemory(ctx context.Context, reads ...devices.MemoryReadRequest) (mrsp []devices.MemoryReadResponse, err error) {

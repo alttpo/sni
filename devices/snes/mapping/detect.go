@@ -112,17 +112,9 @@ func detectHeader(ctx context.Context, memory devices.DeviceMemory) (outHeaderBy
 		sni.MemoryMapping_ExHiROM,
 	}
 
-	defaultAddressSpace, _ := memory.DefaultAddressSpace(nil)
-
 	bestScore := 0
 	for _, address := range addresses {
-		// reduce number of requests if the device's address space matches ours:
-		deviceMappings := mappings
-		if defaultAddressSpace == sni.AddressSpace_FxPakPro {
-			deviceMappings = []sni.MemoryMapping{sni.MemoryMapping_Unknown}
-		}
-
-		for _, mapping := range deviceMappings {
+		for _, mapping := range mappings {
 			var responses []devices.MemoryReadResponse
 			tuple := devices.AddressTuple{
 				Address:       address,
