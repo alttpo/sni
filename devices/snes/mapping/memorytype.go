@@ -18,7 +18,7 @@ const (
 	MemoryTypeWRAM    MemoryType = "WRAM"
 )
 
-func MemoryTypeFor(a *devices.AddressTuple) (memoryType MemoryType, pakAddress uint32, offset uint32) {
+func MemoryTypeFor(a devices.AddressTuple) (memoryType MemoryType, pakAddress uint32, offset uint32) {
 	var err error
 
 	switch a.AddressSpace {

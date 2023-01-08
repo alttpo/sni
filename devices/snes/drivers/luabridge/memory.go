@@ -24,6 +24,38 @@ func (d *Device) DefaultAddressSpace(context.Context) (sni.AddressSpace, error) 
 	return defaultAddressSpace, nil
 }
 
+func (d *Device) RequiresMemoryMappingForAddressSpace(ctx context.Context, addressSpace sni.AddressSpace) (bool, error) {
+	if d.isBizHawk {
+		if addressSpace == sni.AddressSpace_FxPakPro {
+			return false, nil
+		} else {
+			return true, nil
+		}
+	} else {
+		if addressSpace == sni.AddressSpace_SnesABus {
+			return false, nil
+		} else {
+			return true, nil
+		}
+	}
+}
+
+func (d *Device) RequiresMemoryMappingForAddress(ctx context.Context, address devices.AddressTuple) (bool, error) {
+	if d.isBizHawk {
+		if address.AddressSpace == sni.AddressSpace_FxPakPro {
+			return false, nil
+		} else {
+			return true, nil
+		}
+	} else {
+		if address.AddressSpace == sni.AddressSpace_SnesABus {
+			return false, nil
+		} else {
+			return true, nil
+		}
+	}
+}
+
 func (d *Device) MultiReadMemory(ctx context.Context, reads ...devices.MemoryReadRequest) (rsp []devices.MemoryReadResponse, err error) {
 	defer func() {
 		if err != nil {
@@ -50,7 +82,7 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...devices.MemoryRea
 			var domain mapping.MemoryType
 			var offset uint32
 			addressSpace = sni.AddressSpace_FxPakPro
-			domain, addr, offset = mapping.MemoryTypeFor(&read.RequestAddress)
+			domain, addr, offset = mapping.MemoryTypeFor(read.RequestAddress)
 			if domain == "SRAM" {
 				domain = "CARTRAM"
 			}
@@ -202,7 +234,7 @@ func (d *Device) MultiWriteMemory(ctx context.Context, writes ...devices.MemoryW
 			var domain mapping.MemoryType
 			var offset uint32
 			addressSpace = sni.AddressSpace_FxPakPro
-			domain, addr, offset = mapping.MemoryTypeFor(&write.RequestAddress)
+			domain, addr, offset = mapping.MemoryTypeFor(write.RequestAddress)
 			if domain == "SRAM" {
 				domain = "CARTRAM"
 			}

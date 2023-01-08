@@ -18,8 +18,24 @@ const (
 	spaceCMD  subspace = 1
 )
 
-func (d *Device) DefaultAddressSpace(context.Context) (sni.AddressSpace, error) {
-	return defaultAddressSpace, nil
+func (d *Device) RequiresMemoryMappingForAddressSpace(ctx context.Context, addressSpace sni.AddressSpace) (bool, error) {
+	if addressSpace == sni.AddressSpace_Raw {
+		return false, nil
+	}
+	if addressSpace == sni.AddressSpace_FxPakPro {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (d *Device) RequiresMemoryMappingForAddress(ctx context.Context, address devices.AddressTuple) (bool, error) {
+	if address.AddressSpace == sni.AddressSpace_Raw {
+		return false, nil
+	}
+	if address.AddressSpace == sni.AddressSpace_FxPakPro {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (d *Device) MultiReadMemory(

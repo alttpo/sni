@@ -312,12 +312,18 @@ serverLoop:
 				break serverLoop
 			}
 
-			//var confidence bool
-			//var outHeaderBytes []byte
-			deviceMemoryMapping, _, _, err = mapping.Detect(context.Background(), device, nil, nil)
-			if err != nil {
-				log.Printf("usb2snes: %s: could not detect memory mapping: %s\n", clientName, err)
-				break serverLoop
+			deviceMemoryMapping = sni.MemoryMapping_Unknown
+
+			var requiresMemoryMapping bool
+			requiresMemoryMapping, err = device.RequiresMemoryMappingForAddressSpace(context.Background(), sni.AddressSpace_FxPakPro)
+			if requiresMemoryMapping {
+				// need to know memory mapping of ROM:
+				deviceMemoryMapping, _, _, err = mapping.Detect(context.Background(), device, nil, nil)
+				if err != nil {
+					log.Printf("usb2snes: %s: could not detect memory mapping: %s\n", clientName, err)
+					err = nil
+					deviceMemoryMapping = sni.MemoryMapping_Unknown
+				}
 			}
 			break
 		case "Info":
@@ -401,6 +407,20 @@ serverLoop:
 						MemoryMapping: deviceMemoryMapping,
 					},
 					Size: int(size),
+				}
+
+				// check if we need to know the memory mapping for this request:
+				if deviceMemoryMapping == sni.MemoryMapping_Unknown {
+					var requiresMemoryMapping bool
+					requiresMemoryMapping, err = device.RequiresMemoryMappingForAddress(context.Background(), reqs[i].RequestAddress)
+					if requiresMemoryMapping {
+						// need to know memory mapping of ROM:
+						deviceMemoryMapping, _, _, err = mapping.Detect(context.Background(), device, nil, nil)
+						if err != nil {
+							log.Printf("usb2snes: %s: could not detect memory mapping: %s\n", clientName, err)
+							break serverLoop
+						}
+					}
 				}
 			}
 
@@ -504,6 +524,20 @@ serverLoop:
 						MemoryMapping: deviceMemoryMapping,
 					},
 					Data: make([]byte, size),
+				}
+
+				// check if we need to know the memory mapping for this request:
+				if deviceMemoryMapping == sni.MemoryMapping_Unknown {
+					var requiresMemoryMapping bool
+					requiresMemoryMapping, err = device.RequiresMemoryMappingForAddress(context.Background(), reqs[i].RequestAddress)
+					if requiresMemoryMapping {
+						// need to know memory mapping of ROM:
+						deviceMemoryMapping, _, _, err = mapping.Detect(context.Background(), device, nil, nil)
+						if err != nil {
+							log.Printf("usb2snes: %s: could not detect memory mapping: %s\n", clientName, err)
+							break serverLoop
+						}
+					}
 				}
 
 				var n int
