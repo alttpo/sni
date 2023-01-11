@@ -20,20 +20,24 @@ func Unmarshal(confMap map[string]interface{}) (config *Config, err error) {
 	}
 
 	// build platform lookup by name:
-	config.ByName = make(map[string]*PlatformConf)
+	config.PlatformsByName = make(map[string]*PlatformConf)
 	for _, p := range config.Platforms {
 		platformNameLower := strings.ToLower(p.Name)
-		config.ByName[platformNameLower] = p
+		config.PlatformsByName[platformNameLower] = p
 
 		platformNamePrefix := p.Name + "/"
 		platformNamePrefixLower := platformNameLower + "/"
 
+		p.DomainsByName = make(map[string]*DomainConf, len(p.Domains))
 		for i := range p.Domains {
 			name := p.Domains[i].Name
 			nameLower := strings.ToLower(name)
 			if !strings.HasPrefix(nameLower, platformNamePrefixLower) {
 				log.Printf("platforms: WARN: domain name '%s' does not begin with '%s'", name, platformNamePrefix)
 			}
+
+			// build domain name lookup:
+			p.DomainsByName[nameLower] = p.Domains[i]
 		}
 	}
 

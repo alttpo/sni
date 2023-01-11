@@ -2,11 +2,15 @@ package emunwa
 
 import (
 	"fmt"
+	"github.com/alttpo/observable"
 	"github.com/alttpo/snes/timing"
+	"github.com/mitchellh/mapstructure"
 	"log"
 	"net"
 	"net/url"
+	"regexp"
 	"sni/devices"
+	"sni/devices/platforms"
 	"sni/protos/sni"
 	"sni/util"
 	"sni/util/env"
@@ -198,6 +202,115 @@ func (d *Driver) DisconnectAll() {
 	}
 }
 
+type SNIMemoryDomainName = string
+
+type coreMatchers struct {
+	CoreNameRegex     *regexp.Regexp
+	CoreVersionRegex  *regexp.Regexp
+	CorePlatformRegex *regexp.Regexp
+}
+type coreDefine struct {
+	Platform         string
+	SNIToCoreMapping map[SNIMemoryDomainName]string
+	CoreToSNIMapping map[string]SNIMemoryDomainName
+}
+type CoreConfig struct {
+	Name    string
+	Matches *coreMatchers
+	Define  *coreDefine
+}
+
+var (
+	coresConfig       []*CoreConfig
+	currentPlatConfig *platforms.Config
+)
+
+func DriverConfig(platConfig *platforms.Config) {
+	ourConfMap, ok := platConfig.Drivers["emunwa"]
+	if !ok {
+		log.Printf("emunwa: config: missing emunwa driver config\n")
+		return
+	}
+
+	// decode emunwa driver config DTO:
+	var ourConf struct {
+		Cores []*struct {
+			Name    string
+			Matches *struct {
+				CoreName     string `mapstructure:"core-name"`
+				CoreVersion  string `mapstructure:"core-version"`
+				CorePlatform string `mapstructure:"core-platform"`
+			}
+			Define *struct {
+				Platform  string
+				SNIToCore map[string]string `mapstructure:"sni-to-core"`
+				CoreToSNI map[string]string `mapstructure:"core-to-sni"`
+			}
+		}
+	}
+
+	err := mapstructure.Decode(ourConfMap, &ourConf)
+	if err != nil {
+		log.Printf("emunwa: config: error decoding: %v\n", err)
+		return
+	}
+
+	// translate config DTO to in-memory representation:
+	newCoresConfig := make([]*CoreConfig, 0, len(ourConf.Cores))
+	for _, coreConf := range ourConf.Cores {
+		if coreConf.Matches.CoreName == "" {
+			log.Printf("emunwa: config: core '%s' is missing required coreName regexp\n", coreConf.Name)
+			return
+		}
+
+		// compile regexps if not empty:
+		var coreNameRegex *regexp.Regexp = nil
+		var coreVersionRegex *regexp.Regexp = nil
+		var corePlatformRegex *regexp.Regexp = nil
+		for _, m := range []struct {
+			r string
+			x **regexp.Regexp
+			n string
+		}{
+			{coreConf.Matches.CoreName, &coreNameRegex, "coreName"},
+			{coreConf.Matches.CoreVersion, &coreVersionRegex, "coreVersion"},
+			{coreConf.Matches.CorePlatform, &corePlatformRegex, "corePlatform"},
+		} {
+			if m.r == "" {
+				continue
+			}
+			*m.x, err = regexp.Compile(m.r)
+			if err != nil {
+				log.Printf("emunwa: config: core '%s' error compiling %s regexp `%v`: %v\n", coreConf.Name, m.n, m.r, err)
+				return
+			}
+		}
+
+		if _, ok := platConfig.PlatformsByName[coreConf.Define.Platform]; !ok {
+
+		}
+
+		// append the core configuration:
+		newCoresConfig = append(newCoresConfig, &CoreConfig{
+			Name: coreConf.Name,
+			Matches: &coreMatchers{
+				CoreNameRegex:     coreNameRegex,
+				CoreVersionRegex:  coreVersionRegex,
+				CorePlatformRegex: corePlatformRegex,
+			},
+			Define: &coreDefine{
+				Platform:         coreConf.Define.Platform,
+				SNIToCoreMapping: coreConf.Define.SNIToCore,
+				CoreToSNIMapping: coreConf.Define.CoreToSNI,
+			},
+		})
+	}
+
+	// assign new driver config:
+	coresConfig = newCoresConfig
+	currentPlatConfig = platConfig
+}
+
 func DriverInit() {
 	if util.IsTruthy(env.GetOrDefault("SNI_EMUNW_DISABLE", "0")) {
 		log.Printf("emunwa: disabling emunwa snes driver\n")
@@ -259,4 +372,9 @@ func DriverInit() {
 	// register the driver:
 	driver = NewDriver(addresses)
 	devices.Register(driverName, driver)
+
+	// subscribe to platforms.yaml config changes:
+	platforms.CurrentObs.Subscribe(observable.NewObserver("emunwa", func(event observable.Event) {
+		DriverConfig(event.Value.(*platforms.Config))
+	}))
 }

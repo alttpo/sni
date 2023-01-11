@@ -73,24 +73,31 @@ drivers:
 
   emunwa:
     cores:
-      # snes9x-emunwa
-      - matches:
-          coreName:         '^snes9x'
+      - name: "snes9x-emunwa"
+        matches:
+          core-name:        '(?i)^snes9x.*nwa'
         define:
           platform:         "snes"
-          domainMapping:
+          sni-to-core:
             "snes/mem/system/WRAM":  "WRAM"
             "snes/mem/system/VRAM":  "VRAM"
             "snes/mem/system/CGRAM": "CGRAM"
             "snes/mem/system/OAM":   "OAM"
             "snes/mem/cart/ROM":     "CARTROM"
             "snes/mem/cart/SRAM":    "SRAM"
-      # bsnes-plus-nwa
-      - matches:
-          coreName:         '^bsnes'
+          core-to-sni:
+            "WRAM":    "snes/mem/system/WRAM"
+            "VRAM":    "snes/mem/system/VRAM"
+            "CGRAM":   "snes/mem/system/CGRAM"
+            "OAM":     "snes/mem/system/OAM"
+            "CARTROM": "snes/mem/cart/ROM"
+            "SRAM":    "snes/mem/cart/SRAM"
+      - name: "bsnes-plus-nwa"
+        matches:
+          core-name:        '(?i)^bsnes.*nwa'
         define:
           platform:         "snes"
-          domainMapping:
+          sni-to-core:
             "snes/mem/system/WRAM":  "WRAM"
             "snes/mem/system/VRAM":  "VRAM"
             "snes/mem/system/CGRAM": "CGRAM"

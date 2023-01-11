@@ -2,6 +2,7 @@ package fxpakpro
 
 import (
 	"fmt"
+	"github.com/alttpo/observable"
 	"github.com/mitchellh/mapstructure"
 	"go.bug.st/serial"
 	"go.bug.st/serial/enumerator"
@@ -233,7 +234,7 @@ func DriverConfig(config *platforms.Config) {
 
 	{
 		// translate general domain configurations into our driver-specific domains:
-		snesPlatform, ok := config.ByName["snes"]
+		snesPlatform, ok := config.PlatformsByName["snes"]
 		if !ok {
 			log.Printf("fxpakpro: config: no snes platform defined\n")
 			return
@@ -331,4 +332,9 @@ func DriverInit() {
 	driver = &Driver{}
 	driver.container = devices.NewDeviceDriverContainer(driver.openDevice)
 	devices.Register(driverName, driver)
+
+	// subscribe to platforms.yaml config changes:
+	platforms.CurrentObs.Subscribe(observable.NewObserver("fxpakpro", func(event observable.Event) {
+		DriverConfig(event.Value.(*platforms.Config))
+	}))
 }

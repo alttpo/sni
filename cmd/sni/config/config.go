@@ -21,6 +21,9 @@ var (
 	AppsObservable *observable.Object
 	appsObservable = observable.NewObject()
 	AppsPath       string
+
+	PlatformsObservable *observable.Object
+	platformsObservable = observable.NewObject()
 )
 
 // configuration state:
@@ -32,10 +35,10 @@ var (
 )
 
 var (
-	Dir       string
-	Config    *viper.Viper = viper.New()
-	Apps      *viper.Viper = viper.New()
-	Platforms *viper.Viper = viper.New()
+	Dir            string
+	Config         *viper.Viper = viper.New()
+	Apps           *viper.Viper = viper.New()
+	platformsViper *viper.Viper = viper.New()
 )
 
 func InitDir() {
@@ -155,12 +158,31 @@ func ReloadApps() {
 	appsObservable.Set(Apps)
 }
 
-func LoadPlatforms() {
-	Platforms.SetConfigName("platforms")
-	Platforms.SetConfigType("yaml")
-	Platforms.AddConfigPath(Dir)
+func onPlatformsLoaded(allConfigs map[string]interface{}) {
+	var err error
+	var conf *platforms.Config
 
-	err := Platforms.ReadInConfig()
+	// unmarshal the platforms section; the individual drivers unmarshal their own sections:
+	conf, err = platforms.Unmarshal(allConfigs)
+	if err != nil {
+		log.Printf("platforms: unmarshal: %s\n", err)
+		return
+	}
+
+	// notify subscribers of new configuration:
+	platforms.CurrentObs.Set(conf)
+}
+
+func LoadPlatforms() {
+	platformsViper.SetConfigName("platforms")
+	platformsViper.SetConfigType("yaml")
+	platformsViper.AddConfigPath(Dir)
+
+	platformsViper.OnConfigChange(func(_ fsnotify.Event) {
+		onPlatformsLoaded(platformsViper.AllSettings())
+	})
+
+	err := platformsViper.ReadInConfig()
 	if err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// no problem; use default instead:
@@ -171,18 +193,13 @@ func LoadPlatforms() {
 
 		// load default embedded configuration instead:
 		log.Printf("platforms: loading embedded default platforms.yaml\n")
-		err = Platforms.ReadConfig(bytes.NewReader(platforms.DefaultPlatformsYaml))
+		err = platformsViper.ReadConfig(bytes.NewReader(platforms.DefaultPlatformsYaml))
 		if err != nil {
 			log.Fatalf("platforms: could not load embedded default platforms.yaml: %s\n", err)
 			return
 		}
 	}
 
-	// unmarshal the platforms section; the individual drivers unmarshal their own sections:
-	confMap := Platforms.AllSettings()
-	platforms.Current, err = platforms.Unmarshal(confMap)
-	if err != nil {
-		log.Printf("platforms: unmarshal: %s\n", err)
-		return
-	}
+	onPlatformsLoaded(platformsViper.AllSettings())
+	platformsViper.WatchConfig()
 }

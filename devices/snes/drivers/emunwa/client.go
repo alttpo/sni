@@ -12,8 +12,10 @@ import (
 	"net"
 	"sni/cmd/sni/config"
 	"sni/devices"
+	"sni/devices/platforms"
 	"sni/devices/snes/mapping"
 	"sni/protos/sni"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,6 +36,10 @@ type Client struct {
 
 	readWriteTimeout time.Duration
 	dialer           *net.Dialer
+
+	currentCore     *CoreConfig
+	currentPlatform *platforms.PlatformConf
+	currentDomains  []*platforms.Domain
 }
 
 func (c *Client) FatalError(cause error) devices.DeviceError {
@@ -535,11 +541,194 @@ func (c *Client) MultiWriteMemory(ctx context.Context, writes ...devices.MemoryW
 	return
 }
 
-func (c *Client) ResetSystem(ctx context.Context) (err error) {
+func clean(s string) string {
+	return strings.TrimSpace(s)
+}
+
+func cleanLower(s string) string {
+	return strings.ToLower(clean(s))
+}
+
+func (c *Client) DetermineDomainMapping(ctx context.Context) (err error) {
+	c.currentCore = nil
+
+	platConfig := currentPlatConfig
+	if platConfig == nil {
+		err = c.FatalError(fmt.Errorf("missing required platforms configuration"))
+		return
+	}
+
+	// determine which platform is running:
+	var coreName, coreVersion, corePlatform string
+	var fields []string
+	fields, err = c.FetchFields(ctx, sni.Field_CoreName, sni.Field_CoreVersion, sni.Field_CorePlatform)
+	if err != nil {
+		return
+	}
+
+	coreName, coreVersion, corePlatform = clean(fields[0]), clean(fields[1]), clean(fields[2])
+	for _, coreConfig := range coresConfig {
+		if !coreConfig.Matches.CoreNameRegex.Match([]byte(coreName)) {
+			continue
+		}
+		if coreConfig.Matches.CoreVersionRegex != nil {
+			if !coreConfig.Matches.CoreVersionRegex.Match([]byte(coreVersion)) {
+				continue
+			}
+		}
+		if coreConfig.Matches.CorePlatformRegex != nil {
+			if !coreConfig.Matches.CorePlatformRegex.Match([]byte(corePlatform)) {
+				continue
+			}
+		}
+
+		// matched with all applicable regexps:
+		c.currentCore = coreConfig
+		break
+	}
+
+	if c.currentCore == nil {
+		err = c.FatalError(fmt.Errorf(
+			"could not find a match for coreName='%s',coreVersion='%s',corePlatform='%s' in platforms config",
+			coreName,
+			coreVersion,
+			corePlatform,
+		))
+		return
+	}
+
+	var ok bool
+	platformName := c.currentCore.Define.Platform
+	c.currentPlatform, ok = platConfig.PlatformsByName[platformName]
+	if !ok {
+		err = c.FatalError(fmt.Errorf("could not find platform '%s' defined in platforms config", platformName))
+		return
+	}
+
+	// now fetch exposed memory domain names for the core:
+	deadline := c.computeDeadline(ctx)
+	var memories []map[string]string
+	_, memories, err = c.SendCommandWaitReply("CORE_MEMORIES", deadline)
+	if err != nil {
+		return
+	}
+
+	// build a list of platform memory domains, exposed and not:
+	currentDomains := make([]*platforms.Domain, 0, len(c.currentPlatform.Domains)+len(memories))
+	currentDomainsMap := make(map[string]*platforms.Domain, len(c.currentPlatform.Domains)+len(memories))
+	for _, d := range c.currentPlatform.Domains {
+		pd := &platforms.Domain{
+			DomainConf:     *d,
+			IsExposed:      false,
+			IsCoreSpecific: false,
+			IsReadable:     false,
+			IsWriteable:    false,
+		}
+		currentDomains = append(currentDomains, pd)
+		currentDomainsMap[cleanLower(pd.Name)] = pd
+	}
+
+	for _, m := range memories {
+		coreMemName := cleanLower(m["name"])
+		coreMemSize := cleanLower(m["size"])
+		coreMemAccess := cleanLower(m["access"])
+
+		var coreMemSizeN uint64
+		coreMemSizeN, err = strconv.ParseUint(coreMemSize, 10, 64)
+		if err != nil {
+			err = c.FatalError(fmt.Errorf("could not parse integer size '%s' from nwa CORE_MEMORIES response", coreMemSize))
+			return
+		}
+
+		var sniMemName string
+		sniMemName, ok = c.currentCore.Define.CoreToSNIMapping[coreMemName]
+		if !ok {
+			err = c.FatalError(fmt.Errorf("could not map core memory name '%s' to SNI memory name", coreMemName))
+			return
+		}
+
+		// get canonical SNI name from platform config:
+		sniMemNameLower := cleanLower(sniMemName)
+		var domainConf *platforms.DomainConf
+		domainConf, ok = c.currentPlatform.DomainsByName[sniMemNameLower]
+		if ok {
+			sniMemName = domainConf.Name
+			sniMemNameLower = cleanLower(sniMemName)
+		}
+
+		var pd *platforms.Domain
+		pd, ok = currentDomainsMap[sniMemNameLower]
+		if !ok {
+			pd = &platforms.Domain{
+				DomainConf: platforms.DomainConf{
+					Name: sniMemName,
+					Size: coreMemSizeN,
+				},
+				IsExposed:      true,
+				IsCoreSpecific: true,
+				IsReadable:     false,
+				IsWriteable:    false,
+			}
+			currentDomains = append(currentDomains, pd)
+			currentDomainsMap[sniMemNameLower] = pd
+		}
+		pd.IsExposed = true
+		if coreMemAccess == "rw" {
+			pd.IsReadable = true
+			pd.IsWriteable = true
+		} else if coreMemAccess == "r" {
+			pd.IsReadable = true
+		} else if coreMemAccess == "w" {
+			pd.IsWriteable = true
+		}
+	}
+
+	c.currentDomains = currentDomains
+	return
+}
+
+func (c *Client) MemoryDomains(ctx context.Context, request *sni.MemoryDomainsRequest) (rsp *sni.MemoryDomainsResponse, err error) {
+	// always fetch current core info and memory list:
+	err = c.DetermineDomainMapping(ctx)
+	if err != nil {
+		return
+	}
+
+	rsp.Domains = make([]*sni.MemoryDomain, 0, len(c.currentDomains))
+	for _, d := range c.currentDomains {
+		rsp.Domains = append(rsp.Domains, &sni.MemoryDomain{
+			Name:           d.Name,
+			IsExposed:      d.IsExposed,
+			IsCoreSpecific: d.IsCoreSpecific,
+			Size:           d.Size,
+			IsReadable:     d.IsReadable,
+			IsWriteable:    d.IsWriteable,
+		})
+	}
+
+	return
+}
+
+func (c *Client) MultiDomainRead(ctx context.Context, request *sni.MultiDomainReadRequest) (rsp *sni.MultiDomainReadResponse, err error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c *Client) MultiDomainWrite(ctx context.Context, request *sni.MultiDomainWriteRequest) (rsp *sni.MultiDomainWriteResponse, err error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c *Client) computeDeadline(ctx context.Context) time.Time {
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		deadline = time.Now().Add(c.readWriteTimeout)
 	}
+	return deadline
+}
+
+func (c *Client) ResetSystem(ctx context.Context) (err error) {
+	deadline := c.computeDeadline(ctx)
 
 	_, _, err = c.SendCommandWaitReply("EMULATION_RESET", deadline)
 	return
