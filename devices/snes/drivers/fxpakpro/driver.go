@@ -335,6 +335,10 @@ func DriverInit() {
 
 	// subscribe to platforms.yaml config changes:
 	platforms.CurrentObs.Subscribe(observable.NewObserver("fxpakpro", func(event observable.Event) {
+		if event.Value == nil {
+			return
+		}
+
 		DriverConfig(event.Value.(*platforms.Config))
 	}))
 }
