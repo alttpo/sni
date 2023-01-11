@@ -94,7 +94,7 @@ drivers:
             "SRAM":    "snes/mem/cart/SRAM"
       - name: "bsnes-plus-nwa"
         matches:
-          core-name:        '(?i)^bsnes.*nwa'
+          core-name:        '(?i)^bsnes'
         define:
           platform:         "snes"
           sni-to-core:
@@ -104,6 +104,13 @@ drivers:
             "snes/mem/system/OAM":   "OAM"
             "snes/mem/cart/ROM":     "CARTROM"
             "snes/mem/cart/SRAM":    "SRAM"
+          core-to-sni:
+            "WRAM":    "snes/mem/system/WRAM"
+            "VRAM":    "snes/mem/system/VRAM"
+            "CGRAM":   "snes/mem/system/CGRAM"
+            "OAM":     "snes/mem/system/OAM"
+            "CARTROM": "snes/mem/cart/ROM"
+            "SRAM":    "snes/mem/cart/SRAM"
 
   luabridge:
     cores:

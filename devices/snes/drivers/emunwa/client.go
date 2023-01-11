@@ -694,7 +694,12 @@ func (c *Client) MemoryDomains(ctx context.Context, request *sni.MemoryDomainsRe
 		return
 	}
 
-	rsp.Domains = make([]*sni.MemoryDomain, 0, len(c.currentDomains))
+	rsp = &sni.MemoryDomainsResponse{
+		Uri:      request.Uri,
+		CoreName: c.currentCore.Name,
+		Domains:  make([]*sni.MemoryDomain, 0, len(c.currentDomains)),
+	}
+
 	for _, d := range c.currentDomains {
 		rsp.Domains = append(rsp.Domains, &sni.MemoryDomain{
 			Name:           d.Name,
