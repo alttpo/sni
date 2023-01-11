@@ -673,6 +673,7 @@ func (c *Client) DetermineDomainMapping(ctx context.Context) (err error) {
 			currentDomainsMap[sniMemNameLower] = pd
 		}
 		pd.IsExposed = true
+		pd.Size = coreMemSizeN
 		if coreMemAccess == "rw" {
 			pd.IsReadable = true
 			pd.IsWriteable = true
