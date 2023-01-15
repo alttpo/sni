@@ -549,8 +549,12 @@ func cleanLower(s string) string {
 	return strings.ToLower(clean(s))
 }
 
-func (c *Client) DetermineDomainMapping(ctx context.Context) (err error) {
-	c.currentCore = nil
+func (c *Client) determineDomainMapping(ctx context.Context) (err error) {
+	if c.currentDomains != nil {
+		return
+	}
+
+	var currentCore *CoreConfig = nil
 
 	platConfig := currentPlatConfig
 	if platConfig == nil {
@@ -583,11 +587,11 @@ func (c *Client) DetermineDomainMapping(ctx context.Context) (err error) {
 		}
 
 		// matched with all applicable regexps:
-		c.currentCore = coreConfig
+		currentCore = coreConfig
 		break
 	}
 
-	if c.currentCore == nil {
+	if currentCore == nil {
 		err = c.FatalError(fmt.Errorf(
 			"could not find a match for coreName='%s',coreVersion='%s',corePlatform='%s' in platforms config",
 			coreName,
@@ -598,8 +602,9 @@ func (c *Client) DetermineDomainMapping(ctx context.Context) (err error) {
 	}
 
 	var ok bool
-	platformName := c.currentCore.Define.Platform
-	c.currentPlatform, ok = platConfig.PlatformsByName[platformName]
+	platformName := currentCore.Define.Platform
+	var currentPlatform *platforms.PlatformConf
+	currentPlatform, ok = platConfig.PlatformsByName[platformName]
 	if !ok {
 		err = c.FatalError(fmt.Errorf("could not find platform '%s' defined in platforms config", platformName))
 		return
@@ -614,9 +619,9 @@ func (c *Client) DetermineDomainMapping(ctx context.Context) (err error) {
 	}
 
 	// build a list of platform memory domains, exposed and not:
-	currentDomains := make([]*platforms.Domain, 0, len(c.currentPlatform.Domains)+len(memories))
-	currentDomainsMap := make(map[string]*platforms.Domain, len(c.currentPlatform.Domains)+len(memories))
-	for _, d := range c.currentPlatform.Domains {
+	currentDomains := make([]*platforms.Domain, 0, len(currentPlatform.Domains)+len(memories))
+	currentDomainsMap := make(map[string]*platforms.Domain, len(currentPlatform.Domains)+len(memories))
+	for _, d := range currentPlatform.Domains {
 		pd := &platforms.Domain{
 			DomainConf:     *d,
 			IsExposed:      false,
@@ -641,7 +646,7 @@ func (c *Client) DetermineDomainMapping(ctx context.Context) (err error) {
 		}
 
 		var sniMemName string
-		sniMemName, ok = c.currentCore.Define.CoreToSNIMapping[coreMemName]
+		sniMemName, ok = currentCore.Define.CoreToSNIMapping[coreMemName]
 		if !ok {
 			err = c.FatalError(fmt.Errorf("could not map core memory name '%s' to SNI memory name", coreMemName))
 			return
@@ -650,7 +655,7 @@ func (c *Client) DetermineDomainMapping(ctx context.Context) (err error) {
 		// get canonical SNI name from platform config:
 		sniMemNameLower := cleanLower(sniMemName)
 		var domainConf *platforms.DomainConf
-		domainConf, ok = c.currentPlatform.DomainsByName[sniMemNameLower]
+		domainConf, ok = currentPlatform.DomainsByName[sniMemNameLower]
 		if ok {
 			sniMemName = domainConf.Name
 			sniMemNameLower = cleanLower(sniMemName)
@@ -684,13 +689,16 @@ func (c *Client) DetermineDomainMapping(ctx context.Context) (err error) {
 		}
 	}
 
+	c.currentCore = currentCore
+	c.currentPlatform = currentPlatform
 	c.currentDomains = currentDomains
 	return
 }
 
 func (c *Client) MemoryDomains(ctx context.Context, request *sni.MemoryDomainsRequest) (rsp *sni.MemoryDomainsResponse, err error) {
 	// always fetch current core info and memory list:
-	err = c.DetermineDomainMapping(ctx)
+	c.currentDomains, c.currentPlatform, c.currentDomains = nil, nil, nil
+	err = c.determineDomainMapping(ctx)
 	if err != nil {
 		return
 	}
