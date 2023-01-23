@@ -17,14 +17,14 @@
 local socket = require("socket.core")
 local state = "accept"
 sni = {
-	server = nil,
-	port = 0,
-	client = nil
+    server = nil,
+    port = 0,
+    client = nil
 }
 
--- escapes '\', '|', and ',' to '\xNN' where NN is the hex representation of the ASCII code of the char escaped:
+-- escapes special chars to '\xNN' where NN is the hex representation of the ASCII code of the char to escape:
 local function escape(s)
-    return string.gsub(s, '[\\|,]', function (m)
+    return string.gsub(s, '[\\|=,]', function (m)
         return string.format('\\x%02x', string.byte(m))
     end)
 end
@@ -36,16 +36,35 @@ local function unescape(s)
     end)
 end
 
+local encode
+local function encode_map(s,sb)
+    if sb == nil then
+        sb = {}
+    end
+    for k,v in pairs(s) do
+        sb[#sb+1] = escape(k)
+        sb[#sb+1] = "="
+        sb[#sb+1] = encode(v)
+        sb[#sb+1] = "|"
+    end
+    return sb
+end
+
 -- encodes strings into escaped strings and encodes array-tables into comma-delimited encoded strings:
-local function encode(s)
+encode = function (s)
     if type(s) == "string" then
         return escape(s)
     elseif type(s) == "table" then
-		local d = {}
-		for i,v in ipairs(s) do
-		    d[i] = encode(v)
-		end
-		return table.concat(d, ',')
+        if #s == 0 then
+            -- encode as `key=value|key=value|...|`:
+            return table.concat(encode_map(s))
+        end
+        -- encode as `item,item,item,...`
+        local d = {}
+        for i,v in ipairs(s) do
+            d[i] = encode(v)
+        end
+        return table.concat(d, ',')
     else
         return tostring(s)
     end
@@ -60,193 +79,206 @@ local function decode_list(s)
     return t
 end
 
-function handle(req_headers, req_body)
-	-- command:
-	local cmd = req_headers["cmd"]
-
-	if cmd == "info" then
-		-- collect all current info about emulator, core, and game:
-
-		-- get memory domain names and their sizes:
-		local domain_names = memory.getmemorydomainlist()
-		local domain_sizes = {}
-		for i,k in ipairs(domain_names) do
-			domain_sizes[i] = memory.getmemorydomainsize(k)
-		end
-
-        -- response:
-		return req_headers, {
-		    client_version = client.getversion(),
-		    platform = string.lower(emu.getsystemid()),
-            rom_name = gameinfo.getromname(),
-            rom_hash = gameinfo.getromhash(),
-		    domain_names = domain_names,
-		    domain_sizes = domain_sizes
-        }
-	end
-
-    req_headers["error"] = "unknown command"
-	return req_headers, nil
-end
-
-function receive()
-	if sni.client == nil then
-		state = "accept"
-		return
-	end
-
-	-- receive a message from the sni.client:
-	local l, err = sni.client:receive('*l')
-	if err == 'timeout' then
-		return false
-	elseif err == 'closed' then
-		print("client:receive: Connection was closed")
-		state = "accept"
-		sni.client = nil
-		return false
-	elseif err ~= nil then
-		print("client:receive: err=" .. err)
-		state = "accept"
-		sni.client = nil
-		return false
-	end
-
-	if l == nil then
-		print("client:receive: nil")
-		return false
-	end
-
-	print("client:receive: `" .. l .. "`")
-
-	-- separate request headers from body by first instance of "||"
-	-- decode a delimited key-value map e.g. "key=value|key=value|key=value|...|"
-	local req_headers, req_body = {}, {}
-	local reqpart = req_headers
-	if l[-1] ~= '|' then l = l .. '|' end
-    for m in string.gmatch(l, '([^|]*)|') do
+-- decodes a pipe-delimited string into a table of key-value pairs:
+local function decode_list_of_maps(s)
+    local ts = {}
+    ts[#ts+1] = {}
+    local t = ts[#ts]
+    for m in string.gmatch(s, '([^|]*)|') do
         if #m == 0 then
-            -- an empty header denotes the transition between headers and body:
-            reqpart = req_body
+            -- an empty element denotes the transition between maps in the list:
+            ts[#ts+1] = {}
+            t = ts[#ts]
         else
+            -- split by '=' to find key = value parts:
             local i = string.find(m, '=', 1, true)
             local k,v
             if i == nil then
+                -- no '=' is treated as a bare key with no value:
                 k,v = m, ""
             else
                 k,v = string.sub(m, 1, i-1), string.sub(m, i+1)
             end
-            reqpart[k] = v
+            t[k] = v
+        end
+    end
+    return ts
+end
+
+-- handle a network request:
+function handle(req_headers, req_body)
+    -- command:
+    local cmd = req_headers["cmd"]
+
+    if cmd == "info" then
+        -- collect all current info about emulator, core, and game:
+
+        -- get memory domain names and their sizes:
+        local domain_names = memory.getmemorydomainlist()
+        local domain_sizes = {}
+        for i,k in ipairs(domain_names) do
+            domain_sizes[i] = memory.getmemorydomainsize(k)
+        end
+
+        -- response:
+        return req_headers, {
+            client_version = client.getversion(),
+            platform = string.lower(emu.getsystemid()),
+            rom_name = gameinfo.getromname(),
+            rom_hash = gameinfo.getromhash(),
+            domain_names = domain_names,
+            domain_sizes = domain_sizes
+        }
+    elseif cmd == "read" then
+        local reads = decode_list(req_body)
+        for i,v in ipairs(reads) do
+            local h = decode_list(v)
+
         end
     end
 
+    req_headers["error"] = "unknown command"
+    return req_headers, nil
+end
+
+function receive()
+    if sni.client == nil then
+        state = "accept"
+        return
+    end
+
+    -- receive a message from the sni.client:
+    local l, err = sni.client:receive('*l')
+    if err == 'timeout' then
+        return false
+    elseif err == 'closed' then
+        print("client:receive: Connection was closed")
+        state = "accept"
+        sni.client = nil
+        return false
+    elseif err ~= nil then
+        print("client:receive: err=" .. err)
+        state = "accept"
+        sni.client = nil
+        return false
+    end
+
+    if l == nil then
+        print("client:receive: nil")
+        return false
+    end
+
+    print("client:receive: `" .. l .. "`")
+
+    -- force the line to end in a '|':
+    if l[-1] ~= '|' then l = l .. '|' end
+
+    -- `header=value|header=value||body=value|body=value|...|`
+    local req = decode_list_of_maps(l)
+    local req_headers, req_body = req[1], req[2]
+
     -- handle request:
-	local rsp_headers, rsp_body = handle(req_headers, req_body)
+    local rsp_headers, rsp_body = handle(req_headers, req_body)
 
-	-- format response message:
-	local sb = {}
-	for k,v in pairs(rsp_headers) do
-		sb[#sb+1] = k
-		sb[#sb+1] = "="
-		sb[#sb+1] = encode(v)
+    -- format response message:
+    local sb = {}
+    -- encode headers:
+    encode_map(rsp_headers,sb)
+    if rsp_body ~= nil then
+        -- add header-body separator:
         sb[#sb+1] = "|"
-	end
-	if rsp_body ~= nil then
-        sb[#sb+1] = "|"
-        for k,v in pairs(rsp_body) do
-            sb[#sb+1] = k
-            sb[#sb+1] = "="
-            sb[#sb+1] = encode(v)
-            sb[#sb+1] = "|"
-        end
-	end
-	local rsp = table.concat(sb)
+        -- encode body:
+        encode_map(rsp_body,sb)
+    end
+    local rsp = table.concat(sb)
 
-	print("response: `" .. rsp .. "`")
-	sni.client:send(rsp .. "\n")
-	return true
+    print("response: `" .. rsp .. "`")
+    sni.client:send(rsp .. "\n")
+    return true
 end
 
 function main()
-	local sock
+    local sock
 
-	if sni.server == nil then
-		local res, err = nil, nil
-		for i = 0, 15 do
-			sock, err = socket:tcp()
-			if not sock then
-				print(err)
-				return
-			end
+    if sni.server == nil then
+        local res, err = nil, nil
+        for i = 0, 15 do
+            sock, err = socket:tcp()
+            if not sock then
+                print(err)
+                return
+            end
 
-			-- start a server:
-			sni.server = sock
+            -- start a server:
+            sni.server = sock
 
-			-- DO NOT enable reuseaddr so that we get a clean error message and do not start overlapping with
-			-- bound sockets created from a previous script if that script did not cleanly shut down.
-			--sni.server:setoption("reuseaddr", true)
+            -- DO NOT enable reuseaddr so that we get a clean error message and do not start overlapping with
+            -- bound sockets created from a previous script if that script did not cleanly shut down.
+            --sni.server:setoption("reuseaddr", true)
 
-			res, err = sni.server:bind('localhost', 48896+i)
-			if err == nil then
-				sni.port = i
-				print("server:bind(" .. (48896 + i) .. "): success")
-				break
-			end
+            res, err = sni.server:bind('localhost', 48896+i)
+            if err == nil then
+                sni.port = i
+                print("server:bind(" .. (48896 + i) .. "): success")
+                break
+            end
 
-			-- error, move on to the next port:
-			print("server:bind(" .. (48896 + i) .. "): err=" .. err)
-			sni.server:close()
-			sni.server = nil
-		end
-		if err ~= nil then
-			print("No open ports found to listen on. Please close this Lua Console window and re-open it to restart the server.")
-			return
-		end
+            -- error, move on to the next port:
+            print("server:bind(" .. (48896 + i) .. "): err=" .. err)
+            sni.server:close()
+            sni.server = nil
+        end
+        if err ~= nil then
+            print("No open ports found to listen on. Please close this Lua Console window and re-open it to restart the server.")
+            return
+        end
 
-		res, err = sni.server:listen()
-		if err ~= nil then
-			print("server:listen: err=" .. err)
-			return
-		end
-	end
+        res, err = sni.server:listen()
+        if err ~= nil then
+            print("server:listen: err=" .. err)
+            return
+        end
+    end
 
-	-- main connection handling loop:
-	while true do
-		if state == "connected" then
-		    while receive() do end
-		elseif state == "accept" then
-			-- 1 frame of timeout worst case:
-			sni.server:settimeout(0.015)
-			local sock, err = sni.server:accept()
-			if err == nil then
-				print("server:accept: connection accepted")
-				sock:settimeout(0)
-				sock:setoption("tcp-nodelay", true)
-				sni.client = sock
-				state = "connected"
-			elseif err ~= "timeout" then
-				print("server:accept: " .. err)
-			end
-		end
+    -- main connection handling loop:
+    while true do
+        if state == "connected" then
+            -- handle as many commands in a loop as possible before resuming the next frame:
+            while receive() do end
+        elseif state == "accept" then
+            -- 1 frame of timeout worst case:
+            sni.server:settimeout(0.015)
+            local sock, err = sni.server:accept()
+            if err == nil then
+                print("server:accept: connection accepted")
+                sock:settimeout(0)
+                sock:setoption("tcp-nodelay", true)
+                sni.client = sock
+                state = "connected"
+            elseif err ~= "timeout" then
+                print("server:accept: error=`" .. err .. "`")
+            end
+        end
 
-		emu.frameadvance()
-	end
+        emu.frameadvance()
+    end
 end
 
 function shutdown()
-	print("shutdown: shutting down")
+    print("shutdown: shutting down")
 
-	if sni.client ~= nil then
-		print("shutdown: client close")
-		sni.client:close()
-		sni.client = nil
-	end
-	if sni.server ~= nil then
-		print("shutdown: server close")
-		sni.server:close()
-		sni.server = nil
-	end
+    if sni.client ~= nil then
+        print("shutdown: client close")
+        sni.client:close()
+        sni.client = nil
+    end
+    if sni.server ~= nil then
+        print("shutdown: server close")
+        sni.server:close()
+        sni.server = nil
+    end
 
-	collectgarbage()
+    collectgarbage()
 end
 
 event.onexit(shutdown)
