@@ -99,7 +99,7 @@ local function decode_list_of_maps(s)
             else
                 k,v = string.sub(m, 1, i-1), string.sub(m, i+1)
             end
-            t[k] = v
+            t[unescape(k)] = unescape(v)
         end
     end
     return ts
@@ -109,19 +109,28 @@ end
 function handle(req_headers, req_body)
     -- command:
     local cmd = req_headers["cmd"]
+    local rsp_headers = {}
+    for k,v in pairs(req_headers) do
+        rsp_headers[k] = v
+    end
+    rsp_headers["frame_count"] = emu.framecount()
 
     if cmd == "info" then
         -- collect all current info about emulator, core, and game:
 
         -- get memory domain names and their sizes:
-        local domain_names = memory.getmemorydomainlist()
+        local domainlist = memory.getmemorydomainlist()
+        local domain_names = {}
+        for i = 0,#domainlist do
+            domain_names[#domain_names+1] = domainlist[i]
+        end
         local domain_sizes = {}
-        for i,k in ipairs(domain_names) do
-            domain_sizes[i] = memory.getmemorydomainsize(k)
+        for i = 0,#domainlist do
+            domain_sizes[#domain_sizes+1] = memory.getmemorydomainsize(domainlist[i])
         end
 
         -- response:
-        return req_headers, {
+        return rsp_headers, {
             client_version = client.getversion(),
             platform = string.lower(emu.getsystemid()),
             rom_name = gameinfo.getromname(),
@@ -130,14 +139,20 @@ function handle(req_headers, req_body)
             domain_sizes = domain_sizes
         }
     elseif cmd == "read" then
-        local reads = decode_list(req_body)
-        for i,v in ipairs(reads) do
-            local h = decode_list(v)
-
+        local domain = req_headers["domain"]
+        local offset = tonumber(req_headers["offset"], 16)
+        local size = tonumber(req_headers["size"], 16)
+        local data = memory.read_bytes_as_array(offset, size, domain)
+        local sb = {}
+        for i,v in ipairs(data) do
+            sb[#sb+1] = string.format("%02x", v)
         end
+        return rsp_headers, {
+            data = table.concat(sb)
+        }
     end
 
-    req_headers["error"] = "unknown command"
+    rsp_headers["error"] = "unknown command"
     return req_headers, nil
 end
 
@@ -168,7 +183,7 @@ function receive()
         return false
     end
 
-    print("client:receive: `" .. l .. "`")
+    --print("client:receive: `" .. l .. "`")
 
     -- force the line to end in a '|':
     if l[-1] ~= '|' then l = l .. '|' end
@@ -192,7 +207,7 @@ function receive()
     end
     local rsp = table.concat(sb)
 
-    print("response: `" .. rsp .. "`")
+    --print("response: `" .. rsp .. "`")
     sni.client:send(rsp .. "\n")
     return true
 end
