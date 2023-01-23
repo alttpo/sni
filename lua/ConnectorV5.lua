@@ -142,7 +142,13 @@ function handle(req_headers, req_body)
         local domain = req_headers["domain"]
         local offset = tonumber(req_headers["offset"], 16)
         local size = tonumber(req_headers["size"], 16)
-        local data = memory.read_bytes_as_array(offset, size, domain)
+
+        local ok, data = pcall(memory.read_bytes_as_array, offset, size, domain)
+        if not ok then
+            rsp_headers["error"] = data
+            return rsp_headers, nil
+        end
+
         local sb = {}
         for i,v in ipairs(data) do
             sb[#sb+1] = string.format("%02x", v)
