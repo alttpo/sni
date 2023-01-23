@@ -724,8 +724,97 @@ func (c *Client) MemoryDomains(ctx context.Context, request *sni.MemoryDomainsRe
 }
 
 func (c *Client) MultiDomainRead(ctx context.Context, request *sni.MultiDomainReadRequest) (rsp *sni.MultiDomainReadResponse, err error) {
-	//TODO implement me
-	panic("implement me")
+	// fetch domain mapping and core info if not already:
+	err = c.determineDomainMapping(ctx)
+	if err != nil {
+		return
+	}
+
+	deadline := c.computeDeadline(ctx)
+
+	mrsp = make([]*sni.GroupedDomainReadResponses, len(request.Requests))
+
+	// annoyingly, we must track the unique memType keys so we can iterate the map in a consistent order:
+	memTypes := make([]mapping.MemoryType, 0, len(reads))
+	readGroups := make(map[mapping.MemoryType][]memRegion)
+
+	// divide up the reads into memory type groups:
+	for j, read := range reads {
+		memType, pakAddress, offset := mapping.MemoryTypeFor(read.RequestAddress)
+
+		mrsp[j].RequestAddress = read.RequestAddress
+		mrsp[j].DeviceAddress = devices.AddressTuple{
+			Address:       pakAddress,
+			AddressSpace:  sni.AddressSpace_FxPakPro,
+			MemoryMapping: read.RequestAddress.MemoryMapping,
+		}
+		mrsp[j].DeviceAddress.Address = pakAddress
+		mrsp[j].Data = make([]byte, read.Size)
+
+		regions, ok := readGroups[memType]
+		if !ok {
+			memTypes = append(memTypes, memType)
+		}
+		readGroups[memType] = append(regions, memRegion{
+			MemoryType: memType,
+			Offset:     offset,
+			Size:       read.Size,
+			Data:       mrsp[j].Data,
+		})
+	}
+
+	// write commands:
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	for _, memType := range memTypes {
+		regions := readGroups[memType]
+		sb := bytes.Buffer{}
+		_, _ = fmt.Fprintf(&sb, "CORE_READ %s", memType)
+		for _, region := range regions {
+			_, _ = fmt.Fprintf(&sb, ";$%x;$%x", region.Offset, region.Size)
+		}
+		sb.WriteByte('\n')
+		if config.VerboseLogging {
+			c.Logf("cmd> %s", sb.Bytes())
+		}
+		err = c.writeWithDeadline(sb.Bytes(), deadline)
+		if err != nil {
+			return
+		}
+	}
+
+	// read back responses:
+	for _, memType := range memTypes {
+		var bin []byte
+		var ascii []map[string]string
+		bin, ascii, err = c.readResponse(deadline)
+		if err != nil {
+			return
+		}
+		if ascii != nil {
+			err = fmt.Errorf("emunwa: expecting binary reply but got ascii:\n%+v", ascii)
+			return
+		}
+
+		regions := readGroups[memType]
+		offset := 0
+		for _, region := range regions {
+			var sz = len(bin) - offset
+			if offset >= len(bin) {
+				// out of bounds
+			} else if region.Size > sz {
+				// partial read
+				copy(region.Data, bin[offset:offset+sz])
+			} else {
+				// full read
+				copy(region.Data, bin[offset:offset+region.Size])
+			}
+			offset += region.Size
+		}
+	}
+
+	err = nil
+	return
 }
 
 func (c *Client) MultiDomainWrite(ctx context.Context, request *sni.MultiDomainWriteRequest) (rsp *sni.MultiDomainWriteResponse, err error) {
