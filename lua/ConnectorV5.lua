@@ -107,14 +107,41 @@ end
 
 -- handle a network request:
 function handle(req_headers, req_body)
-    -- command:
-    local cmd = req_headers["cmd"]
+    -- copy request headers to response headers:
     local rsp_headers = {}
     for k,v in pairs(req_headers) do
         rsp_headers[k] = v
     end
     rsp_headers["frame_count"] = emu.framecount()
 
+    -- validate expectations:
+    local if_platform = req_headers["if_platform"]
+    if if_platform ~= nil then
+        local actual_platform = string.lower(emu.getsystemid())
+        if if_platform ~= actual_platform then
+            rsp_headers["error"] = "if_platform does not match actual `" .. actual_platform .. "`"
+            return rsp_headers, nil
+        end
+    end
+    local if_client_version = req_headers["if_client_version"]
+    if if_client_version ~= nil then
+        local actual_client_version = string.lower(client.getversion())
+        if if_client_version ~= actual_client_version then
+            rsp_headers["error"] = "if_client_version does not match actual `" .. actual_client_version .. "`"
+            return rsp_headers, nil
+        end
+    end
+    local if_rom_hash = req_headers["if_rom_hash"]
+    if if_rom_hash ~= nil then
+        local actual_rom_hash = gameinfo.getromhash()
+        if if_rom_hash ~= actual_rom_hash then
+            rsp_headers["error"] = "if_rom_hash does not match actual `" .. actual_rom_hash .. "`"
+            return rsp_headers, nil
+        end
+    end
+
+    -- process command:
+    local cmd = req_headers["cmd"]
     if cmd == "info" then
         -- collect all current info about emulator, core, and game:
 
@@ -139,16 +166,28 @@ function handle(req_headers, req_body)
             domain_sizes = domain_sizes
         }
     elseif cmd == "read" then
-        local domain = req_headers["domain"]
-        local offset = tonumber(req_headers["offset"], 16)
-        local size = tonumber(req_headers["size"], 16)
+        -- read memory:
 
+        -- validate args:
+        local domain, offset, size
+        local domain = req_headers["domain"]
+        local offset = req_headers["offset"]
+        local size = req_headers["size"]
+        if domain == nil or offset == nil or size == nil then
+            rsp_headers["error"] = "missing required headers domain, offset, size"
+            return rsp_headers, nil
+        end
+        offset = tonumber(offset, 16)
+        size = tonumber(size, 16)
+
+        -- read memory:
         local ok, data = pcall(memory.read_bytes_as_array, offset, size, domain)
         if not ok then
             rsp_headers["error"] = data
             return rsp_headers, nil
         end
 
+        -- format data as hex:
         local sb = {}
         for i,v in ipairs(data) do
             sb[#sb+1] = string.format("%02x", v)
