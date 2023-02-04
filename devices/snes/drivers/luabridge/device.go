@@ -30,14 +30,15 @@ type Device struct {
 	version    string
 	host       string
 	isBizHawk  bool
+	logPrefix  string
 }
 
 func (d *Device) FatalError(cause error) devices.DeviceError {
-	return devices.DeviceFatal(fmt.Sprintf("luabridge: %v", cause), cause)
+	return devices.DeviceFatal(fmt.Sprintf("%v", cause), cause)
 }
 
 func (d *Device) NonFatalError(cause error) devices.DeviceError {
-	return devices.DeviceNonFatal(fmt.Sprintf("luabridge: %v", cause), cause)
+	return devices.DeviceNonFatal(fmt.Sprintf("%v", cause), cause)
 }
 
 func NewDevice(conn *net.TCPConn, key string) *Device {
@@ -47,9 +48,14 @@ func NewDevice(conn *net.TCPConn, key string) *Device {
 		isClosed:   false,
 		clientName: "Unknown",
 		version:    "0",
+		logPrefix:  fmt.Sprintf("luabridge:%s: ", conn.RemoteAddr()),
 	}
 	d.lineReader = bufio.NewReaderSize(d.c, 65536)
 	return d
+}
+
+func (d *Device) log(f string, args ...interface{}) {
+	log.Printf(d.logPrefix+f, args...)
 }
 
 func (d *Device) Init() {
@@ -64,37 +70,35 @@ func (d *Device) initConnection() {
 
 	defer func() {
 		if err != nil {
-			log.Printf("luabridge: %v\n", err)
+			d.log("%v\n", err)
 		}
 
 		err := d.Close()
 		if err != nil {
-			log.Printf("luabridge: close error: %v\n", err)
+			d.log("close error: %v\n", err)
 		}
 
-		log.Printf("luabridge: connection closed for %s\n", remoteAddr)
+		d.log("connection closed")
 		driver.DeleteDevice(remoteAddr.String())
 	}()
 
 	_ = d.c.SetNoDelay(true)
 
-	err = d.CheckVersion()
-	if err != nil {
-		// defer above checks and logs err
-		return
-	}
-
-	log.Printf("luabridge: client '%s' version '%s' host '%s' bizhawk: %v\n", d.clientName, d.version, d.host, d.isBizHawk)
-
+	// every 5 seconds, check if connection is closed; only way to do this reliably is to read data:
+	first := true
 	for {
-		// every 5 seconds, check if connection is closed; only way to do this reliably is to read data:
-		time.Sleep(time.Second * 5)
-
 		err = d.CheckVersion()
 		if err != nil {
-			log.Printf("luabridge: error while checking version: %v\n", err)
+			d.log("error while checking version")
 			return
 		}
+
+		if first {
+			d.log("client '%s' version '%s' host '%s' bizhawk: %v\n", d.clientName, d.version, d.host, d.isBizHawk)
+			first = false
+		}
+
+		time.Sleep(time.Second * 5)
 	}
 }
 
