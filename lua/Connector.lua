@@ -173,7 +173,7 @@ local function main()
     if status == 'closed' then
         print('SNI closed the connection')
         doclose()
-            print('Waiting 10 seconds...')
+        print('Waiting 10 seconds...')
         return
     end
 end
