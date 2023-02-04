@@ -7,19 +7,11 @@ if not event then
     memory.usememorydomain = function()
         -- snes9x always uses "System Bus" domain, which cannot be switched
     end
-    memory.read_u8 = memory.readbyte
-    memory.read_s8 = memory.readbytesigned
-    memory.read_u16_le = memory.readword
-    memory.read_s16_le = memory.readwordsigned
-    memory.read_u32_le = memory.readdword
-    memory.read_s32_le = memory.readdwordsigned
-    memory.read_u16_be = function(addr) return bit.rshift(bit.bswap(memory.read_u16_le(addr)),16) end
 else
     if emu.getsystemid() ~= "SNES" then
         print("Connector only for BSNES Core within Bizhawk, sorry.")
     end
 end
-
 
 function readbyterange(addr, length, domain)
     local mtable;
@@ -66,7 +58,6 @@ local connection
 local host = os.getenv("SNI_LUABRIDGE_LISTEN_HOST") or '127.0.0.1'
 local port = os.getenv("SNI_LUABRIDGE_LISTEN_PORT") or 65398
 local connected = false
-local stopped = false
 local name = "Unnamed"
 
 memory.usememorydomain("System Bus")
@@ -103,9 +94,6 @@ local function onMessage(s)
         print("My name is " .. name .. "!")
     elseif parts[1] == "Message" then
         print(parts[2])
-    elseif parts[1] == "Exit" then
-        print("Lua script stopped, to restart the script press \"Restart\"")
-        stopped = true
     elseif parts[1] == "Version" then
         if is_snes9x then
             connection:send("Version|SNI Connector|3|Snes9x\n")
@@ -129,49 +117,78 @@ local function onMessage(s)
     end
 end
 
+local connectionBackOff = 0
+local localIP, localPort, localFam
 
-local main = function()
-    if stopped then
-        return nil
+local function doclose()
+    if connection ~= nil then
+        print('Closing connection to SNI from ' .. localIP .. ':' .. localPort .. ' (' .. localFam .. ')')
+        connection:close()
+        print('Connection to SNI is closed from ' .. localIP .. ':' .. localPort .. ' (' .. localFam .. ')')
+        localIP, localPort, localFam = nil, nil, nil
+        connection = nil
     end
+    connected = false
+end
 
+local function main()
     if not connected then
-        print('Connecting to SNI at ' .. host .. ':' .. port)
+        if connectionBackOff > 0 then
+            connectionBackOff = connectionBackOff - 1
+            return
+        end
+        connectionBackOff = 60 * 10
+
+        local err
+        print('Connecting to SNI at ' .. host .. ':' .. port .. ' ...')
         connection, err = socket:tcp()
         if err ~= nil then
-            emu.print(err)
+            print(err)
+            print('Waiting 10 seconds...')
             return
         end
 
-        local returnCode, errorMessage = connection:connect(host, port)
-        if (returnCode == nil) then
-            print("Error while connecting: " .. errorMessage)
-            stopped = true
+        connection:setoption('keepalive', true)
+        connection:setoption('tcp-nodelay', true)
+        connection:settimeout(0.01)
+        local returnCode, err = connection:connect(host, port)
+        if err ~= nil then
+            print("Error while connecting: " .. err)
+            print('Waiting 10 seconds...')
             connected = false
-            print("Please press \"Restart\" to try to reconnect to SNI, make sure it's running.")
             return
         end
 
-        connection:settimeout(0)
         connected = true
-        print('Connected to SNI')
+
+        localIP, localPort, localFam = connection:getsockname()
+        print('Connected to SNI from ' .. localIP .. ':' .. localPort .. ' (' .. localFam .. ')')
         return
     end
+
     local s, status = connection:receive('*l')
     if s then
         onMessage(s)
     end
     if status == 'closed' then
-        print('Connection to SNI is closed')
-        connection:close()
-        connected = false
+        print('SNI closed the connection')
+        doclose()
+            print('Waiting 10 seconds...')
         return
     end
 end
 
+local function onexit()
+    doclose()
+end
+
 if is_snes9x then
+    -- snes9x-rr:
+    emu.registerexit(onexit)
     emu.registerbefore(main)
 else
+    -- bizhawk:
+    event.onexit(onexit)
     while true do
         main()
         emu.frameadvance()
