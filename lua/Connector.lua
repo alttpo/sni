@@ -162,6 +162,9 @@ local function main()
         connected = true
 
         localIP, localPort, localFam = connection:getsockname()
+        if localFam == nil then
+            localFam = 'inet'
+        end
         print('Connected to SNI from ' .. localIP .. ':' .. localPort .. ' (' .. localFam .. ')')
         return
     end
