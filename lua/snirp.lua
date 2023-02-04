@@ -1,4 +1,6 @@
--- SNI BizHawk Connector V5
+-- snirp - a simple s-expression RPC server for SNI
+-- Version 20230128
+--
 -- Copyright 2023 jsd1982
 --
 -- Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -15,13 +17,13 @@
 -- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 local socket = require("socket.core")
+local brass = require("brass")
 local state = "accept"
 sni = {
     server = nil,
     port = 0,
     client = nil
 }
-
 
 -- handle a network request:
 function handle(req_headers, req_body)
@@ -146,32 +148,33 @@ function receive()
         return false
     end
 
-    --print("client:receive: `" .. l .. "`")
+    print("client:receive: `" .. l .. "`")
 
-    -- force the line to end in a '|':
-    if l[-1] ~= '|' then l = l .. '|' end
+    local req, me
+    me = 1
+    while me <= #l do
+        local ms = me
+        -- (v20230128/req (seq 1) (check (platform snes) (rom-hash 00112233)) (read (snes/mem/console/wram ($10 $20)) (snes/mem/cart/sram (0 $300)))
+        req, me, err = brass.decode(l:sub(ms))
+        print("client:handle `" .. l:sub(ms,me) .. "`")
+        if err ~= nil then
+            print(err.err)
+            return false
+        end
 
-    -- `header=value|header=value||body=value|body=value|...|`
-    local req = decode_list_of_maps(l)
-    local req_headers, req_body = req[1], req[2]
 
-    -- handle request:
-    local rsp_headers, rsp_body = handle(req_headers, req_body)
 
-    -- format response message:
-    local sb = {}
-    -- encode headers:
-    encode_map(rsp_headers,sb)
-    if rsp_body ~= nil then
-        -- add header-body separator:
-        sb[#sb+1] = "|"
-        -- encode body:
-        encode_map(rsp_body,sb)
+        local req_headers, req_body = req[1], req[2]
+
+        -- handle request:
+        local rsp_headers, rsp_body = handle(req_headers, req_body)
+
+        -- format response message:
+        local rsp = brass.encode({ rsp_headers, rsp_body })
+
+        --print("response: `" .. rsp .. "`")
+        sni.client:send(rsp .. "\n")
     end
-    local rsp = table.concat(sb)
-
-    --print("response: `" .. rsp .. "`")
-    sni.client:send(rsp .. "\n")
     return true
 end
 
