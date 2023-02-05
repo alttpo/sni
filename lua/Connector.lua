@@ -166,6 +166,7 @@ local function main()
             localFam = 'inet'
         end
         print('Connected to SNI from ' .. localIP .. ':' .. localPort .. ' (' .. localFam .. ')')
+        connection:settimeout(0)
         return
     end
 
