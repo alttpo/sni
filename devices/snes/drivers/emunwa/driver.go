@@ -288,8 +288,9 @@ func DriverConfig(platConfig *platforms.Config) {
 			}
 		}
 
-		if _, ok := platConfig.PlatformsByName[coreConf.Define.Platform]; !ok {
-
+		if _, ok = platConfig.PlatformsByName[coreConf.Define.Platform]; !ok {
+			log.Printf("emunwa: config: core '%s' platform '%s' is not defined in platforms", coreConf.Name, coreConf.Define.Platform)
+			return
 		}
 
 		// append the core configuration:

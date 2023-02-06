@@ -7,6 +7,8 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"io"
 	"log"
 	"net"
@@ -732,46 +734,40 @@ func (c *Client) MultiDomainRead(ctx context.Context, request *sni.MultiDomainRe
 
 	deadline := c.computeDeadline(ctx)
 
-	mrsp = make([]*sni.GroupedDomainReadResponses, len(request.Requests))
+	mrsp := make([]*sni.GroupedDomainReadResponses, len(request.Requests))
 
-	// annoyingly, we must track the unique memType keys so we can iterate the map in a consistent order:
-	memTypes := make([]mapping.MemoryType, 0, len(reads))
-	readGroups := make(map[mapping.MemoryType][]memRegion)
-
-	// divide up the reads into memory type groups:
-	for j, read := range reads {
-		memType, pakAddress, offset := mapping.MemoryTypeFor(read.RequestAddress)
-
-		mrsp[j].RequestAddress = read.RequestAddress
-		mrsp[j].DeviceAddress = devices.AddressTuple{
-			Address:       pakAddress,
-			AddressSpace:  sni.AddressSpace_FxPakPro,
-			MemoryMapping: read.RequestAddress.MemoryMapping,
-		}
-		mrsp[j].DeviceAddress.Address = pakAddress
-		mrsp[j].Data = make([]byte, read.Size)
-
-		regions, ok := readGroups[memType]
-		if !ok {
-			memTypes = append(memTypes, memType)
-		}
-		readGroups[memType] = append(regions, memRegion{
-			MemoryType: memType,
-			Offset:     offset,
-			Size:       read.Size,
-			Data:       mrsp[j].Data,
-		})
-	}
-
-	// write commands:
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	for _, memType := range memTypes {
-		regions := readGroups[memType]
+
+	// send CORE_READ commands:
+	for i, req := range request.Requests {
+		// reverse-lookup from SNI domain name to core domain name:
+		var memName string
+		var ok bool
+		sniNameLower := cleanLower(req.Name)
+		memName, ok = c.currentCore.Define.SNIToCoreMapping[sniNameLower]
+		if !ok {
+			err = c.NonFatalError(status.Errorf(codes.InvalidArgument, "unrecognized domain name '%s'", req.Name))
+			return
+		}
+
+		// create a response struct to put the data into:
+		mrsp[i] = &sni.GroupedDomainReadResponses{
+			Name:  req.Name,
+			Reads: make([]*sni.MemoryDomainOffsetData, len(req.Reads)),
+		}
+
+		// compose a CORE_READ command for this memory domain:
 		sb := bytes.Buffer{}
-		_, _ = fmt.Fprintf(&sb, "CORE_READ %s", memType)
-		for _, region := range regions {
-			_, _ = fmt.Fprintf(&sb, ";$%x;$%x", region.Offset, region.Size)
+		_, _ = fmt.Fprintf(&sb, "CORE_READ %s", memName)
+		// add all the offset,size pairs:
+		for j, read := range req.Reads {
+			_, _ = fmt.Fprintf(&sb, ";$%x;$%x", read.Offset, read.Size)
+
+			mrsp[i].Reads[j] = &sni.MemoryDomainOffsetData{
+				Offset: read.Offset,
+				Data:   make([]byte, read.Size),
+			}
 		}
 		sb.WriteByte('\n')
 		if config.VerboseLogging {
@@ -783,8 +779,8 @@ func (c *Client) MultiDomainRead(ctx context.Context, request *sni.MultiDomainRe
 		}
 	}
 
-	// read back responses:
-	for _, memType := range memTypes {
+	// receive CORE_READ responses:
+	for i, req := range request.Requests {
 		var bin []byte
 		var ascii []map[string]string
 		bin, ascii, err = c.readResponse(deadline)
@@ -792,28 +788,33 @@ func (c *Client) MultiDomainRead(ctx context.Context, request *sni.MultiDomainRe
 			return
 		}
 		if ascii != nil {
-			err = fmt.Errorf("emunwa: expecting binary reply but got ascii:\n%+v", ascii)
+			err = c.NonFatalError(fmt.Errorf("emunwa: expecting binary reply but got ascii:\n%+v", ascii))
 			return
 		}
 
-		regions := readGroups[memType]
-		offset := 0
-		for _, region := range regions {
-			var sz = len(bin) - offset
-			if offset >= len(bin) {
+		// copy binary response data into response:
+		offset := uint64(0)
+		binlen := uint64(len(bin))
+		for j, region := range req.Reads {
+			var sz = binlen - offset
+			if offset >= binlen {
 				// out of bounds
 			} else if region.Size > sz {
 				// partial read
-				copy(region.Data, bin[offset:offset+sz])
+				copy(mrsp[i].Reads[j].Data, bin[offset:offset+sz])
 			} else {
 				// full read
-				copy(region.Data, bin[offset:offset+region.Size])
+				copy(mrsp[i].Reads[j].Data, bin[offset:offset+region.Size])
 			}
 			offset += region.Size
 		}
 	}
 
 	err = nil
+	rsp = &sni.MultiDomainReadResponse{
+		Uri:       request.Uri,
+		Responses: mrsp,
+	}
 	return
 }
 
