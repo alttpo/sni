@@ -199,7 +199,6 @@ func (c *Client) SendCommandBinaryWaitReply(cmd string, binaryArg []byte, deadli
 	defer c.lock.Unlock()
 
 	b := bytes.NewBuffer(make([]byte, 0, 1+len(cmd)+2+4+len(binaryArg)))
-	// TODO: enable 'b' prefix once bsnes-plus-wasm gets that enhancement to draft 3 protocol
 	b.WriteByte('b')
 	b.WriteString(cmd)
 	b.WriteByte('\n')
@@ -819,8 +818,99 @@ func (c *Client) MultiDomainRead(ctx context.Context, request *sni.MultiDomainRe
 }
 
 func (c *Client) MultiDomainWrite(ctx context.Context, request *sni.MultiDomainWriteRequest) (rsp *sni.MultiDomainWriteResponse, err error) {
-	//TODO implement me
-	panic("implement me")
+	// fetch domain mapping and core info if not already:
+	err = c.determineDomainMapping(ctx)
+	if err != nil {
+		return
+	}
+
+	deadline := c.computeDeadline(ctx)
+
+	mrsp := make([]*sni.GroupedDomainWriteResponses, len(request.Requests))
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	// send bCORE_WRITE commands
+	for i, req := range request.Requests {
+		// reverse-lookup from SNI domain name to core domain name:
+		var memName string
+		var ok bool
+		sniNameLower := cleanLower(req.Name)
+		memName, ok = c.currentCore.Define.SNIToCoreMapping[sniNameLower]
+		if !ok {
+			err = c.NonFatalError(status.Errorf(codes.InvalidArgument, "unrecognized domain name '%s'", req.Name))
+			return
+		}
+
+		// create a response struct:
+		mrsp[i] = &sni.GroupedDomainWriteResponses{
+			Name:   req.Name,
+			Writes: make([]*sni.MemoryDomainOffsetSize, len(req.Writes)),
+		}
+
+		sb := bytes.Buffer{}
+		_, _ = fmt.Fprintf(&sb, "bCORE_WRITE %s", memName)
+		// add all the offset,size pairs:
+		var totalSize uint32 = 0
+		for j, write := range req.Writes {
+			size := uint64(len(write.Data))
+			_, _ = fmt.Fprintf(&sb, ";$%x;$%x", write.Offset, size)
+
+			mrsp[i].Writes[j] = &sni.MemoryDomainOffsetSize{
+				Offset: write.Offset,
+				Size:   size,
+			}
+			totalSize += uint32(size)
+		}
+		sb.WriteByte('\n')
+		if config.VerboseLogging {
+			c.Logf("cmd> %s", sb.Bytes())
+		}
+
+		// write binary payloads:
+		sb.WriteByte(0)
+		sizeBytes := [4]byte{}
+		binary.BigEndian.PutUint32(sizeBytes[:], totalSize)
+		sb.Write(sizeBytes[:])
+		for _, write := range req.Writes {
+			sb.Write(write.Data)
+		}
+
+		err = c.writeWithDeadline(sb.Bytes(), deadline)
+		if err != nil {
+			return
+		}
+	}
+
+	// read responses:
+	errReplies := strings.Builder{}
+	for range request.Requests {
+		var ascii []map[string]string
+		_, ascii, err = c.readResponse(deadline)
+		if err != nil {
+			return
+		}
+		if ascii != nil && len(ascii) > 0 {
+			if errText, ok := ascii[0]["error"]; ok {
+				errReplies.WriteString(errText)
+				errReplies.WriteByte('\n')
+			}
+		}
+	}
+
+	if errReplies.Len() > 0 {
+		err = fmt.Errorf("emunwa: error=%s", errReplies.String())
+		err = c.NonFatalError(err)
+		return
+	}
+
+	rsp = &sni.MultiDomainWriteResponse{
+		Uri:       request.Uri,
+		Responses: mrsp,
+	}
+	err = nil
+	return
 }
 
 func (c *Client) computeDeadline(ctx context.Context) time.Time {
