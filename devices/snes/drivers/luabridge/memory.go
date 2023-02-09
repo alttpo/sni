@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"sni/cmd/sni/config"
 	"sni/devices"
 	"sni/devices/snes/mapping"
@@ -62,7 +61,7 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...devices.MemoryRea
 			rsp = nil
 			closeErr := d.Close()
 			if closeErr != nil {
-				log.Printf("luabridge: close error: %v\n", closeErr)
+				d.log("close error: %v\n", closeErr)
 			}
 		}
 	}()
@@ -97,7 +96,7 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...devices.MemoryRea
 		}
 
 		if config.VerboseLogging {
-			log.Printf("luabridge: > %s", sb.Bytes())
+			d.log("> %s", sb.Bytes())
 		}
 
 		var rspstr []byte
@@ -107,7 +106,7 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...devices.MemoryRea
 		}
 
 		if config.LogResponses {
-			log.Printf("luabridge: < %s", rspstr)
+			d.log("< %s", rspstr)
 		}
 
 		var data []byte
@@ -213,7 +212,7 @@ func (d *Device) MultiWriteMemory(ctx context.Context, writes ...devices.MemoryW
 			rsp = nil
 			closeErr := d.Close()
 			if closeErr != nil {
-				log.Printf("luabridge: close error: %v\n", closeErr)
+				d.log("close error: %v\n", closeErr)
 			}
 		}
 	}()
@@ -253,7 +252,7 @@ func (d *Device) MultiWriteMemory(ctx context.Context, writes ...devices.MemoryW
 		sb.WriteByte('\n')
 
 		if config.VerboseLogging {
-			log.Printf("luabridge: > %s", sb.Bytes())
+			d.log("> %s", sb.Bytes())
 		}
 
 		// send the command:
