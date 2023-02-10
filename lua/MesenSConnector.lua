@@ -22,7 +22,7 @@ local socket = require("socket.core")
 
 local connection
 local host = '127.0.0.1'
-local port = 65398
+local port = 35398
 local connected = false
 local stopped = false
 local name = "Unnamed"
