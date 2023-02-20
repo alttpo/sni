@@ -1,55 +1,64 @@
 -- original file found in a GPLv3 code repository, unclear if this is the intended license nor who the authors are
 -- SNI modifications by Berserker, jsd1982; modifications licensed under MIT License
 -- version 3 changes Read response from JSON to HEX
+-- version 4 introduces memory domain support for non-snes systems
 
 if not event then
     is_snes9x = true
     memory.usememorydomain = function()
         -- snes9x always uses "System Bus" domain, which cannot be switched
     end
-else
-    if emu.getsystemid() ~= "SNES" then
-        print("Connector only for BSNES Core within Bizhawk, sorry.")
-    end
 end
 
-function readbyterange(addr, length, domain)
-    local mtable;
-    local mstart = 0;
-    local mend = length - 1;
-    if is_snes9x then
-        mtable = memory.readbyterange(addr, length);
-        mstart = 1
-        mend = length
-    else
+local readbytearray
+local writebytearray
+
+if is_snes9x then
+    -- domain is ignored for snes9x
+    readbytearray = function(domain, addr, length)
+        local mtable = memory.readbyterange(addr, length);
+
+        -- jsd: format output in 2-char hex per byte:
+        local t = {};
+        for i=1,length do
+            t[#t+1] = string.format("%02x", mtable[i])
+        end
+        return t
+    end
+    writebytearray = function(domain, addr, values)
+        for i, value in ipairs(values) do
+            memory.writebyte(addr + i - 1, value)
+        end
+    end
+else
+    -- bizhawk
+    readbytearray = function(domain, addr, length)
+        local mtable;
+
         -- jsd: wrap around address by domain size:
         local domainsize = memory.getmemorydomainsize(domain)
         while addr >= domainsize do
             addr = addr - domainsize
         end
-        mtable = memory.readbyterange(addr, length, domain)
-        mstart = 0;
-        mend = length - 1;
-    end
 
-    -- jsd: format output in 2-char hex per byte:
-    local toret = {};
-    for i=mstart, mend do
-        table.insert(toret, string.format("%02x", mtable[i]))
+        mtable = memory.read_bytes_as_array(addr, length, domain)
+
+        -- jsd: format output in 2-char hex per byte:
+        local t = {};
+        for i=0, length-1 do
+            t[#t+1] = string.format("%02x", mtable[i])
+        end
+        return t
     end
-    return toret
-end
-function writebyte(addr, value, domain)
-  if is_snes9x then
-    memory.writebyte(addr, value)
-  else
-    -- jsd: wrap around address by domain size:
-    local domainsize = memory.getmemorydomainsize(domain)
-    while addr >= domainsize do
-        addr = addr - domainsize
+    writebytearray = function(domain, addr, values)
+        -- jsd: wrap around address by domain size:
+        local domainsize = memory.getmemorydomainsize(domain)
+        while addr >= domainsize do
+            addr = addr - domainsize
+        end
+
+        memory.write_bytes_as_array(addr, values, domain)
     end
-    memory.writebyte(addr, value, domain)
-  end
 end
 
 local socket = require("socket.core")
@@ -58,11 +67,49 @@ local connection
 local host = os.getenv("SNI_LUABRIDGE_LISTEN_HOST") or '127.0.0.1'
 local port = os.getenv("SNI_LUABRIDGE_LISTEN_PORT") or 35398
 local connected = false
-local name = "Unnamed"
 
-memory.usememorydomain("System Bus")
+-- v4 protocol:
+local function onMessageV4(s)
+    local parts = {}
+    for part in string.gmatch(s, '([^|]+)') do
+        parts[#parts + 1] = part
+    end
 
-local function onMessage(s)
+    local cmd = parts[1]
+    local rsp = {cmd}
+
+    if cmd == "domains" then
+        rsp[#rsp+1] = "ok"
+        -- bizhawk 2.8 pcall fails to protect against native methods throwing exceptions.
+        local status, err = pcall(memory.getmemorydomainlist)
+        if status ~= true then
+            print(err)
+            rsp[#rsp+1] = "0"
+        else
+            local domains = err
+            rsp[#rsp+1] = string.format("%x", #domains+1)
+            for i=0,#domains do
+                local name = domains[i]
+                local size
+                status, err = pcall(memory.getmemorydomainsize, name)
+                if status ~= true then
+                    print(err)
+                    size = 0
+                else
+                    size = err
+                end
+                rsp[#rsp+1] = name .. ";" .. string.format("%x", size)
+            end
+        end
+    else
+        rsp[#rsp+1] = "unknown"
+    end
+
+    connection:send(table.concat(rsp, "|") .. "\n")
+end
+
+-- v3 protocol for compatibility:
+local function onMessageV3(s)
     local parts = {}
     for part in string.gmatch(s, '([^|]+)') do
         parts[#parts + 1] = part
@@ -73,9 +120,10 @@ local function onMessage(s)
         local length = tonumber(parts[3])
         local domain
         if is_snes9x ~= true then
-          domain = parts[4]
+            domain = parts[4]
         end
-        local byteRange = readbyterange(adr, length, domain)
+
+        local byteRange = readbyterange(domain, adr, length)
         connection:send(table.concat(byteRange) .. "\n")
     elseif parts[1] == "Write" then
         -- Write|address|domain|..data..\n
@@ -83,25 +131,27 @@ local function onMessage(s)
         local domain
         local offset = 2
         if is_snes9x ~= true then
-          domain = parts[3]
-          offset = 3
+            domain = parts[3]
+            offset = 3
         end
-        for k, v in pairs(parts) do
-            if k > offset then
-                writebyte(adr + k - offset - 1, tonumber(v), domain)
-            end
+
+        local values = {}
+        for k = offset, #parts do
+            values[#values+1] = tonumber(parts[k])
         end
-    elseif parts[1] == "SetName" then
-        name = parts[2]
-        print("My name is " .. name .. "!")
+        writebytearray(domain, adr, values)
     elseif parts[1] == "Message" then
         print(parts[2])
     elseif parts[1] == "Version" then
         if is_snes9x then
-            connection:send("Version|SNI Connector|3|Snes9x\n")
+            connection:send("Version|SNI Connector|4|Snes9x\n")
         else
-            connection:send("Version|SNI Connector|3|Bizhawk\n")
+            connection:send("Version|SNI Connector|4|Bizhawk\n")
         end
+    elseif parts[1] == "UpgradeV4" then
+        print("Upgraded to V4 protocol")
+        connection:send("UpgradeV4|upgraded\n")
+        onMessage = onMessageV4
     elseif is_snes9x ~= true then
         if parts[1] == "Reset" then
             print("Rebooting core...")
@@ -169,6 +219,12 @@ local function main()
         end
         print('Connected to SNI from ' .. localIP .. ':' .. localPort .. ' (' .. localFam .. ')')
         connection:settimeout(0)
+
+        pcall(memory.usememorydomain, "System Bus")
+
+        -- default to v3 protocol:
+        onMessage = onMessageV3
+
         return
     end
 
