@@ -587,30 +587,31 @@ The pak cannot normally write to WRAM at arbitrary points in time due to
 design limitations of the SNES itself. WRAM is located in the SNES and is
 not accessible by the cartridge; only the CPU can write to WRAM.
 
-To get around this limitation, the pak offers a feature we'll call NMI EXE.
+To get around this limitation, the pak offers a feature we'll call USB EXE.
 
-The pak maps a writable 1024 byte RAM buffer into the SNES A-bus at
-`2C00-2FFF` in banks `$00-3F`. When this region is written to, the NMI EXE
-feature is enabled. When the SNES reads the NMI vector (at `$FFEA`) to jump to,
-the pak overrides the vector to point to its own code buffer mapped at `$2C00`.
+The pak maps a writable 512 byte RAM buffer into the SNES A-bus at
+`$2C00-2DFF` in banks `$00-3F` and banks `$80-BF`. When this region is written
+to, the USB EXE feature is enabled. When the SNES reads the NMI vector
+(at `$FFEA`) to jump to, the pak overrides the vector to point to its own
+code buffer mapped at `$2C00`.
 The SNES then jumps to that code which should itself end in a `JMP ($FFEA)`
 so that the original NMI vector is executed as well. To disable the feature,
 write `$00` to `$00:2C00`.
 
 That's great and all, but what does that have to do with WRAM writes?
 
-In this 1024 byte buffer, we can place any arbitrary code we want, including
+In this 512 byte buffer, we can place any arbitrary code we want, including
 **code that writes to WRAM**. SNI does exactly that using `MVN` instructions.
 
 There are a few caveats:
 
-* The NMI EXE feature can only be used once per frame.
-* The buffer available for custom ASM is only 1024 bytes in size.
-* The current implementation has a fixed overhead of `0x1B` bytes of setup
+* The USB EXE feature can only be used once per frame.
+* The buffer available for custom ASM is only 512 bytes in size.
+* The current SNI implementation has a fixed overhead of `0x1B` bytes of setup
   ASM code plus `0x0C` bytes of ASM code per transfer; these overheads
   shorten the amount of WRAM data available to write per frame.
-* It costs time to await the NMI EXE feature to be available to write to
-  and to confirm that the NMI EXE code was executed on the next frame.
+* It costs time to await the USB EXE feature to be available to write to
+  and to confirm that the USB EXE code was executed on the next frame.
   In practice, this whole process takes on average 36ms.
 
 To take more control over the approach, you can use the `CMD` space mapping
@@ -621,7 +622,7 @@ address space.
 This would mean generating your own SNES ASM code to perform your custom
 WRAM write logic (or whatever else you want).
 
-SNI has [its own internal Go package](https://github.com/alttpo/sni/blob/main/snes/asm/emitter.go)
+SNI has [its own internal Go package](https://github.com/alttpo/snes/blob/main/asm/emitter.go)
 that is very capable of programmatically emitting SNES machine code. If your
 application is written in Go, you are free to reuse this package. For other
 languages, feel free to take inspiration from the package's simple design
@@ -635,7 +636,7 @@ as text with helpful comments about the machine code emitted.
 ### RetroArch
 
 The RetroArch SNI driver assumes most emulator cores expose the SNES A-bus
-address space. This is true for the bsnes-mercury core at least. Unfortunately,
+address space. This is true for the **bsnes-mercury** core at least. Unfortunately,
 RetroArch provides no ability via network commands to detect which emulator
 core is running let alone determine the address space the core uses. It is
 therefore impossible for SNI to determine how best to translate addresses
