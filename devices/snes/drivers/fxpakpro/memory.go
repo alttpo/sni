@@ -248,9 +248,9 @@ func (d *Device) MultiWriteMemory(
 		}
 	}
 
-	// handle WRAM writes using NMI EXE feature of fxpakpro:
+	// handle WRAM writes using USB EXE feature of fxpakpro:
 	if len(wramWrites) > 0 {
-		code := [1024]byte{}
+		code := [512]byte{}
 		a := asm.NewEmitter(code[:], true)
 
 		// generate a copy routine to write data into WRAM:
@@ -258,7 +258,7 @@ func (d *Device) MultiWriteMemory(
 
 		//a.WriteTextTo(log.Writer())
 
-		if actual, expected := a.Len(), 1024; actual > expected {
+		if actual, expected := a.Len(), 512; actual > expected {
 			return nil, fmt.Errorf(
 				"fxpakpro: too much WRAM data for the snescmd buffer; %d > %d",
 				actual,
@@ -296,20 +296,20 @@ func (d *Device) MultiWriteMemory(
 			)
 		}
 
-		// await 5 seconds in game-frames for NMI EXE:
+		// await 5 seconds in game-frames for USB EXE:
 		awaitctx, awaitcancel := context.WithTimeout(subctx, timing.Frame*60*5)
 		defer awaitcancel()
 
-		// VGET to await NMI EXE availability:
+		// VGET to await USB EXE availability:
 		{
 			var ok bool
-			ok, err = d.awaitNMIEXE(awaitctx)
+			ok, err = d.awaitUSBEXE(awaitctx)
 			if err != nil {
-				err = fmt.Errorf("fxpakpro: could not acquire NMI EXE pre-write: %w", err)
+				err = fmt.Errorf("fxpakpro: could not acquire USB EXE pre-write: %w", err)
 				return
 			}
 			if !ok {
-				err = fmt.Errorf("fxpakpro: could not acquire NMI EXE pre-write")
+				err = fmt.Errorf("fxpakpro: could not acquire USB EXE pre-write")
 				return
 			}
 		}
@@ -317,20 +317,20 @@ func (d *Device) MultiWriteMemory(
 		// VPUT command to CMD space:
 		err = d.vput(awaitctx, SpaceCMD, chunks...)
 		if err != nil {
-			err = fmt.Errorf("fxpakpro: could not VPUT to NMI EXE: %w", err)
+			err = fmt.Errorf("fxpakpro: could not VPUT to USB EXE: %w", err)
 			return
 		}
 
-		// await NMI EXE availability to validate the write was completed:
+		// await USB EXE availability to validate the write was completed:
 		{
 			var ok bool
-			ok, err = d.awaitNMIEXE(awaitctx)
+			ok, err = d.awaitUSBEXE(awaitctx)
 			if err != nil {
-				err = fmt.Errorf("fxpakpro: could not acquire NMI EXE post-write: %w", err)
+				err = fmt.Errorf("fxpakpro: could not acquire USB EXE post-write: %w", err)
 				return
 			}
 			if !ok {
-				err = fmt.Errorf("fxpakpro: could not acquire NMI EXE post-write")
+				err = fmt.Errorf("fxpakpro: could not acquire USB EXE post-write")
 				return
 			}
 		}
@@ -339,7 +339,7 @@ func (d *Device) MultiWriteMemory(
 	return
 }
 
-func (d *Device) awaitNMIEXE(ctx context.Context) (ok bool, err error) {
+func (d *Device) awaitUSBEXE(ctx context.Context) (ok bool, err error) {
 	check := make([]byte, 1)
 
 	deadline, hasDeadline := ctx.Deadline()
