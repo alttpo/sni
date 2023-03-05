@@ -67,6 +67,17 @@ local connection
 local host = os.getenv("SNI_LUABRIDGE_LISTEN_HOST") or '127.0.0.1'
 local port = os.getenv("SNI_LUABRIDGE_LISTEN_PORT") or 35398
 local connected = false
+local expectedState = {}
+
+local function getState()
+    local state = {
+        { "client_version", client.getversion() },
+        { "platform", string.lower(emu.getsystemid()) },
+        { "rom_name", gameinfo.getromname() },
+        { "rom_hash", gameinfo.getromhash() },
+    }
+    return state
+end
 
 -- v4 protocol:
 local function onMessageV4(s)
@@ -100,6 +111,21 @@ local function onMessageV4(s)
                 end
                 rsp[#rsp+1] = name .. ";" .. string.format("%x", size)
             end
+        end
+    elseif cmd == "state" then
+        rsp[#rsp+1] = "ok"
+        local state = getState()
+        rsp[#rsp+1] = #state
+        for i=1,#state do
+            rsp[#rsp+1] = state[i][1] .. ";" .. state[i][2]
+        end
+    elseif cmd == "expect" then
+        rsp[#rsp+1] = "ok"
+        -- set expected state and notify if changed:
+        expectedState = getState()
+        rsp[#rsp+1] = #expectedState
+        for i=1,#expectedState do
+            rsp[#rsp+1] = expectedState[i][1] .. ";" .. expectedState[i][2]
         end
     else
         rsp[#rsp+1] = "unknown"
