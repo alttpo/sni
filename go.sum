@@ -54,6 +54,8 @@ github.com/alttpo/snes v0.0.0-20220502000153-7285cd88ae04 h1:PC5EEDttMD9sj3GRV00
 github.com/alttpo/snes v0.0.0-20220502000153-7285cd88ae04/go.mod h1:hqcMbI1PDqZfNOwDdcGcsJPS5ca1nRhBIj9wwkMrS1c=
 github.com/alttpo/snes v0.0.0-20221219142608-8caabfba1165 h1:SRkfT7xR9mb2rEsfRcSPO6Uo2HDOgwH2hQ7DQeg5xGI=
 github.com/alttpo/snes v0.0.0-20221219142608-8caabfba1165/go.mod h1:hqcMbI1PDqZfNOwDdcGcsJPS5ca1nRhBIj9wwkMrS1c=
+github.com/alttpo/snes v0.0.0-20230312192207-7713b3a45277 h1:W81Wl/hNkRT34HcW8OtRDp8bCXiuc9owQIEN0IvBcrA=
+github.com/alttpo/snes v0.0.0-20230312192207-7713b3a45277/go.mod h1:hqcMbI1PDqZfNOwDdcGcsJPS5ca1nRhBIj9wwkMrS1c=
 github.com/alttpo/systray v1.3.5 h1:TQ8SRvmm65WtOtCB0735JvcktwvNkwi0dmlE9PJKeYc=
 github.com/alttpo/systray v1.3.5/go.mod h1:OvZTTmO1qMBaKn0N426C3IUelqEFEva/+wVKnB3qSKM=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=

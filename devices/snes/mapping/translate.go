@@ -5,6 +5,7 @@ import (
 	"github.com/alttpo/snes/mapping/exhirom"
 	"github.com/alttpo/snes/mapping/hirom"
 	"github.com/alttpo/snes/mapping/lorom"
+	"github.com/alttpo/snes/mapping/sa1rom"
 	"sni/devices"
 	"sni/protos/sni"
 )
@@ -33,6 +34,8 @@ func TranslateAddress(
 				return hirom.PakAddressToBus(address)
 			case sni.MemoryMapping_ExHiROM:
 				return exhirom.PakAddressToBus(address)
+			case sni.MemoryMapping_SA1:
+				return sa1rom.PakAddressToBus(address)
 			default:
 				return 0, ErrUnknownMapping
 			}
@@ -51,6 +54,8 @@ func TranslateAddress(
 				return hirom.BusAddressToPak(address)
 			case sni.MemoryMapping_ExHiROM:
 				return exhirom.BusAddressToPak(address)
+			case sni.MemoryMapping_SA1:
+				return sa1rom.BusAddressToPak(address)
 			default:
 				return 0, ErrUnknownMapping
 			}

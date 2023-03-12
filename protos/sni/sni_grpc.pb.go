@@ -312,7 +312,7 @@ var DeviceControl_ServiceDesc = grpc.ServiceDesc{
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DeviceMemoryClient interface {
-	// detect the current memory mapping for the given device by reading $00:FFB0 header:
+	// detect the current memory mapping for the given device by reading 00:FFB0 header:
 	MappingDetect(ctx context.Context, in *DetectMemoryMappingRequest, opts ...grpc.CallOption) (*DetectMemoryMappingResponse, error)
 	// read a single memory segment with a given size from the given device:
 	SingleRead(ctx context.Context, in *SingleReadMemoryRequest, opts ...grpc.CallOption) (*SingleReadMemoryResponse, error)
@@ -447,7 +447,7 @@ func (x *deviceMemoryStreamWriteClient) Recv() (*MultiWriteMemoryResponse, error
 // All implementations must embed UnimplementedDeviceMemoryServer
 // for forward compatibility
 type DeviceMemoryServer interface {
-	// detect the current memory mapping for the given device by reading $00:FFB0 header:
+	// detect the current memory mapping for the given device by reading 00:FFB0 header:
 	MappingDetect(context.Context, *DetectMemoryMappingRequest) (*DetectMemoryMappingResponse, error)
 	// read a single memory segment with a given size from the given device:
 	SingleRead(context.Context, *SingleReadMemoryRequest) (*SingleReadMemoryResponse, error)

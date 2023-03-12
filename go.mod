@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/alttpo/observable v0.0.0-20210711210405-e5b91ea63352
-	github.com/alttpo/snes v0.0.0-20221219142608-8caabfba1165
+	github.com/alttpo/snes v0.0.0-20230312192207-7713b3a45277
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/getlantern/systray v1.3.2
 	github.com/gobwas/ws v1.1.0

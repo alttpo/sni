@@ -4,6 +4,7 @@ import (
 	"github.com/alttpo/snes/mapping/exhirom"
 	"github.com/alttpo/snes/mapping/hirom"
 	"github.com/alttpo/snes/mapping/lorom"
+	"github.com/alttpo/snes/mapping/sa1rom"
 	"sni/devices"
 	"sni/protos/sni"
 )
@@ -33,6 +34,8 @@ func MemoryTypeFor(a devices.AddressTuple) (memoryType MemoryType, pakAddress ui
 			pakAddress, err = hirom.BusAddressToPak(a.Address)
 		case sni.MemoryMapping_ExHiROM:
 			pakAddress, err = exhirom.BusAddressToPak(a.Address)
+		case sni.MemoryMapping_SA1:
+			pakAddress, err = sa1rom.BusAddressToPak(a.Address)
 		}
 	case sni.AddressSpace_Raw:
 		err = ErrUnknownMapping
@@ -52,6 +55,7 @@ func MemoryTypeForPakAddress(pakAddress uint32) (memoryType MemoryType, offset u
 	if pakAddress < 0xE0_0000 {
 		memoryType, offset = MemoryTypeROM, pakAddress
 	} else if pakAddress < 0xF0_0000 {
+		// For SA-1 this should be called BW-RAM:
 		memoryType, offset = MemoryTypeSRAM, pakAddress-0xE0_0000
 	} else if pakAddress < 0xF5_0000 {
 		memoryType, offset = MemoryTypeUnknown, pakAddress-0xF0_0000
