@@ -1,6 +1,7 @@
 package emunwa
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/alttpo/observable"
 	"github.com/alttpo/snes/timing"
@@ -154,12 +155,19 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, derr error) {
 				// TODO: backwards compat to EMU_INFO
 				// check emulator info:
 				var status []map[string]string
-				_, status, err = detector.SendCommandWaitReply("EMULATOR_INFO", time.Now().Add(timing.Frame*2))
+				var bin []byte
+				bin, status, err = detector.SendCommandWaitReply("EMULATOR_INFO", time.Now().Add(timing.Frame*2))
 				if err != nil {
 					return
 				}
 				if logDetector {
 					log.Printf("emunwa: detect: detector[%d]: EMULATOR_INFO\n%+v\n", i, status)
+				}
+				if len(status) == 0 {
+					if logDetector {
+						log.Printf("emunwa: detect: detector[%d]: EMULATOR_INFO did not reply properly with ASCII; instead got binary:\n%s", i, hex.Dump(bin))
+					}
+					return
 				}
 				name = status[0]["name"]
 				version = status[0]["version"]

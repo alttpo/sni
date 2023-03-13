@@ -108,7 +108,8 @@ enum MemoryMapping {
   HiROM = 1;
   LoROM = 2;
   ExHiROM = 3; // (48-64Mbit)
-  // TODO: BSX = 4;
+  SA1 = 4;
+  // TODO: BSX = 5;
 }
 
 // capabilities of a device

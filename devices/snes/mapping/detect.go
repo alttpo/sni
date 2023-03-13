@@ -54,7 +54,8 @@ func Detect(
 	// memory mapping.
 
 	log.Printf(
-		"detect: map mode %02x\n",
+		"detect: map mode = %02x; masking off slow vs fastrom = %02x\n",
+		header.MapMode,
 		header.MapMode&0b1110_1111,
 	)
 
@@ -69,7 +70,7 @@ func Detect(
 	case 0x22: // ExLoROM
 		mapping = sni.MemoryMapping_LoROM
 	case 0x23: // SA-1
-		mapping = sni.MemoryMapping_HiROM
+		mapping = sni.MemoryMapping_SA1
 	case 0x25: // ExHiROM
 		mapping = sni.MemoryMapping_ExHiROM
 	default:
@@ -110,6 +111,7 @@ func detectHeader(ctx context.Context, memory devices.DeviceMemory) (outHeaderBy
 		sni.MemoryMapping_LoROM,
 		sni.MemoryMapping_HiROM,
 		sni.MemoryMapping_ExHiROM,
+		sni.MemoryMapping_SA1,
 	}
 
 	bestScore := 0

@@ -52,6 +52,8 @@ github.com/alttpo/observable v0.0.0-20210711210405-e5b91ea63352 h1:abCFCtEtXiAXh
 github.com/alttpo/observable v0.0.0-20210711210405-e5b91ea63352/go.mod h1:S2lExZ67QD0EYw5ie4PlFLwVDEXZzAtDrUbgRWqArRo=
 github.com/alttpo/snes v0.0.0-20221219142608-8caabfba1165 h1:SRkfT7xR9mb2rEsfRcSPO6Uo2HDOgwH2hQ7DQeg5xGI=
 github.com/alttpo/snes v0.0.0-20221219142608-8caabfba1165/go.mod h1:hqcMbI1PDqZfNOwDdcGcsJPS5ca1nRhBIj9wwkMrS1c=
+github.com/alttpo/snes v0.0.0-20230312192207-7713b3a45277 h1:W81Wl/hNkRT34HcW8OtRDp8bCXiuc9owQIEN0IvBcrA=
+github.com/alttpo/snes v0.0.0-20230312192207-7713b3a45277/go.mod h1:hqcMbI1PDqZfNOwDdcGcsJPS5ca1nRhBIj9wwkMrS1c=
 github.com/alttpo/systray v1.3.5 h1:TQ8SRvmm65WtOtCB0735JvcktwvNkwi0dmlE9PJKeYc=
 github.com/alttpo/systray v1.3.5/go.mod h1:OvZTTmO1qMBaKn0N426C3IUelqEFEva/+wVKnB3qSKM=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
