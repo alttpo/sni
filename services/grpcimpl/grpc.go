@@ -106,7 +106,10 @@ func serveGrpcWeb() {
 
 	//corsWrapper := wrappedGrpc
 	corsWrapper := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		// no CORS checking:
+		rw.Header().Add("Access-Control-Allow-Origin", "*")
+		rw.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		rw.Header().Add("Access-Control-Allow-Headers", "*")
+
 		if wrappedGrpc.IsGrpcWebSocketRequest(req) {
 			wrappedGrpc.HandleGrpcWebsocketRequest(rw, req)
 			return
@@ -115,11 +118,6 @@ func serveGrpcWeb() {
 			wrappedGrpc.HandleGrpcWebRequest(rw, req)
 			return
 		}
-
-		// Likely an OPTIONS request:
-		rw.Header().Add("Access-Control-Allow-Origin", "*")
-		rw.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		rw.Header().Add("Access-Control-Allow-Headers", "*")
 
 		rw.WriteHeader(http.StatusOK)
 		_, _ = rw.Write(make([]byte, 0))
