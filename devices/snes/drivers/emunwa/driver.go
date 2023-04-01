@@ -111,7 +111,7 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, derr error) {
 			if detector.IsClosed() {
 				err = detector.Close()
 				if err != nil {
-					log.Printf("emunwa: error closing detector: %v\n", err)
+					log.Printf("emunwa: detect: detector[%d]: error closing detector: %v\n", i, err)
 				}
 				// refresh detector:
 				c := NewClient(detector.addr, fmt.Sprintf("emunwa[%d]", i), timing.Frame*4)
@@ -132,9 +132,12 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, derr error) {
 
 				// detect accidental loopback connections:
 				if detector.DetectLoopback(d.detectors) {
-					detector.Close()
 					if logDetector {
 						log.Printf("emunwa: detect: detector[%d]: loopback connection detected; breaking\n", i)
+					}
+					err = detector.Close()
+					if err != nil {
+						log.Printf("emunwa: detect: detector[%d]: error closing detector: %v\n", i, err)
 					}
 					return
 				}
@@ -152,6 +155,11 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, derr error) {
 				var bin []byte
 				bin, status, err = detector.SendCommandWaitReply("EMULATOR_INFO", time.Now().Add(timing.Frame*2))
 				if err != nil {
+					log.Printf("emunwa: detect: detector[%d]: EMULATOR_INFO error: %v; closing connection\n", i, err)
+					err = detector.Close()
+					if err != nil {
+						log.Printf("emunwa: detect: detector[%d]: error closing detector: %v\n", i, err)
+					}
 					return
 				}
 				if logDetector {
