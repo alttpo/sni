@@ -12,10 +12,10 @@ else
         print("Connector only for BSNES Core within Bizhawk, sorry.")
     end
     if emu.getluacore ~= nil and emu.getluacore() ~= "LuaInterface" then
-		print("Wrong Lua Core. Found " .. emu.getluacore() .. ", was expecting LuaInterface. ")
-		print("Please go to Config -> Customize -> Advanced and select Lua+LuaInterface.")
-		print("Once set, restart Bizhawk.")
-	end
+        print("Wrong Lua Core. Found " .. emu.getluacore() .. ", was expecting LuaInterface. ")
+        print("Please go to Config -> Customize -> Advanced and select Lua+LuaInterface.")
+        print("Once set, restart Bizhawk.")
+    end
 end
 
 function readbyterange(addr, length, domain)
