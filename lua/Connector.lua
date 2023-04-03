@@ -17,7 +17,7 @@ else
         current_engine = client.get_lua_engine();
     -- emu.getluacore for old BizHawk
     elseif emu.getluacore ~= nil then
-	    current_engine = emu.getluacore();
+        current_engine = emu.getluacore();
     end
     if current_engine ~= nil and current_engine ~= "LuaInterface" then
         print("Wrong Lua Core. Found " .. current_engine .. ", was expecting LuaInterface. ")
