@@ -11,7 +11,6 @@ else
     if emu.getsystemid() ~= "SNES" then
         print("Connector only for BSNES Core within Bizhawk, sorry.")
     end
-    end
     local current_engine = nil;
     -- client.get_lua_engine is new
     if client.get_lua_engine ~= nil then
