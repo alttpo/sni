@@ -11,8 +11,16 @@ else
     if emu.getsystemid() ~= "SNES" then
         print("Connector only for BSNES Core within Bizhawk, sorry.")
     end
-    if emu.getluacore ~= nil and emu.getluacore() ~= "LuaInterface" then
-        print("Wrong Lua Core. Found " .. emu.getluacore() .. ", was expecting LuaInterface. ")
+    local current_engine = nil;
+    -- client.get_lua_engine is new
+    if client.get_lua_engine ~= nil then
+        current_engine = client.get_lua_engine();
+    -- emu.getluacore for old BizHawk
+    elseif emu.getluacore ~= nil then
+        current_engine = emu.getluacore();
+    end
+    if current_engine ~= nil and current_engine ~= "LuaInterface" then
+        print("Wrong Lua Core. Found " .. current_engine .. ", was expecting LuaInterface. ")
         print("Please go to Config -> Customize -> Advanced and select Lua+LuaInterface.")
         print("Once set, restart Bizhawk.")
     end
