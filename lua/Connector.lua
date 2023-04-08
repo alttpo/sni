@@ -1,6 +1,7 @@
 -- original file found in a GPLv3 code repository, unclear if this is the intended license nor who the authors are
 -- SNI modifications by Berserker, jsd1982; modifications licensed under MIT License
 -- version 3 changes Read response from JSON to HEX
+-- lua 5.1/5.4 shim by zig; modifications licensed under MIT and WTFPL
 
 if not event then
     is_snes9x = true
