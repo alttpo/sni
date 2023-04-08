@@ -128,16 +128,18 @@ jobs:
         run: |
           rm ${{env.basename}}/lua/Connector.lua
           cp lua/Connector.lua ${{env.basename}}/lua/x64
-          cp lua/x64/socket.dll ${{env.basename}}/lua/x64
+          cp lua/x64/socket-windows-5-1.dll ${{env.basename}}/lua/x64
+          cp lua/x64/socket-windows-5-4.dll ${{env.basename}}/lua/x64
           cp lua/x64/luasocket.LICENSE.txt ${{env.basename}}/lua/x64
           cp lua/Connector.lua ${{env.basename}}/lua/x86
-          cp lua/x86/socket.dll ${{env.basename}}/lua/x86
+          cp lua/x86/socket-windows-5-1.dll ${{env.basename}}/lua/x86
           cp lua/x86/luasocket.LICENSE.txt ${{env.basename}}/lua/x86
 
       - name: Copy in lua socket.so dependencies for Linux
         if: ${{ matrix.goos == 'linux' }}
         run: |
-          cp lua/x64/socket-linux.so ${{env.basename}}/lua/socket.so
+          cp lua/x64/socket-linux-5-4.so ${{env.basename}}/lua/
+          cp lua/x64/socket-linux-5-1.so ${{env.basename}}/lua/
 
       - if: ${{ matrix.goos == 'windows' }}
         name: Build SNI
