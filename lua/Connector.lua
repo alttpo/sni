@@ -65,7 +65,11 @@ function writebyte(addr, value, domain)
   end
 end
 
-local socket = require("socket.core")
+dll = "socket-5-1.dll"
+if _VERSION == "Lua 5.4" then
+    dll = "socket-5-4.dll"
+end
+local socket = assert(package.loadlib(dll, "luaopen_socket_core"))()
 
 local connection
 local host = os.getenv("SNI_LUABRIDGE_LISTEN_HOST") or '127.0.0.1'
