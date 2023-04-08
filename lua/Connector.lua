@@ -65,11 +65,41 @@ function writebyte(addr, value, domain)
   end
 end
 
-dll = "socket-5-1.dll"
-if _VERSION == "Lua 5.4" then
-    dll = "socket-5-4.dll"
+function get_lua_version()
+    local major, minor = _VERSION:match("Lua (%d+)%.(%d+)")
+    assert(tonumber(major) == 5)
+    if tonumber(minor) >= 4 then
+        return "5-4"
+    end
+    return "5-1"
 end
-local socket = assert(package.loadlib(dll, "luaopen_socket_core"))()
+
+function get_os()
+    local the_os, ext, arch
+    if package.config:sub(1,1) == "\\" then
+        the_os, ext = "windows", "dll"
+        arch = os.getenv"PROCESSOR_ARCHITECTURE"
+    else
+        -- TODO: macos?
+        the_os, ext = "linux", "so"
+        arch = io.popen"uname -m":read"*a"
+    end
+
+    if (arch or ""):match"64" then
+        arch = "x64"
+    else
+        arch = "x32"
+    end
+    return the_os, ext, arch
+end
+
+function get_socket_path()
+    local the_os, ext, arch = get_os()
+    -- for some reason ./ isn't working, so use a horrible hack to get the pwd
+    local pwd = io.popen"cd":read'*l'
+    return pwd .. "/x64/socket-" .. the_os .. "-" .. get_lua_version() .. "." .. ext
+end
+local socket = assert(package.loadlib(get_socket_path(), "luaopen_socket_core"))()
 
 local connection
 local host = os.getenv("SNI_LUABRIDGE_LISTEN_HOST") or '127.0.0.1'
