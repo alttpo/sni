@@ -82,13 +82,13 @@ function get_os()
     else
         -- TODO: macos?
         the_os, ext = "linux", "so"
-        arch = io.popen"uname -m":read"*a"
+        return the_os, ext, "" -- linux doesn't use/have the arch
     end
 
     if (arch or ""):match"64" then
-        arch = "x64"
+        arch = "/x64"
     else
-        arch = "x32"
+        arch = "/x32"
     end
     return the_os, ext, arch
 end
@@ -97,7 +97,7 @@ function get_socket_path()
     local the_os, ext, arch = get_os()
     -- for some reason ./ isn't working, so use a horrible hack to get the pwd
     local pwd = io.popen"cd":read'*l'
-    return pwd .. "/x64/socket-" .. the_os .. "-" .. get_lua_version() .. "." .. ext
+    return pwd ..arch .."/socket-" .. the_os .. "-" .. get_lua_version() .. "." .. ext
 end
 local socket = assert(package.loadlib(get_socket_path(), "luaopen_socket_core"))()
 
