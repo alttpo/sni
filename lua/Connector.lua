@@ -83,13 +83,13 @@ function get_os()
     else
         -- TODO: macos?
         the_os, ext = "linux", "so"
-        return the_os, ext, "" -- linux doesn't use/have the arch
+        arch = io.popen"uname -m":read"*a"
     end
 
     if (arch or ""):match"64" then
         arch = "/x64"
     else
-        arch = "/x32"
+        arch = "/x86"
     end
     return the_os, ext, arch
 end
