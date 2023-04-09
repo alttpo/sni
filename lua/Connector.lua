@@ -82,25 +82,27 @@ function get_os()
         arch = os.getenv"PROCESSOR_ARCHITECTURE"
     else
         -- TODO: macos?
-        the_os, ext = "linux", "so"
-        arch = io.popen"uname -m":read"*a"
+        return "linux", "so", "x64" 
     end
 
-    if (arch or ""):match"64" then
-        arch = "/x64"
+    if arch:find("64") ~= nil then
+        arch = "x64"
     else
-        arch = "/x86"
+        arch = "x86"
     end
+
     return the_os, ext, arch
 end
 
 function get_socket_path()
     local the_os, ext, arch = get_os()
     -- for some reason ./ isn't working, so use a horrible hack to get the pwd
-    local pwd = io.popen"cd":read'*l'
-    return pwd ..arch .."/socket-" .. the_os .. "-" .. get_lua_version() .. "." .. ext
+    local pwd = (io.popen and io.popen("cd"):read'*l') or "."
+	return pwd .. "/" .. arch .. "/socket-" .. the_os .. "-" .. get_lua_version() .. "." .. ext
 end
-local socket = assert(package.loadlib(get_socket_path(), "luaopen_socket_core"))()
+local socket_path = get_socket_path()
+print("loading " .. socket_path)
+local socket = assert(package.loadlib(socket_path, "luaopen_socket_core"))()
 
 local connection
 local host = os.getenv("SNI_LUABRIDGE_LISTEN_HOST") or '127.0.0.1'
