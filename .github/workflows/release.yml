@@ -137,8 +137,8 @@ jobs:
       - name: Copy in lua socket.so dependencies for Linux
         if: ${{ matrix.goos == 'linux' }}
         run: |
-          cp lua/x64/socket-linux-5-4.so ${{env.basename}}/lua/socket-linux-5-4.so
-          cp lua/x64/socket-linux-5-1.so ${{env.basename}}/lua/socket-linux-5-1.so
+          cp lua/x64/socket-linux-5-4.so ${{env.basename}}/lua/x64/socket-linux-5-4.so
+          cp lua/x64/socket-linux-5-1.so ${{env.basename}}/lua/x64/socket-linux-5-1.so
 
       - if: ${{ matrix.goos == 'windows' }}
         name: Build SNI
