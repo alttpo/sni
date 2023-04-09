@@ -25,60 +25,29 @@ jobs:
 
       - run: go test ./...
 
-  release-matrix:
+  windows:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            goos: darwin
-            goarch: amd64
-            suffix: tar.gz
-            snfm: snfm-*-macos-x64.zip
-          #- os: macos-latest
-          #  goos: darwin
-          #  goarch: arm64
           - os: windows-latest
             goos: windows
             goarch: amd64
-            exesuffix: .exe
             suffix: zip
             snfm: snfm-*-windows-x64.zip
           - os: windows-latest
             goos: windows
             goarch: "386"
-            exesuffix: .exe
             suffix: zip
           - os: windows-latest
             goos: windows
             goarch: arm
-            exesuffix: .exe
             suffix: zip
           - os: windows-latest
             goos: windows
             goarch: arm64
-            exesuffix: .exe
             suffix: zip
-          - os: ubuntu-latest
-            goos: linux
-            goarch: amd64
-            suffix: tar.xz
-            linuxdeps: libgtk-3-dev libayatana-appindicator3-dev
-            snfm: snfm-*-linux-x64.zip
-          - os: ubuntu-latest
-            goos: linux
-            goarch: amd64
-            suffix: tar.xz
-            tags: notray
-            alt: -notray
-            snfm: snfm-*-linux-x64.zip
-          #- os: ubuntu-latest
-          #  goos: linux
-          #  goarch: "386"
-          #- os: ubuntu-latest
-          #  goos: linux
-          #  goarch: arm64
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
 
     steps:
       - name: Inject slug/short variables
@@ -89,15 +58,7 @@ jobs:
         with:
           go-version: '1.20'
 
-      - name: Set up linux dependencies
-        if: ${{ matrix.goos == 'linux' }}
-        run: sudo apt-get update && sudo apt-get install -y gcc ${{matrix.linuxdeps}}
-
-      # stupid cross-platform nonsense:
-      - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}${{matrix.alt}}" >> $GITHUB_ENV
-        if: ${{ matrix.goos != 'windows' }}
       - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}${{matrix.alt}}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-        if: ${{ matrix.goos == 'windows' }}
 
       - uses: actions/checkout@v2
         name: Checkout
@@ -105,7 +66,6 @@ jobs:
           fetch-depth: 0
 
       - name: Generate Windows resources
-        if: ${{ matrix.goos == 'windows' }}
         run: |
           cd cmd/sni
           go install github.com/tc-hib/go-winres@latest
@@ -124,7 +84,6 @@ jobs:
           cp lua/Connector.lua ${{env.basename}}/lua
 
       - name: Copy in lua socket.dll dependencies for Windows
-        if: ${{ matrix.goos == 'windows' }}
         run: |
           rm ${{env.basename}}/lua/Connector.lua
           cp lua/Connector.lua ${{env.basename}}/lua/
@@ -134,37 +93,11 @@ jobs:
           cp lua/x86/socket-windows-5-1.dll ${{env.basename}}/lua/x86
           cp lua/x86/luasocket.LICENSE.txt ${{env.basename}}/lua/x86
 
-      - name: Copy in lua socket.so dependencies for Linux
-        if: ${{ matrix.goos == 'linux' }}
-        run: |
-          cp lua/x64/socket-linux-5-4.so ${{env.basename}}/lua/x64/socket-linux-5-4.so
-          cp lua/x64/socket-linux-5-1.so ${{env.basename}}/lua/x64/socket-linux-5-1.so
-
-      - if: ${{ matrix.goos == 'windows' }}
-        name: Build SNI
+      - name: Build SNI
         run: |
           Set-Item -Path Env:GOOS -Value "${{matrix.goos}}"
           Set-Item -Path Env:GOARCH -Value "${{matrix.goarch}}"
-          go build -tags="${{ matrix.tags }}" -ldflags="-H=windowsgui -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')' -X 'main.builtBy=$(go version | cut -f3 -d ' ')'" -o ./${{env.basename}}/sni${{matrix.exesuffix}} ./cmd/sni
-
-      - if: ${{ matrix.goos != 'windows' }}
-        name: Build SNI
-        run: >
-          GOOS=${{matrix.goos}} GOARCH=${{matrix.goarch}} go build
-          -tags="${{ matrix.tags }}"
-          -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
-          -o ./${{env.basename}}/sni
-          ./cmd/sni
-
-      # cross-platform tar.gz creator:
-      #- name: Create ${{env.basename}}.tar.gz
-      #  run: >
-      #    go run
-      #    .github/scripts/tar.go
-      #    -z
-      #    -o ${{env.basename}}.tar.gz
-      #    -strip ${{env.basename}}/
-      #    ${{env.basename}}/
+          go build -tags="${{ matrix.tags }}" -ldflags="-H=windowsgui -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')' -X 'main.builtBy=$(go version | cut -f3 -d ' ')'" -o ./${{env.basename}}/sni.exe ./cmd/sni
 
       - name: Download SNFM
         if: ${{ matrix.snfm }}
@@ -174,7 +107,7 @@ jobs:
 
       - name: Extract SNFM
         if: ${{ matrix.snfm }}
-        run: 7z x -o"${{env.basename}}" "${{ runner.temp }}/${{ matrix.snfm }}" 
+        run: 7z x -o"${{env.basename}}" "${{ runner.temp }}/${{ matrix.snfm }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -182,16 +115,8 @@ jobs:
           name: ${{env.basename}}
           path: ${{env.basename}}/
 
-      - name: Package ${{env.basename}}.${{matrix.suffix}} for MacOS
-        if: ${{ matrix.os == 'macos-latest' && github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
-        run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
-
-      - name: Package ${{env.basename}}.${{matrix.suffix}} for Linux
-        if: ${{ matrix.os == 'ubuntu-latest' && github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
-        run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
-
       - name: Package ${{env.basename}}.${{matrix.suffix}} for Windows
-        if: ${{ matrix.os == 'windows-latest' && github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
+        if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
         run: Compress-Archive -DestinationPath ${{env.basename}}.${{matrix.suffix}} -Path ${{env.basename}}/*
 
       - name: Upload binaries to release
@@ -204,6 +129,197 @@ jobs:
           asset_name: ${{env.basename}}.${{matrix.suffix}}
           file: ${{ github.workspace }}/${{env.basename}}.${{matrix.suffix}}
 
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            suffix: tar.gz
+            snfm: snfm-*-macos-x64.zip
+    runs-on: macos-latest
+
+    steps:
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@v3.x
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.20'
+
+      - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-darwin-universal${{matrix.alt}}" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v2
+        name: Checkout
+        with:
+          fetch-depth: 0
+
+      - name: Package Lua Bridge for distribution
+        run: |
+          mkdir ${{env.basename}}
+          mkdir ${{env.basename}}/lua
+          cp README.md ${{env.basename}}
+          cp LICENSE ${{env.basename}}
+          cp protos/sni/sni.proto ${{env.basename}}
+          cp cmd/sni/apps.yaml ${{env.basename}}
+          cp lua/Connector.lua ${{env.basename}}/lua
+
+      - name: Build SNI (amd64, arm64)
+        run: >
+          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build
+          -tags="${{ matrix.tags }}"
+          -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
+          -o ./${{env.basename}}/sni.amd64
+          ./cmd/sni
+          
+          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build
+          -tags="${{ matrix.tags }}"
+          -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
+          -o ./${{env.basename}}/sni.arm64
+          ./cmd/sni
+          
+          lipo -create -output ./${{env.basename}}/sni ./${{env.basename}}/sni.amd64 ./${{env.basename}}/sni.arm64
+          
+          rm -f ./${{env.basename}}/sni.amd64 ./${{env.basename}}/sni.arm64
+
+      - name: Download SNFM
+        if: ${{ matrix.snfm }}
+        run: gh release download --repo zig-for/snfm --pattern ${{ matrix.snfm }} --dir ${{ runner.temp }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Extract SNFM
+        if: ${{ matrix.snfm }}
+        run: 7z x -o"${{env.basename}}" "${{ runner.temp }}/${{ matrix.snfm }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{env.basename}}
+          path: ${{env.basename}}/
+
+      - name: Package ${{env.basename}}.${{matrix.suffix}} for MacOS
+        if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
+        run: tar czf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
+
+      - name: Upload binaries to release
+        if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ env.GITHUB_REF_SLUG }}
+          overwrite: true
+          asset_name: ${{env.basename}}.${{matrix.suffix}}
+          file: ${{ github.workspace }}/${{env.basename}}.${{matrix.suffix}}
+
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            suffix: tar.xz
+            linuxdeps: libgtk-3-dev libayatana-appindicator3-dev
+            snfm: snfm-*-linux-x64.zip
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            suffix: tar.xz
+            tags: notray
+            alt: -notray
+            snfm: snfm-*-linux-x64.zip
+          #- os: ubuntu-latest
+          #  goos: linux
+          #  goarch: arm64
+          #  suffix: tar.xz
+          #  linuxdeps: libgtk-3-dev libayatana-appindicator3-dev
+          #- os: ubuntu-latest
+          #  goos: linux
+          #  goarch: arm64
+          #  suffix: tar.xz
+          #  tags: notray
+          #  alt: -notray
+          #- os: ubuntu-latest
+          #  goos: linux
+          #  goarch: "386"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@v3.x
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.20'
+
+      - name: Set up linux dependencies
+        run: sudo apt-get update && sudo apt-get install -y gcc ${{matrix.linuxdeps}}
+
+      - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}${{matrix.alt}}" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v2
+        name: Checkout
+        with:
+          fetch-depth: 0
+
+      - name: Package Lua Bridge for distribution
+        run: |
+          mkdir ${{env.basename}}
+          mkdir ${{env.basename}}/lua
+          cp README.md ${{env.basename}}
+          cp LICENSE ${{env.basename}}
+          cp protos/sni/sni.proto ${{env.basename}}
+          cp cmd/sni/apps.yaml ${{env.basename}}
+          cp lua/Connector.lua ${{env.basename}}/lua
+
+      - name: Copy in lua socket.so dependencies for Linux amd64
+        if: ${{ matrix.goarch == 'amd64' }}
+        run: |
+          mkdir ${{env.basename}}/lua/x64
+          cp lua/x64/socket-linux-5-4.so ${{env.basename}}/lua/x64/socket-linux-5-4.so
+          cp lua/x64/socket-linux-5-1.so ${{env.basename}}/lua/x64/socket-linux-5-1.so
+
+      - name: Build SNI
+        run: >
+          CGO_ENABLED=1 GOOS=${{matrix.goos}} GOARCH=${{matrix.goarch}} go build
+          -tags="${{ matrix.tags }}"
+          -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
+          -o ./${{env.basename}}/sni
+          ./cmd/sni
+
+      - name: Download SNFM
+        if: ${{ matrix.snfm }}
+        run: gh release download --repo zig-for/snfm --pattern ${{ matrix.snfm }} --dir ${{ runner.temp }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Extract SNFM
+        if: ${{ matrix.snfm }}
+        run: 7z x -o"${{env.basename}}" "${{ runner.temp }}/${{ matrix.snfm }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{env.basename}}
+          path: ${{env.basename}}/
+
+      - name: Package ${{env.basename}}.${{matrix.suffix}} for Linux
+        if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
+        run: tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
+
+      - name: Upload binaries to release
+        if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ env.GITHUB_REF_SLUG }}
+          overwrite: true
+          asset_name: ${{env.basename}}.${{matrix.suffix}}
+          file: ${{ github.workspace }}/${{env.basename}}.${{matrix.suffix}}
 
   manylinux2014:
     runs-on: ubuntu-latest
@@ -234,7 +350,6 @@ jobs:
           mkdir ${{env.basename}}
           mkdir ${{env.basename}}/lua
           mkdir ${{env.basename}}/lua/x64
-          # mkdir ${{env.basename}}/lua/x86
           cp README.md ${{env.basename}}
           cp LICENSE ${{env.basename}}
           cp protos/sni/sni.proto ${{env.basename}}
@@ -253,8 +368,10 @@ jobs:
 
       - name: Build SNI
         run: >
+          CGO_ENABLED=1
           CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-rpath=. -Wl,--gc-sections"
-          GOARCH=amd64 go build -tags=legacy_appindicator -buildvcs=false
+          GOARCH=amd64
+          go build -tags=legacy_appindicator -buildvcs=false
           -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
           -o ./${{env.basename}}/sni
           ./cmd/sni
