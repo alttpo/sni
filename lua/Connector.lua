@@ -1,6 +1,16 @@
 -- original file found in a GPLv3 code repository, unclear if this is the intended license nor who the authors are
 -- SNI modifications by Berserker, jsd1982; modifications licensed under MIT License
 -- version 3 changes Read response from JSON to HEX
+-- lua 5.1/5.4 shim by zig; modifications licensed under MIT and WTFPL
+
+function get_lua_version()
+    local major, minor = _VERSION:match("Lua (%d+)%.(%d+)")
+    assert(tonumber(major) == 5)
+    if tonumber(minor) >= 4 then
+        return "5-4"
+    end
+    return "5-1"
+end
 
 if not event then
     is_snes9x = true
@@ -19,7 +29,7 @@ else
     elseif emu.getluacore ~= nil then
         current_engine = emu.getluacore();
     end
-    if current_engine ~= nil and current_engine ~= "LuaInterface" then
+    if current_engine ~= nil and current_engine ~= "LuaInterface" and get_lua_version() ~= "5-4" then
         print("Wrong Lua Core. Found " .. current_engine .. ", was expecting LuaInterface. ")
         print("Please go to Config -> Customize -> Advanced and select Lua+LuaInterface.")
         print("Once set, restart Bizhawk.")
@@ -65,7 +75,35 @@ function writebyte(addr, value, domain)
   end
 end
 
-local socket = require("socket.core")
+function get_os()
+    local the_os, ext, arch
+    if package.config:sub(1,1) == "\\" then
+        the_os, ext = "windows", "dll"
+        arch = os.getenv"PROCESSOR_ARCHITECTURE"
+    else
+        -- TODO: macos?
+        the_os, ext = "linux", "so"
+        arch = "x86_64" -- TODO: read ELF header from /proc/$PID/exe to get arch
+    end
+
+    if arch:find("64") ~= nil then
+        arch = "x64"
+    else
+        arch = "x86"
+    end
+
+    return the_os, ext, arch
+end
+
+function get_socket_path()
+    local the_os, ext, arch = get_os()
+    -- for some reason ./ isn't working, so use a horrible hack to get the pwd
+    local pwd = (io.popen and io.popen("cd"):read'*l') or "."
+	return pwd .. "/" .. arch .. "/socket-" .. the_os .. "-" .. get_lua_version() .. "." .. ext
+end
+local socket_path = get_socket_path()
+print("loading " .. socket_path)
+local socket = assert(package.loadlib(socket_path, "luaopen_socket_core"))()
 
 local connection
 local host = os.getenv("SNI_LUABRIDGE_LISTEN_HOST") or '127.0.0.1'
