@@ -3,6 +3,15 @@
 -- version 3 changes Read response from JSON to HEX
 -- lua 5.1/5.4 shim by zig; modifications licensed under MIT and WTFPL
 
+function get_lua_version()
+    local major, minor = _VERSION:match("Lua (%d+)%.(%d+)")
+    assert(tonumber(major) == 5)
+    if tonumber(minor) >= 4 then
+        return "5-4"
+    end
+    return "5-1"
+end
+
 if not event then
     is_snes9x = true
     memory.usememorydomain = function()
@@ -20,7 +29,7 @@ else
     elseif emu.getluacore ~= nil then
         current_engine = emu.getluacore();
     end
-    if current_engine ~= nil and current_engine ~= "LuaInterface" then
+    if current_engine ~= nil and current_engine ~= "LuaInterface" and get_lua_version() ~= "5-4" then
         print("Wrong Lua Core. Found " .. current_engine .. ", was expecting LuaInterface. ")
         print("Please go to Config -> Customize -> Advanced and select Lua+LuaInterface.")
         print("Once set, restart Bizhawk.")
@@ -64,15 +73,6 @@ function writebyte(addr, value, domain)
     end
     memory.writebyte(addr, value, domain)
   end
-end
-
-function get_lua_version()
-    local major, minor = _VERSION:match("Lua (%d+)%.(%d+)")
-    assert(tonumber(major) == 5)
-    if tonumber(minor) >= 4 then
-        return "5-4"
-    end
-    return "5-1"
 end
 
 function get_os()
