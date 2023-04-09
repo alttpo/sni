@@ -82,7 +82,8 @@ function get_os()
         arch = os.getenv"PROCESSOR_ARCHITECTURE"
     else
         -- TODO: macos?
-        return "linux", "so", "x64" 
+        the_os, ext = "linux", "so"
+        arch = "x86_64" -- TODO: read ELF header from /proc/$PID/exe to get arch
     end
 
     if arch:find("64") ~= nil then
