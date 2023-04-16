@@ -306,7 +306,7 @@ service.
 
 Currently defined capabilities are:
 ```grpc
-// capabilities of a SNES device
+// capabilities of a device
 enum DeviceCapability {
   None = 0;
   ReadMemory = 1;
@@ -315,6 +315,18 @@ enum DeviceCapability {
   ResetSystem = 4;
   PauseUnpauseEmulation = 5;
   PauseToggleEmulation = 6;
+  ResetToMenu = 7;
+  FetchFields = 8;
+
+  ReadDirectory = 10;
+  MakeDirectory = 11;
+  RemoveFile = 12;
+  RenameFile = 13;
+  PutFile = 14;
+  GetFile = 15;
+  BootFile = 16;
+
+  NWACommand = 20;
 }
 ```
 
@@ -326,6 +338,9 @@ The `WriteMemory` capability grants usage of the the `DeviceMemory` service's
 
 The `ResetSystem` capability grants usage of the `DeviceControl` service's
 `ResetSystem` method.
+
+The `ResetToMenu` capability grants usage of the `DeviceControl` service's
+`ResetToMenu` method.
 
 The `PauseUnpauseEmulation` capability grants usage of the
 `DeviceControl.PauseUnpauseEmulation` method.
@@ -542,6 +557,9 @@ executing the request and in the same order received.
 #### [ResetSystem](https://github.com/alttpo/sni/blob/main/protos/sni/sni.proto#L81)
 On devices that support it, this method resets the system the same way pressing
 the RESET button/slider on the SNES hardware console does.
+
+#### [ResetToMenu](https://github.com/alttpo/sni/blob/main/protos/sni/sni.proto#L21)
+On devices that support it (currently only FXPakPro), this method resets the system to the menu.
 
 #### [PauseUnpauseEmulation](https://github.com/alttpo/sni/blob/main/protos/sni/sni.proto#L83)
 On devices that support it, this method allows the application to explicitly
