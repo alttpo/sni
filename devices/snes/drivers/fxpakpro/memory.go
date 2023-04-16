@@ -367,16 +367,13 @@ func (d *Device) awaitUSBEXE(ctx context.Context) (ok bool, err error) {
 
 func GenerateCopyAsm(a *asm.Emitter, writes ...devices.MemoryWriteRequest) {
 	// codeSize represents the total size of ASM code below without MVN blocks:
-	const codeSize = 0x1B
+	const codeSize = 8 + 12
 
 	a.SetBase(0x002C00)
 
-	// this NOP slide is necessary to avoid the problematic $2C00 address itself.
-	a.NOP()
-	a.NOP()
-
 	a.Comment("preserve registers:")
 
+	a.PHP()
 	a.REP(0x30)
 	a.PHA()
 	a.PHX()
@@ -408,16 +405,14 @@ func GenerateCopyAsm(a *asm.Emitter, writes ...devices.MemoryWriteRequest) {
 	a.PLB()
 
 	a.Comment("disable NMI vector override:")
-	a.SEP(0x30)
-	a.LDA_imm8_b(0x00)
-	a.STA_long(0x002C00)
+	a.STZ_abs(0x2C00)
 
 	a.Comment("restore registers:")
-	a.REP(0x30)
 	a.PLD()
 	a.PLY()
 	a.PLX()
 	a.PLA()
+	a.PLP()
 
 	a.Comment("jump to original NMI:")
 	a.JMP_indirect(0xFFEA)

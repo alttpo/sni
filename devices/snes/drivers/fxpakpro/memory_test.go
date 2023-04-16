@@ -36,7 +36,7 @@ func TestGenerateCopyAsm(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			code := [1024]byte{}
+			code := [512]byte{}
 			a := asm.NewEmitter(code[:], true)
 			GenerateCopyAsm(a, tt.args...)
 			a.WriteTextTo(log.Writer())
