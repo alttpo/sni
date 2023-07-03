@@ -97,7 +97,7 @@ jobs:
         run: |
           Set-Item -Path Env:GOOS -Value "${{matrix.goos}}"
           Set-Item -Path Env:GOARCH -Value "${{matrix.goarch}}"
-          go build -tags="${{ matrix.tags }}" -ldflags="-H=windowsgui -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')' -X 'main.builtBy=$(go version | cut -f3 -d ' ')'" -o ./${{env.basename}}/sni.exe ./cmd/sni
+          go build -tags="${{ matrix.tags }}" -gcflags=all=-l -ldflags="-w -H=windowsgui -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')' -X 'main.builtBy=$(go version | cut -f3 -d ' ')'" -o ./${{env.basename}}/sni.exe ./cmd/sni
 
       - name: Download SNFM
         if: ${{ matrix.snfm }}
@@ -169,13 +169,15 @@ jobs:
         run: >
           CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build
           -tags="${{ matrix.tags }}"
-          -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
+          -gcflags=all=-l
+          -ldflags="-w -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
           -o ./${{env.basename}}/sni.amd64
           ./cmd/sni
           
           CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build
           -tags="${{ matrix.tags }}"
-          -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
+          -gcflags=all=-l
+          -ldflags="-w -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
           -o ./${{env.basename}}/sni.arm64
           ./cmd/sni
           
@@ -287,7 +289,8 @@ jobs:
         run: >
           CGO_ENABLED=1 GOOS=${{matrix.goos}} GOARCH=${{matrix.goarch}} go build
           -tags="${{ matrix.tags }}"
-          -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
+          -gcflags=all=-l
+          -ldflags="-w -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
           -o ./${{env.basename}}/sni
           ./cmd/sni
 
@@ -372,7 +375,8 @@ jobs:
           CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-rpath=. -Wl,--gc-sections"
           GOARCH=amd64
           go build -tags=legacy_appindicator -buildvcs=false
-          -ldflags="-X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
+          -gcflags=all=-l
+          -ldflags="-w -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
           -o ./${{env.basename}}/sni
           ./cmd/sni
 
