@@ -249,16 +249,19 @@ func (d *Device) MultiWriteMemory(
 	}
 
 	// handle WRAM writes using USB EXE feature of fxpakpro:
-	if len(wramWrites) > 0 {
+	remainingWRAMWrites := wramWrites[:]
+	for len(remainingWRAMWrites) > 0 {
 		code := [512]byte{}
 		a := asm.NewEmitter(code[:], true)
 
-		// generate a copy routine to write data into WRAM:
-		GenerateCopyAsm(a, wramWrites...)
+		// generate a copy routine to write data into WRAM and return the remaining writes that didn't fit:
+		remainingWRAMWrites = GenerateCopyAsm(a, remainingWRAMWrites...)
 
-		//a.WriteTextTo(log.Writer())
+		if debugLog != nil {
+			a.WriteTextTo(debugLog.Writer())
+		}
 
-		if actual, expected := a.Len(), 512; actual > expected {
+		if actual, expected := a.Len(), len(code); actual > expected {
 			return nil, fmt.Errorf(
 				"fxpakpro: too much WRAM data for the snescmd buffer; %d > %d",
 				actual,
@@ -298,17 +301,18 @@ func (d *Device) MultiWriteMemory(
 
 		// await 5 seconds in game-frames for USB EXE:
 		awaitctx, awaitcancel := context.WithTimeout(subctx, timing.Frame*60*5)
-		defer awaitcancel()
 
 		// VGET to await USB EXE availability:
 		{
 			var ok bool
 			ok, err = d.awaitUSBEXE(awaitctx)
 			if err != nil {
+				awaitcancel()
 				err = fmt.Errorf("fxpakpro: could not acquire USB EXE pre-write: %w", err)
 				return
 			}
 			if !ok {
+				awaitcancel()
 				err = fmt.Errorf("fxpakpro: could not acquire USB EXE pre-write")
 				return
 			}
@@ -317,6 +321,7 @@ func (d *Device) MultiWriteMemory(
 		// VPUT command to CMD space:
 		err = d.vput(awaitctx, SpaceCMD, chunks...)
 		if err != nil {
+			awaitcancel()
 			err = fmt.Errorf("fxpakpro: could not VPUT to USB EXE: %w", err)
 			return
 		}
@@ -326,14 +331,18 @@ func (d *Device) MultiWriteMemory(
 			var ok bool
 			ok, err = d.awaitUSBEXE(awaitctx)
 			if err != nil {
+				awaitcancel()
 				err = fmt.Errorf("fxpakpro: could not acquire USB EXE post-write: %w", err)
 				return
 			}
 			if !ok {
+				awaitcancel()
 				err = fmt.Errorf("fxpakpro: could not acquire USB EXE post-write")
 				return
 			}
 		}
+
+		awaitcancel()
 	}
 
 	return
@@ -365,27 +374,65 @@ func (d *Device) awaitUSBEXE(ctx context.Context) (ok bool, err error) {
 	return
 }
 
-func GenerateCopyAsm(a *asm.Emitter, writes ...devices.MemoryWriteRequest) {
-	// codeSize represents the total size of ASM code below without MVN blocks:
-	const codeSize = 0x1B
+func GenerateCopyAsm(a *asm.Emitter, writeRequests ...devices.MemoryWriteRequest) (remainder []devices.MemoryWriteRequest) {
+	// sizeRoutine represents the total size of ASM code below without MVN blocks:
+	const sizeRoutine = 18
+	const sizeMVNBlock = 12
+
+	writes := make([]devices.MemoryWriteRequest, 0, len(writeRequests))
+	{
+		// see how much data we can fit in our asm buffer:
+		sizeRemaining := a.Cap() - sizeRoutine
+		for i, w := range writeRequests {
+			if sizeRemaining >= sizeMVNBlock+len(w.Data) {
+				// enough room for the whole transfer:
+				writes = append(writes, w)
+				sizeRemaining -= sizeMVNBlock + len(w.Data)
+			} else if txlen := sizeRemaining - sizeMVNBlock; txlen >= 1 {
+				// enough room for at least 1 byte:
+
+				// split off the remaining bytes for next time:
+				remainder = append(
+					remainder,
+					devices.MemoryWriteRequest{
+						RequestAddress: devices.AddressTuple{
+							Address:       w.RequestAddress.Address + uint32(txlen),
+							AddressSpace:  w.RequestAddress.AddressSpace,
+							MemoryMapping: w.RequestAddress.MemoryMapping,
+						},
+						Data: w.Data[txlen:],
+					},
+				)
+				// append the remaining writes to the remainder:
+				remainder = append(remainder, writeRequests[i+1:]...)
+
+				// now chop off what we can fit in this time:
+				w.Data = w.Data[0:txlen]
+				writes = append(writes, w)
+				break
+			} else {
+				// append the remaining writes to the remainder:
+				remainder = append(remainder, writeRequests[i:]...)
+				break
+			}
+		}
+	}
 
 	a.SetBase(0x002C00)
 
-	// this NOP slide is necessary to avoid the problematic $2C00 address itself.
-	a.NOP()
-	a.NOP()
-
 	a.Comment("preserve registers:")
 
+	// save flags; switch to 16-bit X,Y mode:
+	a.PHP()
 	a.REP(0x30)
+
+	// MVN affects A, X, Y, DBR registers:
 	a.PHA()
 	a.PHX()
 	a.PHY()
-	a.PHD()
-
-	// MVN affects B register:
 	a.PHB()
-	expectedCodeSize := codeSize + (12 * len(writes))
+
+	expectedCodeSize := sizeRoutine + (sizeMVNBlock * len(writes))
 	srcOffs := uint16(0x2C00 + expectedCodeSize)
 	for _, write := range writes {
 		data := write.Data
@@ -401,23 +448,24 @@ func GenerateCopyAsm(a *asm.Emitter, writes ...devices.MemoryWriteRequest) {
 		a.LDX_imm16_w(srcOffs)
 		// Y - Specifies the high and low bytes of the destination memory address
 		a.LDY_imm16_w(destOffs)
+		// MVN sets DBR to destination bank
 		a.MVN(destBank, 0x00)
 
 		srcOffs += size
 	}
+	// restore DBR register so the STZ_abs works correctly:
 	a.PLB()
 
 	a.Comment("disable NMI vector override:")
-	a.SEP(0x30)
-	a.LDA_imm8_b(0x00)
-	a.STA_long(0x002C00)
+	a.STZ_abs(0x2C00)
 
 	a.Comment("restore registers:")
-	a.REP(0x30)
-	a.PLD()
 	a.PLY()
 	a.PLX()
 	a.PLA()
+
+	// restore flags
+	a.PLP()
 
 	a.Comment("jump to original NMI:")
 	a.JMP_indirect(0xFFEA)
@@ -431,4 +479,6 @@ func GenerateCopyAsm(a *asm.Emitter, writes ...devices.MemoryWriteRequest) {
 	for _, write := range writes {
 		a.EmitBytes(write.Data)
 	}
+
+	return
 }
