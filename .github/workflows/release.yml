@@ -233,17 +233,17 @@ jobs:
             tags: notray
             alt: -notray
             snfm: snfm-*-linux-x64.zip
-          #- os: ubuntu-latest
-          #  goos: linux
-          #  goarch: arm64
-          #  suffix: tar.xz
-          #  linuxdeps: libgtk-3-dev libayatana-appindicator3-dev
-          #- os: ubuntu-latest
-          #  goos: linux
-          #  goarch: arm64
-          #  suffix: tar.xz
-          #  tags: notray
-          #  alt: -notray
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            suffix: tar.xz
+            linuxdeps: libgtk-3-dev libayatana-appindicator3-dev
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            suffix: tar.xz
+            tags: notray
+            alt: -notray
           #- os: ubuntu-latest
           #  goos: linux
           #  goarch: "386"
