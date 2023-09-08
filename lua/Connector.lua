@@ -2,6 +2,7 @@
 -- SNI modifications by Berserker, jsd1982; modifications licensed under MIT License
 -- version 3 changes Read response from JSON to HEX
 -- lua 5.1/5.4 shim by zig; modifications licensed under MIT and WTFPL
+-- version 4 enhances the message processing loop to allow for more than one message per game frame
 
 function get_lua_version()
     local major, minor = _VERSION:match("Lua (%d+)%.(%d+)")
@@ -147,9 +148,9 @@ local function onMessage(s)
         print(parts[2])
     elseif parts[1] == "Version" then
         if is_snes9x then
-            connection:send("Version|SNI Connector|3|Snes9x\n")
+            connection:send("Version|SNI Connector|4|Snes9x\n")
         else
-            connection:send("Version|SNI Connector|3|Bizhawk\n")
+            connection:send("Version|SNI Connector|4|Bizhawk\n")
         end
     elseif is_snes9x ~= true then
         if parts[1] == "Reset" then
@@ -221,15 +222,21 @@ local function main()
         return
     end
 
-    local s, status = connection:receive('*l')
-    if s then
-        onMessage(s)
-    end
-    if status == 'closed' then
-        print('SNI closed the connection')
-        doclose()
-        print('Waiting 10 seconds...')
-        return
+    local empty = false
+    local iters = 0
+    while iters <= 8 do
+        iters = iters + 1
+        local s, status = connection:receive('*l')
+        if status == 'timeout' then
+            return
+        elseif status == 'closed' then
+            print('SNI closed the connection')
+            doclose()
+            print('Waiting 10 seconds...')
+            return
+        elseif s then
+            onMessage(s)
+        end
     end
 end
 

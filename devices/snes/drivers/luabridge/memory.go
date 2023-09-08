@@ -66,11 +66,20 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...devices.MemoryRea
 		}
 	}()
 
+	if len(reads) == 0 {
+		return
+	}
+
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		deadline = time.Now().Add(readWriteTimeout)
 	}
 
+	// prevent other methods from using the socket while this transaction occurs:
+	defer d.lock.Unlock()
+	d.lock.Lock()
+
+	// send requests in order:
 	rsp = make([]devices.MemoryReadResponse, len(reads))
 	for j, read := range reads {
 		var addr uint32
@@ -95,13 +104,29 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...devices.MemoryRea
 			_, _ = fmt.Fprintf(sb, "Read|%d|%d\n", addr, read.Size)
 		}
 
+		rsp[j] = devices.MemoryReadResponse{
+			RequestAddress: read.RequestAddress,
+			DeviceAddress: devices.AddressTuple{
+				Address:       addr,
+				AddressSpace:  addressSpace,
+				MemoryMapping: read.RequestAddress.MemoryMapping,
+			},
+		}
+
 		if config.VerboseLogging {
 			d.log("> %s", sb.Bytes())
 		}
 
-		var rspstr []byte
-		rspstr, err = d.WriteThenReadUntilNewline(sb.Bytes(), deadline)
+		_, err = d.writeUnderLock(sb.Bytes(), deadline)
 		if err != nil {
+			return
+		}
+	}
+
+	// read responses in order:
+	for j, read := range reads {
+		var rspstr []byte
+		if rspstr, err = d.readUntilNewlineUnderLock(deadline); err != nil {
 			return
 		}
 
@@ -134,15 +159,7 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...devices.MemoryRea
 			return
 		}
 
-		rsp[j] = devices.MemoryReadResponse{
-			RequestAddress: read.RequestAddress,
-			DeviceAddress: devices.AddressTuple{
-				Address:       addr,
-				AddressSpace:  addressSpace,
-				MemoryMapping: read.RequestAddress.MemoryMapping,
-			},
-			Data: data,
-		}
+		rsp[j].Data = data
 	}
 
 	return

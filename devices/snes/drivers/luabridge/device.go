@@ -130,6 +130,8 @@ func (d *Device) CheckVersion() (err error) {
 	// Version|SNI Connector|2|Bizhawk-bsnes
 	// Version|SNI Connector|2|Bizhawk-snes9x
 	// Version|SNI Connector|2|Snes9x
+	// Version|SNI Connector|3|Snes9x
+	// Version|SNI Connector|4|Snes9x
 	d.clientName = rspn[1]
 	d.version = rspn[2]
 	if len(rspn) >= 4 {
@@ -161,10 +163,7 @@ func (d *Device) FetchFields(ctx context.Context, fields ...sni.Field) (values [
 	return
 }
 
-func (d *Device) WriteDeadline(write []byte, deadline time.Time) (n int, err error) {
-	defer d.lock.Unlock()
-	d.lock.Lock()
-
+func (d *Device) writeUnderLock(write []byte, deadline time.Time) (n int, err error) {
 	err = d.c.SetWriteDeadline(deadline)
 	if err != nil {
 		err = d.FatalError(err)
@@ -180,22 +179,7 @@ func (d *Device) WriteDeadline(write []byte, deadline time.Time) (n int, err err
 	return
 }
 
-func (d *Device) WriteThenReadUntilNewline(write []byte, deadline time.Time) (line []byte, err error) {
-	defer d.lock.Unlock()
-	d.lock.Lock()
-
-	err = d.c.SetWriteDeadline(deadline)
-	if err != nil {
-		err = d.FatalError(err)
-		return
-	}
-
-	_, err = d.c.Write(write)
-	if err != nil {
-		err = d.FatalError(err)
-		return
-	}
-
+func (d *Device) readUntilNewlineUnderLock(deadline time.Time) (line []byte, err error) {
 	err = d.c.SetReadDeadline(deadline)
 	if err != nil {
 		err = d.FatalError(err)
@@ -209,6 +193,24 @@ func (d *Device) WriteThenReadUntilNewline(write []byte, deadline time.Time) (li
 	}
 
 	return
+}
+
+func (d *Device) WriteDeadline(write []byte, deadline time.Time) (n int, err error) {
+	defer d.lock.Unlock()
+	d.lock.Lock()
+
+	return d.writeUnderLock(write, deadline)
+}
+
+func (d *Device) WriteThenReadUntilNewline(write []byte, deadline time.Time) (line []byte, err error) {
+	defer d.lock.Unlock()
+	d.lock.Lock()
+
+	if _, err = d.writeUnderLock(write, deadline); err != nil {
+		return
+	}
+
+	return d.readUntilNewlineUnderLock(deadline)
 }
 
 func (d *Device) Close() (err error) {
