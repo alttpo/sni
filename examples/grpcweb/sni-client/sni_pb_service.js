@@ -852,3 +852,113 @@ DeviceFilesystemClient.prototype.bootFile = function bootFile(requestMessage, me
 
 exports.DeviceFilesystemClient = DeviceFilesystemClient;
 
+var DeviceInfo = (function () {
+  function DeviceInfo() {}
+  DeviceInfo.serviceName = "DeviceInfo";
+  return DeviceInfo;
+}());
+
+DeviceInfo.FetchFields = {
+  methodName: "FetchFields",
+  service: DeviceInfo,
+  requestStream: false,
+  responseStream: false,
+  requestType: sni_pb.FieldsRequest,
+  responseType: sni_pb.FieldsResponse
+};
+
+exports.DeviceInfo = DeviceInfo;
+
+function DeviceInfoClient(serviceHost, options) {
+  this.serviceHost = serviceHost;
+  this.options = options || {};
+}
+
+DeviceInfoClient.prototype.fetchFields = function fetchFields(requestMessage, metadata, callback) {
+  if (arguments.length === 2) {
+    callback = arguments[1];
+  }
+  var client = grpc.unary(DeviceInfo.FetchFields, {
+    request: requestMessage,
+    host: this.serviceHost,
+    metadata: metadata,
+    transport: this.options.transport,
+    debug: this.options.debug,
+    onEnd: function (response) {
+      if (callback) {
+        if (response.status !== grpc.Code.OK) {
+          var err = new Error(response.statusMessage);
+          err.code = response.status;
+          err.metadata = response.trailers;
+          callback(err, null);
+        } else {
+          callback(null, response.message);
+        }
+      }
+    }
+  });
+  return {
+    cancel: function () {
+      callback = null;
+      client.close();
+    }
+  };
+};
+
+exports.DeviceInfoClient = DeviceInfoClient;
+
+var DeviceNWA = (function () {
+  function DeviceNWA() {}
+  DeviceNWA.serviceName = "DeviceNWA";
+  return DeviceNWA;
+}());
+
+DeviceNWA.NWACommand = {
+  methodName: "NWACommand",
+  service: DeviceNWA,
+  requestStream: false,
+  responseStream: false,
+  requestType: sni_pb.NWACommandRequest,
+  responseType: sni_pb.NWACommandResponse
+};
+
+exports.DeviceNWA = DeviceNWA;
+
+function DeviceNWAClient(serviceHost, options) {
+  this.serviceHost = serviceHost;
+  this.options = options || {};
+}
+
+DeviceNWAClient.prototype.nWACommand = function nWACommand(requestMessage, metadata, callback) {
+  if (arguments.length === 2) {
+    callback = arguments[1];
+  }
+  var client = grpc.unary(DeviceNWA.NWACommand, {
+    request: requestMessage,
+    host: this.serviceHost,
+    metadata: metadata,
+    transport: this.options.transport,
+    debug: this.options.debug,
+    onEnd: function (response) {
+      if (callback) {
+        if (response.status !== grpc.Code.OK) {
+          var err = new Error(response.statusMessage);
+          err.code = response.status;
+          err.metadata = response.trailers;
+          callback(err, null);
+        } else {
+          callback(null, response.message);
+        }
+      }
+    }
+  });
+  return {
+    cancel: function () {
+      callback = null;
+      client.close();
+    }
+  };
+};
+
+exports.DeviceNWAClient = DeviceNWAClient;
+

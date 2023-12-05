@@ -64,6 +64,9 @@ export namespace DevicesResponse {
     getDefaultaddressspace(): AddressSpaceMap[keyof AddressSpaceMap];
     setDefaultaddressspace(value: AddressSpaceMap[keyof AddressSpaceMap]): void;
 
+    getSystem(): string;
+    setSystem(value: string): void;
+
     serializeBinary(): Uint8Array;
     toObject(includeInstance?: boolean): Device.AsObject;
     static toObject(includeInstance: boolean, msg: Device): Device.AsObject;
@@ -81,6 +84,7 @@ export namespace DevicesResponse {
       kind: string,
       capabilitiesList: Array<DeviceCapabilityMap[keyof DeviceCapabilityMap]>,
       defaultaddressspace: AddressSpaceMap[keyof AddressSpaceMap],
+      system: string,
     }
   }
 }
@@ -1071,6 +1075,153 @@ export namespace BootFileResponse {
   }
 }
 
+export class FieldsRequest extends jspb.Message {
+  getUri(): string;
+  setUri(value: string): void;
+
+  clearFieldsList(): void;
+  getFieldsList(): Array<FieldMap[keyof FieldMap]>;
+  setFieldsList(value: Array<FieldMap[keyof FieldMap]>): void;
+  addFields(value: FieldMap[keyof FieldMap], index?: number): FieldMap[keyof FieldMap];
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): FieldsRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: FieldsRequest): FieldsRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: FieldsRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): FieldsRequest;
+  static deserializeBinaryFromReader(message: FieldsRequest, reader: jspb.BinaryReader): FieldsRequest;
+}
+
+export namespace FieldsRequest {
+  export type AsObject = {
+    uri: string,
+    fieldsList: Array<FieldMap[keyof FieldMap]>,
+  }
+}
+
+export class FieldsResponse extends jspb.Message {
+  getUri(): string;
+  setUri(value: string): void;
+
+  clearFieldsList(): void;
+  getFieldsList(): Array<FieldMap[keyof FieldMap]>;
+  setFieldsList(value: Array<FieldMap[keyof FieldMap]>): void;
+  addFields(value: FieldMap[keyof FieldMap], index?: number): FieldMap[keyof FieldMap];
+
+  clearValuesList(): void;
+  getValuesList(): Array<string>;
+  setValuesList(value: Array<string>): void;
+  addValues(value: string, index?: number): string;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): FieldsResponse.AsObject;
+  static toObject(includeInstance: boolean, msg: FieldsResponse): FieldsResponse.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: FieldsResponse, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): FieldsResponse;
+  static deserializeBinaryFromReader(message: FieldsResponse, reader: jspb.BinaryReader): FieldsResponse;
+}
+
+export namespace FieldsResponse {
+  export type AsObject = {
+    uri: string,
+    fieldsList: Array<FieldMap[keyof FieldMap]>,
+    valuesList: Array<string>,
+  }
+}
+
+export class NWACommandRequest extends jspb.Message {
+  getUri(): string;
+  setUri(value: string): void;
+
+  getCommand(): string;
+  setCommand(value: string): void;
+
+  getArgs(): string;
+  setArgs(value: string): void;
+
+  hasBinaryarg(): boolean;
+  clearBinaryarg(): void;
+  getBinaryarg(): Uint8Array | string;
+  getBinaryarg_asU8(): Uint8Array;
+  getBinaryarg_asB64(): string;
+  setBinaryarg(value: Uint8Array | string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): NWACommandRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: NWACommandRequest): NWACommandRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: NWACommandRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): NWACommandRequest;
+  static deserializeBinaryFromReader(message: NWACommandRequest, reader: jspb.BinaryReader): NWACommandRequest;
+}
+
+export namespace NWACommandRequest {
+  export type AsObject = {
+    uri: string,
+    command: string,
+    args: string,
+    binaryarg: Uint8Array | string,
+  }
+}
+
+export class NWACommandResponse extends jspb.Message {
+  getUri(): string;
+  setUri(value: string): void;
+
+  clearAsciireplyList(): void;
+  getAsciireplyList(): Array<NWACommandResponse.NWAASCIIItem>;
+  setAsciireplyList(value: Array<NWACommandResponse.NWAASCIIItem>): void;
+  addAsciireply(value?: NWACommandResponse.NWAASCIIItem, index?: number): NWACommandResponse.NWAASCIIItem;
+
+  hasBinaryreplay(): boolean;
+  clearBinaryreplay(): void;
+  getBinaryreplay(): Uint8Array | string;
+  getBinaryreplay_asU8(): Uint8Array;
+  getBinaryreplay_asB64(): string;
+  setBinaryreplay(value: Uint8Array | string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): NWACommandResponse.AsObject;
+  static toObject(includeInstance: boolean, msg: NWACommandResponse): NWACommandResponse.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: NWACommandResponse, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): NWACommandResponse;
+  static deserializeBinaryFromReader(message: NWACommandResponse, reader: jspb.BinaryReader): NWACommandResponse;
+}
+
+export namespace NWACommandResponse {
+  export type AsObject = {
+    uri: string,
+    asciireplyList: Array<NWACommandResponse.NWAASCIIItem.AsObject>,
+    binaryreplay: Uint8Array | string,
+  }
+
+  export class NWAASCIIItem extends jspb.Message {
+    getItemMap(): jspb.Map<string, string>;
+    clearItemMap(): void;
+    serializeBinary(): Uint8Array;
+    toObject(includeInstance?: boolean): NWAASCIIItem.AsObject;
+    static toObject(includeInstance: boolean, msg: NWAASCIIItem): NWAASCIIItem.AsObject;
+    static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+    static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+    static serializeBinaryToWriter(message: NWAASCIIItem, writer: jspb.BinaryWriter): void;
+    static deserializeBinary(bytes: Uint8Array): NWAASCIIItem;
+    static deserializeBinaryFromReader(message: NWAASCIIItem, reader: jspb.BinaryReader): NWAASCIIItem;
+  }
+
+  export namespace NWAASCIIItem {
+    export type AsObject = {
+      itemMap: Array<[string, string]>,
+    }
+  }
+}
+
 export interface AddressSpaceMap {
   FXPAKPRO: 0;
   SNESABUS: 1;
@@ -1084,6 +1235,7 @@ export interface MemoryMappingMap {
   HIROM: 1;
   LOROM: 2;
   EXHIROM: 3;
+  SA1: 4;
 }
 
 export const MemoryMapping: MemoryMappingMap;
@@ -1097,6 +1249,7 @@ export interface DeviceCapabilityMap {
   PAUSEUNPAUSEEMULATION: 5;
   PAUSETOGGLEEMULATION: 6;
   RESETTOMENU: 7;
+  FETCHFIELDS: 8;
   READDIRECTORY: 10;
   MAKEDIRECTORY: 11;
   REMOVEFILE: 12;
@@ -1104,9 +1257,24 @@ export interface DeviceCapabilityMap {
   PUTFILE: 14;
   GETFILE: 15;
   BOOTFILE: 16;
+  NWACOMMAND: 20;
 }
 
 export const DeviceCapability: DeviceCapabilityMap;
+
+export interface FieldMap {
+  DEVICENAME: 0;
+  DEVICEVERSION: 1;
+  DEVICESTATUS: 2;
+  CORENAME: 20;
+  COREVERSION: 21;
+  COREPLATFORM: 22;
+  ROMFILENAME: 40;
+  ROMHASHTYPE: 41;
+  ROMHASHVALUE: 42;
+}
+
+export const Field: FieldMap;
 
 export interface DirEntryTypeMap {
   DIRECTORY: 0;

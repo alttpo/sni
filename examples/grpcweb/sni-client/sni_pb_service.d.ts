@@ -210,6 +210,34 @@ export class DeviceFilesystem {
   static readonly BootFile: DeviceFilesystemBootFile;
 }
 
+type DeviceInfoFetchFields = {
+  readonly methodName: string;
+  readonly service: typeof DeviceInfo;
+  readonly requestStream: false;
+  readonly responseStream: false;
+  readonly requestType: typeof sni_pb.FieldsRequest;
+  readonly responseType: typeof sni_pb.FieldsResponse;
+};
+
+export class DeviceInfo {
+  static readonly serviceName: string;
+  static readonly FetchFields: DeviceInfoFetchFields;
+}
+
+type DeviceNWANWACommand = {
+  readonly methodName: string;
+  readonly service: typeof DeviceNWA;
+  readonly requestStream: false;
+  readonly responseStream: false;
+  readonly requestType: typeof sni_pb.NWACommandRequest;
+  readonly responseType: typeof sni_pb.NWACommandResponse;
+};
+
+export class DeviceNWA {
+  static readonly serviceName: string;
+  static readonly NWACommand: DeviceNWANWACommand;
+}
+
 export type ServiceError = { message: string, code: number; metadata: grpc.Metadata }
 export type Status = { details: string, code: number; metadata: grpc.Metadata }
 
@@ -414,6 +442,36 @@ export class DeviceFilesystemClient {
   bootFile(
     requestMessage: sni_pb.BootFileRequest,
     callback: (error: ServiceError|null, responseMessage: sni_pb.BootFileResponse|null) => void
+  ): UnaryResponse;
+}
+
+export class DeviceInfoClient {
+  readonly serviceHost: string;
+
+  constructor(serviceHost: string, options?: grpc.RpcOptions);
+  fetchFields(
+    requestMessage: sni_pb.FieldsRequest,
+    metadata: grpc.Metadata,
+    callback: (error: ServiceError|null, responseMessage: sni_pb.FieldsResponse|null) => void
+  ): UnaryResponse;
+  fetchFields(
+    requestMessage: sni_pb.FieldsRequest,
+    callback: (error: ServiceError|null, responseMessage: sni_pb.FieldsResponse|null) => void
+  ): UnaryResponse;
+}
+
+export class DeviceNWAClient {
+  readonly serviceHost: string;
+
+  constructor(serviceHost: string, options?: grpc.RpcOptions);
+  nWACommand(
+    requestMessage: sni_pb.NWACommandRequest,
+    metadata: grpc.Metadata,
+    callback: (error: ServiceError|null, responseMessage: sni_pb.NWACommandResponse|null) => void
+  ): UnaryResponse;
+  nWACommand(
+    requestMessage: sni_pb.NWACommandRequest,
+    callback: (error: ServiceError|null, responseMessage: sni_pb.NWACommandResponse|null) => void
   ): UnaryResponse;
 }
 
