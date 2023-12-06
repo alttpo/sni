@@ -7,7 +7,7 @@
     "node": "18.x"
   },
   "scripts": {
-    "build": "npx protoc --ts_out ./sni-client --ts_opt output_javascript --proto_path ../../protos/sni ../../protos/sni/*.proto"
+    "build": "protoc --ts_out ./sni-client --ts_opt output_javascript --proto_path ../../protos/sni ../../protos/sni/*.proto"
   },
   "author": "",
   "license": "MIT",
