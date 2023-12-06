@@ -9,3 +9,5 @@ cmd/sni/sni
 cmd/sni/sni.exe
 cmd/sni/rsrc_windows_386.syso
 cmd/sni/rsrc_windows_amd64.syso
+examples/*/sni-client/*
+!**/.keep
