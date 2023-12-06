@@ -7,13 +7,15 @@
     "node": "18.x"
   },
   "scripts": {
-    "build": "./gen.sh"
+    "build": "npx protoc --ts_out ./sni-client --ts_opt output_javascript --proto_path ../../protos/sni ../../protos/sni/*.proto"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
     "@improbable-eng/grpc-web": "^0.15.0",
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
+    "@protobuf-ts/plugin": "^2.9.2",
+    "@protobuf-ts/protoc": "^2.9.2",
     "@types/google-protobuf": "^3.15.5",
     "google-protobuf": "^3.19.4",
     "ts-protoc-gen": "^0.15.0",
