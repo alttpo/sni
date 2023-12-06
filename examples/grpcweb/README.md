@@ -1,7 +1,11 @@
 # SNI for Web
 
+## Requirements
+* [Google Protocol Buffers](https://grpc.io/docs/protoc-installation/) (ie `protoc`)
+* Node 18+
+
 ## Setup
-First, you will need to install the Node.js dependencies. Node 18+ is required.
+First, you will need to install the Node.js dependencies.
 ```sh
 npm install
 ```
