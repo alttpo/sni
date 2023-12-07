@@ -66,7 +66,7 @@ const DeviceList = ({ devices }: { devices: DevicesResponse_Device[]|null }) => 
 
   if (devices.length === 0) {
     return (
-      <div>
+      <div style={{ textAlign: 'center' }}>
         No devices found
       </div>
     )
