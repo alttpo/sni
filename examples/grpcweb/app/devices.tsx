@@ -5,6 +5,7 @@ import * as SNIClient from '@/lib/sni.client'
 import { GrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport'
 import { DevicesResponse_Device } from '@/lib/sni'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import styles from './devices.module.css'
 
 let transport = new GrpcWebFetchTransport({
@@ -12,10 +13,20 @@ let transport = new GrpcWebFetchTransport({
 })
 
 const listDevices = async () => {
-  const DevicesClient = new SNIClient.DevicesClient(transport)
-  const req = SNI.DevicesRequest.create()
-  const devices = await DevicesClient.listDevices(req)
-  return devices.response.devices
+  try {
+    const DevicesClient = new SNIClient.DevicesClient(transport)
+    const req = SNI.DevicesRequest.create()
+    const devices = await DevicesClient.listDevices(req)
+    return devices.response.devices
+  } catch (err: unknown) {
+    const error = err as Error
+    console.error(error.message)
+    let msg = error.message
+    if (error.message.includes('Failed to fetch')) {
+      msg = 'Could not connect to SNI'
+    }
+    toast.error(msg)
+  }
 }
 
 const DeviceButton = ({ onUpdate }: { onUpdate: (devices: any) => void }) => {
