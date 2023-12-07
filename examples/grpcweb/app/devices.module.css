@@ -1,0 +1,71 @@
+.container {
+  min-width: 420px;
+}
+
+@media (max-width: 600px) {
+  .container {
+    min-width: 100%;
+  }
+}
+
+.actionContainer {
+  display: flex;
+  justify-content: center;
+  align-content: center;
+  margin: 1rem 0;
+}
+
+.btn {
+  background-color: rgb(var(--foreground-rgb));
+  border: 1px solid rgb(var(--foreground-rgb));
+  border-radius: 4px;
+  color: rgb(var(--background-rgb));
+  cursor: pointer;
+  display: inline-block;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.42857;
+  margin-bottom: 0;
+  padding: 6px 12px;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+  transition: color 0.2s ease-in-out, border-color 0.2s ease-in-out, background-color 0.2s ease-in-out;
+}
+
+.btn.secondary {
+  background-color: transparent;
+  border-color: rgb(var(--accent-rgb));
+  color: rgb(var(--accent-rgb));
+  font-size: 12px;
+  padding: 3px 6px;
+}
+
+.btn.secondary:hover {
+  color: rgb(var(--foreground-rgb));
+  border-color: rgb(var(--foreground-rgb));
+}
+
+.list {
+  margin-top: 2rem;
+  border-top: 1px solid rgb(var(--foreground-rgb));
+  padding-top: 2rem;
+}
+
+.device_name {
+  margin-bottom: 0.5rem;
+}
+
+.device_label {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  padding: 4px;
+}
+
+.json {
+  font-size: 12px;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid rgb(var(--accent-muted-rgb));
+  border-radius: var(--border-radius);
+}

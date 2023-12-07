@@ -1,21 +1,29 @@
 {
-  "name": "nodegrpcweb",
-  "version": "1.0.0",
-  "description": "",
+  "name": "sni-grpcweb-example",
+  "version": "0.1.0",
+  "private": true,
   "engines": {
-    "node": "18.x"
+    "node": ">=18.x"
   },
   "scripts": {
-    "build": "protoc --ts_out ./sni-client --ts_opt output_javascript --proto_path ../../protos/sni ../../protos/sni/*.proto"
+    "compile": "protoc --ts_out ./lib --ts_opt output_javascript --proto_path ../../protos/sni ../../protos/sni/*.proto",
+    "dev": "npm run compile && next dev",
+    "build": "npm run compile && next build",
+    "start": "next start"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
+    "@protobuf-ts/grpcweb-transport": "^2.9.2",
     "@protobuf-ts/plugin": "^2.9.2",
     "@protobuf-ts/protoc": "^2.9.2",
+    "next": "14.0.3",
+    "react": "^18",
+    "react-dom": "^18",
     "ts-protoc-gen": "^0.15.0"
   },
   "devDependencies": {
-    "typescript": "^4.5.5"
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5"
   }
 }
