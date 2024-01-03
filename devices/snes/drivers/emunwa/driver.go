@@ -228,7 +228,7 @@ func DriverInit() {
 		log.Printf("emunwa: unable to parse '%s', using default of 0xbeef (%d)\n", basePortStr, basePort)
 	}
 
-	disableOldRange := util.IsTruthy(env.GetOrDefault("NWA_DISABLE_OLD_RANGE", "0"))
+	disableOldRange := util.IsTruthy(env.GetOrDefault("NWA_DISABLE_OLD_RANGE", "1"))
 
 	// comma-delimited list of host:port pairs:
 	hostsStr := env.GetOrSupply("SNI_EMUNW_HOSTS", func() string {
