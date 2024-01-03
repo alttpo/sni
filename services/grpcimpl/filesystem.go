@@ -171,12 +171,12 @@ func (d *DeviceFilesystem) PutFile(ctx context.Context, request *sni.PutFileRequ
 	if gerr != nil {
 		return
 	}
-	_ = n
 
 	// translate response:
 	grsp = &sni.PutFileResponse{
 		Uri:  request.Uri,
 		Path: request.Path,
+		Size: n,
 	}
 	return
 }
