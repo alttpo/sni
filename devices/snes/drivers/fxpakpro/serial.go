@@ -23,19 +23,28 @@ func readExact(ctx context.Context, f io.Reader, chunkSize uint32, buf []byte) (
 	// determine a deadline from context or default:
 	var ok bool
 
+	haveHardDeadline := false
 	var deadline time.Time
-	if deadline, ok = ctx.Deadline(); !ok {
-		deadline = time.Now().Add(safeTimeout)
+	if deadline, ok = ctx.Deadline(); ok {
+		haveHardDeadline = true
 	}
 
+	attempts := 0
 	p = 0
 	for p < chunkSize {
 		// update the read timeout if applicable:
 		if fr, ok := f.(hasSetReadTimeout); ok {
-			timeout := deadline.Sub(time.Now())
-			if timeout < 0 {
-				// deadline already exceeded so cause Read() to fail instantly:
-				timeout = 0
+			var timeout time.Duration
+			if haveHardDeadline {
+				// we have a hard deadline to meet:
+				timeout = time.Until(deadline)
+				if timeout < 0 {
+					// deadline already exceeded so cause Read() to fail instantly:
+					timeout = 0
+				}
+			} else {
+				// no hard deadline; each read() attempt gets its own timeout:
+				timeout = safeTimeout
 			}
 
 			err = fr.SetReadTimeout(timeout)
@@ -46,6 +55,7 @@ func readExact(ctx context.Context, f io.Reader, chunkSize uint32, buf []byte) (
 		}
 
 		var n int
+		lastp := p
 		n, err = f.Read(buf[p:chunkSize])
 		if n < 0 {
 			n = 0
@@ -54,6 +64,15 @@ func readExact(ctx context.Context, f io.Reader, chunkSize uint32, buf []byte) (
 			debugLog.Printf("readExact: read returned n=%d, err=%v\n%s", n, err, hex.Dump(buf[p:p+uint32(n)]))
 		}
 		p += uint32(n)
+		if p == lastp {
+			attempts++
+			if attempts >= 15 {
+				err = fmt.Errorf("readExact: timed out after 15 attempts of reading zero bytes")
+				return
+			}
+		} else {
+			attempts = 0
+		}
 		if err != nil {
 			return
 		}
