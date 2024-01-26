@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/url"
+	"runtime/debug"
 	"sni/devices"
 	"sni/protos/sni"
 	"sni/util"
@@ -105,8 +106,12 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 	for i, de := range d.detectors {
 		// run detectors in parallel:
 		go func(i int, detector *RAClient) {
-			defer util.Recover()
-			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("retroarch: detector recovered from panic: %v\n%s\n", r, string(debug.Stack()))
+				}
+				wg.Done()
+			}()
 
 			detector.MuteLog(true)
 
