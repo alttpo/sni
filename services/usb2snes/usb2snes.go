@@ -33,7 +33,9 @@ func StartHttpServer() {
 		return
 	}
 
-	addrList := env.GetOrDefault("SNI_USB2SNES_LISTEN_ADDRS", "0.0.0.0:23074,0.0.0.0:8080")
+	// NOTE(jsd): 2024-01-25: retiring port 8080.
+	//addrList := env.GetOrDefault("SNI_USB2SNES_LISTEN_ADDRS", "0.0.0.0:23074,0.0.0.0:8080")
+	addrList := env.GetOrDefault("SNI_USB2SNES_LISTEN_ADDRS", "0.0.0.0:23074")
 	listenAddrs := strings.Split(addrList, ",")
 	for _, listenAddr := range listenAddrs {
 		go func(listenAddr string) {
