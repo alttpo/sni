@@ -24,7 +24,8 @@ type DevicesService struct {
 
 func (s *DevicesService) ListDevices(ctx context.Context, request *sni.DevicesRequest) (*sni.DevicesResponse, error) {
 	descriptors := make([]devices.DeviceDescriptor, 0, 10)
-	for _, driver := range devices.Drivers() {
+	drivers := devices.Drivers()
+	for _, driver := range drivers {
 		d, err := driver.Driver.Detect()
 		if err != nil {
 			return nil, err

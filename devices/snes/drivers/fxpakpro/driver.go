@@ -13,6 +13,7 @@ import (
 	"sni/util/env"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 const (
@@ -44,6 +45,7 @@ const defaultAddressSpace = sni.AddressSpace_FxPakPro
 
 type Driver struct {
 	container devices.DeviceContainer
+	enumLock  sync.Mutex
 }
 
 func (d *Driver) DisplayOrder() int {
@@ -93,6 +95,9 @@ func (d *Driver) DisconnectAll() {
 }
 
 func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
+	d.enumLock.Lock()
+	defer d.enumLock.Unlock()
+
 	var ports []*enumerator.PortDetails
 
 	devs = make([]devices.DeviceDescriptor, 0, 2)
