@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/alttpo/observable v0.0.0-20210711210405-e5b91ea63352
 	github.com/alttpo/snes v0.0.0-20231109035009-c100a9d8cc49
-	github.com/alttpo/systray v0.0.0-20240127181728-44a60bf515b3
+	github.com/alttpo/systray v0.0.0-20240127184046-394d348e75ad
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gobwas/ws v1.3.2
 	github.com/improbable-eng/grpc-web v0.15.0
