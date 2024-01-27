@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"google.golang.org/grpc/status"
-	"sni/cmd/sni/tray"
 	"sni/devices"
 	"sni/protos/sni"
 )
@@ -32,8 +31,6 @@ func (s *DevicesService) ListDevices(ctx context.Context, request *sni.DevicesRe
 		}
 		descriptors = append(descriptors, d...)
 	}
-
-	go tray.UpdateDeviceList(descriptors)
 
 	var kindPredicate func(kind string) bool
 	if request.GetKinds() == nil {

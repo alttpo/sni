@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"sni/cmd/sni/appversion"
 	"sni/cmd/sni/config"
-	"sni/cmd/sni/tray"
 	"sni/devices"
 	"sni/devices/snes/mapping"
 	"sni/protos/sni"
@@ -264,8 +263,6 @@ serverLoop:
 			if config.VerboseLogging {
 				log.Printf("usb2snes: %s: %s detection complete\n", clientName, cmd.Opcode)
 			}
-
-			go tray.UpdateDeviceList(descriptors)
 
 			results.Results = make([]string, 0, 10)
 			for _, descriptor := range descriptors {

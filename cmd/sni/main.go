@@ -6,6 +6,7 @@ import (
 	"github.com/postfinance/single"
 	"log"
 	"net/http"
+	"runtime"
 	"sni/cmd/sni/appversion"
 	"sni/cmd/sni/config"
 	"sni/cmd/sni/logging"
@@ -34,6 +35,9 @@ var (
 )
 
 func main() {
+	// keep the initial goroutine on this thread for GUI threading purposes
+	runtime.LockOSThread()
+
 	// make the version info public in the appversion package because the main package cannot be imported:
 	appversion.Init(
 		version,

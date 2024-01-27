@@ -6,7 +6,7 @@ package tray
 import (
 	"fmt"
 	"github.com/alttpo/observable"
-	"github.com/getlantern/systray"
+	"github.com/alttpo/systray"
 	"github.com/spf13/viper"
 	"log"
 	"runtime"
@@ -36,8 +36,6 @@ func UpdateDeviceList(deviceDescriptors []devices.DeviceDescriptor) {
 	defer util.Recover()
 
 	deviceMenuItemsMu.Lock()
-	defer deviceMenuItemsMu.Unlock()
-
 	n := len(deviceDescriptors)
 	if n > maxItems {
 		n = maxItems
@@ -53,6 +51,7 @@ func UpdateDeviceList(deviceDescriptors []devices.DeviceDescriptor) {
 		//deviceMenuItems[i].Check()
 		deviceMenuItems[i].Show()
 	}
+
 	for i := n; i < maxItems; i++ {
 		if deviceMenuItems[i] == nil {
 			continue
@@ -60,6 +59,7 @@ func UpdateDeviceList(deviceDescriptors []devices.DeviceDescriptor) {
 
 		deviceMenuItems[i].Hide()
 	}
+	deviceMenuItemsMu.Unlock()
 }
 
 func CreateSystray() {
@@ -133,11 +133,13 @@ func trayStart() {
 	if consoleIsDynamic() {
 		toggleShowConsole = systray.AddMenuItemCheckbox("Show Console", "Toggles visibility of console window", config.ShowConsole)
 		toggleShowConsole.ClickedFunc = func(item *systray.MenuItem) {
-			config.ShowConsole = !config.ShowConsole
-			// update config file:
-			config.Config.Set("showConsole", config.ShowConsole)
-			config.Save()
-			updateConsole()
+			go func() {
+				config.ShowConsole = !config.ShowConsole
+				// update config file:
+				config.Config.Set("showConsole", config.ShowConsole)
+				config.Save()
+				updateConsole()
+			}()
 		}
 		systray.AddSeparator()
 	}
@@ -170,7 +172,8 @@ func trayStart() {
 
 	refresh := devicesMenu.AddSubMenuItem("Refresh", "Refresh list of devices")
 	refresh.ClickedFunc = func(item *systray.MenuItem) {
-		RefreshDeviceList()
+		// this must not block the main thread
+		go RefreshDeviceList()
 	}
 	for i := range deviceMenuItems {
 		deviceMenuItems[i] = devicesMenu.AddSubMenuItemCheckbox("_", "_", false)
@@ -233,7 +236,7 @@ func trayStart() {
 				}
 
 				app := appConfigs[i]
-				launch(app)
+				go launch(app)
 			}
 			appsMenuItems = append(appsMenuItems, menuItem)
 		}
@@ -257,7 +260,7 @@ func trayStart() {
 
 	// click handlers:
 	versionMenuItem.ClickedFunc = func(item *systray.MenuItem) {
-		launch(&appConfig{
+		go launch(&appConfig{
 			Name:    "",
 			Tooltip: "",
 			Os:      "",
@@ -269,46 +272,54 @@ func trayStart() {
 	}
 
 	appsReload.ClickedFunc = func(item *systray.MenuItem) {
-		config.ReloadApps()
+		go config.ReloadApps()
 	}
 
 	disconnectAll.ClickedFunc = func(item *systray.MenuItem) {
-		for _, named := range devices.Drivers() {
-			log.Printf("%s: disconnecting all devices...\n", named.Name)
-			named.Driver.DisconnectAll()
-		}
+		go func() {
+			for _, named := range devices.Drivers() {
+				log.Printf("%s: disconnecting all devices...\n", named.Name)
+				named.Driver.DisconnectAll()
+			}
+		}()
 	}
 
 	toggleVerbose.ClickedFunc = func(item *systray.MenuItem) {
-		config.VerboseLogging = !config.VerboseLogging
-		if config.VerboseLogging {
-			log.Println("enable verbose logging")
-			toggleVerbose.Check()
-		} else {
-			log.Println("disable verbose logging")
-			toggleVerbose.Uncheck()
-		}
-		// update config file:
-		config.Config.Set("verboseLogging", config.VerboseLogging)
-		config.Save()
+		go func() {
+			config.VerboseLogging = !config.VerboseLogging
+			if config.VerboseLogging {
+				log.Println("enable verbose logging")
+				toggleVerbose.Check()
+			} else {
+				log.Println("disable verbose logging")
+				toggleVerbose.Uncheck()
+			}
+			// update config file:
+			config.Config.Set("verboseLogging", config.VerboseLogging)
+			config.Save()
+		}()
 	}
 	toggleLogResponses.ClickedFunc = func(item *systray.MenuItem) {
-		config.LogResponses = !config.LogResponses
-		if config.LogResponses {
-			log.Println("enable log responses")
-			toggleLogResponses.Check()
-		} else {
-			log.Println("disable log responses")
-			toggleLogResponses.Uncheck()
-		}
-		// update config file:
-		config.Config.Set("logResponses", config.LogResponses)
-		config.Save()
+		go func() {
+			config.LogResponses = !config.LogResponses
+			if config.LogResponses {
+				log.Println("enable log responses")
+				toggleLogResponses.Check()
+			} else {
+				log.Println("disable log responses")
+				toggleLogResponses.Uncheck()
+			}
+			// update config file:
+			config.Config.Set("logResponses", config.LogResponses)
+			config.Save()
+		}()
 	}
 
 	mQuit.ClickedFunc = func(item *systray.MenuItem) {
-		log.Println("tray: requesting quit")
-		systray.Quit()
+		go func() {
+			log.Println("tray: requesting quit")
+			systray.Quit()
+		}()
 	}
 
 	// refresh device list periodically:
