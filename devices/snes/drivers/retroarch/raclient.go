@@ -153,14 +153,14 @@ func (c *RAClient) GetId() string {
 }
 
 func (c *RAClient) Version() string {
-	defer c.stateLock.Unlock()
 	c.stateLock.Lock()
+	defer c.stateLock.Unlock()
 
 	return c.version
 }
 func (c *RAClient) HasVersion() bool {
-	defer c.stateLock.Unlock()
 	c.stateLock.Lock()
+	defer c.stateLock.Unlock()
 
 	return c.version != ""
 }
@@ -184,8 +184,8 @@ func (c *RAClient) DetermineVersion() (err error) {
 		log.Printf("retroarch: < %s", rsp)
 	}
 
-	defer c.stateLock.Unlock()
 	c.stateLock.Lock()
+	defer c.stateLock.Unlock()
 
 	c.version = strings.TrimSpace(string(rsp))
 
@@ -339,8 +339,8 @@ func (d *RAClient) FetchFields(ctx context.Context, fields ...sni.Field) (values
 const maxReadSize = 2048
 
 func (c *RAClient) readCommand() string {
-	defer c.stateLock.Unlock()
 	c.stateLock.Lock()
+	defer c.stateLock.Unlock()
 
 	if c.useRCR {
 		return "READ_CORE_RAM"
@@ -350,8 +350,8 @@ func (c *RAClient) readCommand() string {
 }
 
 func (c *RAClient) writeCommand() string {
-	defer c.stateLock.Unlock()
 	c.stateLock.Lock()
+	defer c.stateLock.Unlock()
 
 	if c.useRCR {
 		return "WRITE_CORE_RAM"

@@ -76,8 +76,8 @@ func (d *Device) MultiReadMemory(ctx context.Context, reads ...devices.MemoryRea
 	}
 
 	// prevent other methods from using the socket while this transaction occurs:
-	defer d.lock.Unlock()
 	d.lock.Lock()
+	defer d.lock.Unlock()
 
 	// send requests in order:
 	rsp = make([]devices.MemoryReadResponse, len(reads))

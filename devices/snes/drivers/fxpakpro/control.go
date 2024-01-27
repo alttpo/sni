@@ -13,8 +13,8 @@ func (d *Device) ResetSystem(ctx context.Context) (err error) {
 	sb[6] = byte(FlagNONE)
 
 	if shouldLock(ctx) {
-		defer d.lock.Unlock()
 		d.lock.Lock()
+		defer d.lock.Unlock()
 	}
 
 	err = sendSerial(d.f, 512, sb)
@@ -51,8 +51,8 @@ func (d *Device) ResetToMenu(ctx context.Context) (err error) {
 	sb[6] = byte(FlagNONE)
 
 	if shouldLock(ctx) {
-		defer d.lock.Unlock()
 		d.lock.Lock()
+		defer d.lock.Unlock()
 	}
 
 	err = sendSerial(d.f, 512, sb)

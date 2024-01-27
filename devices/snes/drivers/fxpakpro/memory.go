@@ -73,8 +73,8 @@ func (d *Device) MultiReadMemory(
 
 	subctx := ctx
 	if shouldLock(ctx) {
-		defer d.lock.Unlock()
 		d.lock.Lock()
+		defer d.lock.Unlock()
 		subctx = context.WithValue(ctx, lockedKey, &struct{}{})
 	}
 
@@ -175,8 +175,8 @@ func (d *Device) MultiWriteMemory(
 	subctx := ctx
 	if shouldLock(ctx) {
 		// lock the device for this entire sequence to avoid interruptions:
-		defer d.lock.Unlock()
 		d.lock.Lock()
+		defer d.lock.Unlock()
 		subctx = context.WithValue(ctx, lockedKey, &struct{}{})
 	}
 

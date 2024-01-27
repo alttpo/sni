@@ -21,8 +21,8 @@ func (d *Device) put(ctx context.Context, space space, address uint32, data []by
 	binary.BigEndian.PutUint32(sb[256:], address)
 
 	if shouldLock(ctx) {
-		defer d.lock.Unlock()
 		d.lock.Lock()
+		defer d.lock.Unlock()
 	}
 
 	// send the data to the USB port:

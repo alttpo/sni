@@ -101,8 +101,8 @@ func (c *UDPClient) WriteThenRead(m []byte, deadline time.Time) (rsp []byte, err
 	}
 
 	// hold a lock so we're guaranteed write->read consistency:
-	defer c.seqLock.Unlock()
 	c.seqLock.Lock()
+	defer c.seqLock.Unlock()
 
 	err = c.WriteWithDeadline(m, deadline)
 	if err != nil {

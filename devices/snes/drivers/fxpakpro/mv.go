@@ -20,8 +20,8 @@ func (d *Device) mv(ctx context.Context, path, newFilename string) (err error) {
 	copy(sb[8:256], newFilename)
 
 	if shouldLock(ctx) {
-		defer d.lock.Unlock()
 		d.lock.Lock()
+		defer d.lock.Unlock()
 	}
 
 	// send command:

@@ -35,8 +35,8 @@ func Init() (err error) {
 func UpdateDeviceList(deviceDescriptors []devices.DeviceDescriptor) {
 	defer util.Recover()
 
-	defer deviceMenuItemsMu.Unlock()
 	deviceMenuItemsMu.Lock()
+	defer deviceMenuItemsMu.Unlock()
 
 	n := len(deviceDescriptors)
 	if n > maxItems {

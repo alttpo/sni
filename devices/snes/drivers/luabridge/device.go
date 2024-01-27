@@ -103,8 +103,8 @@ func (d *Device) initConnection() {
 }
 
 func (d *Device) CheckVersion() (err error) {
-	defer d.stateLock.Unlock()
 	d.stateLock.Lock()
+	defer d.stateLock.Unlock()
 
 	var b []byte
 	b, err = d.WriteThenReadUntilNewline([]byte("Version\n"), time.Now().Add(time.Second*15))
@@ -196,15 +196,15 @@ func (d *Device) readUntilNewlineUnderLock(deadline time.Time) (line []byte, err
 }
 
 func (d *Device) WriteDeadline(write []byte, deadline time.Time) (n int, err error) {
-	defer d.lock.Unlock()
 	d.lock.Lock()
+	defer d.lock.Unlock()
 
 	return d.writeUnderLock(write, deadline)
 }
 
 func (d *Device) WriteThenReadUntilNewline(write []byte, deadline time.Time) (line []byte, err error) {
-	defer d.lock.Unlock()
 	d.lock.Lock()
+	defer d.lock.Unlock()
 
 	if _, err = d.writeUnderLock(write, deadline); err != nil {
 		return

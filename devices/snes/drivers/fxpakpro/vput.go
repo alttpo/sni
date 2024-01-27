@@ -41,8 +41,8 @@ func (d *Device) vput(ctx context.Context, space space, chunks ...vputChunk) (er
 	}
 
 	if shouldLock(ctx) {
-		defer d.lock.Unlock()
 		d.lock.Lock()
+		defer d.lock.Unlock()
 	}
 
 	err = sendSerial(d.f, 64, sb)

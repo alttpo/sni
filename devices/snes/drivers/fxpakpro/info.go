@@ -45,8 +45,8 @@ func (d *Device) info(ctx context.Context) (version, device, rom string, err err
 	sb[6] = byte(FlagNONE)
 
 	if shouldLock(ctx) {
-		defer d.lock.Unlock()
 		d.lock.Lock()
+		defer d.lock.Unlock()
 	}
 
 	// send command:

@@ -17,8 +17,8 @@ func (d *Device) rm(ctx context.Context, path string) (err error) {
 	copy(sb[256:512], nameBytes)
 
 	if shouldLock(ctx) {
-		defer d.lock.Unlock()
 		d.lock.Lock()
+		defer d.lock.Unlock()
 	}
 
 	// send command:

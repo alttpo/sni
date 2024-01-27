@@ -20,8 +20,8 @@ func (d *Device) getFile(ctx context.Context, path string, w io.Writer, sizeRece
 	copy(sb[256:512], nameBytes)
 
 	if shouldLock(ctx) {
-		defer d.lock.Unlock()
 		d.lock.Lock()
+		defer d.lock.Unlock()
 	}
 
 	// send command:

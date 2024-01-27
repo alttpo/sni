@@ -29,8 +29,8 @@ func (d *Device) putFile(ctx context.Context, path string, size uint32, r io.Rea
 	binary.BigEndian.PutUint32(sb[252:], size)
 
 	if shouldLock(ctx) {
-		defer d.lock.Unlock()
 		d.lock.Lock()
+		defer d.lock.Unlock()
 	}
 
 	// send command:

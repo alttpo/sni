@@ -19,8 +19,8 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []devices.Di
 	binary.BigEndian.PutUint32(sb[252:], uint32(n))
 
 	if shouldLock(ctx) {
-		defer d.lock.Unlock()
 		d.lock.Lock()
+		defer d.lock.Unlock()
 	}
 
 	// send the data to the USB port:
