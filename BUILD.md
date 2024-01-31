@@ -42,23 +42,27 @@ go install ./cmd/sni
 
 ## Linux
 Set up `$GOPATH` environment variable to point to `$HOME/go`.
-```
+```sh
 mkdir -p $HOME/go/bin
 export GOPATH=$HOME/go
 ```
 
 Install required libraries:
-```
+```sh
 sudo apt-get update && sudo apt-get install -y gcc libgtk-3-dev libappindicator3-dev
+# or
+sudo apt-get update && sudo apt-get install -y gcc libgtk-3-dev libayatana-appindicator3-dev
 ```
 
 Build steps:
-```
+```sh
 git clone https://github.com/alttpo/sni.git
 
 cd sni
 
-go install ./cmd/sni
+go install -tags=legacy_appindicator ./cmd/sni # to use libappindicator3
+# or
+go install ./cmd/sni # to use libayatana-appindicator3
 ```
 
 ## Results
