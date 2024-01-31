@@ -112,6 +112,8 @@ go get ./...
 go build ./cmd/sni
 ```
 
+See [BUILD.md](BUILD.md#linux) for more details or if the build fails.
+
 # For Developers
 
 SNI offers a [gRPC](https://grpc.io/) API as its primary means of communication
