@@ -12,8 +12,8 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/postfinance/single v0.0.2
 	github.com/spf13/viper v1.18.2
-	go.bug.st/serial v1.6.1
-	google.golang.org/grpc v1.61.0
+	go.bug.st/serial v1.6.2
+	google.golang.org/grpc v1.62.1
 	google.golang.org/protobuf v1.32.0
 )
 
