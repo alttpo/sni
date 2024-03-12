@@ -25,7 +25,7 @@ func (d *Device) mv(ctx context.Context, path, newFilename string) (err error) {
 	}
 
 	// send command:
-	err = sendSerial(d.f, 512, sb)
+	err = sendSerialChunked(d.f, 512, sb)
 	if err != nil {
 		err = d.FatalError(err)
 		return

@@ -25,7 +25,7 @@ func (d *Device) getFile(ctx context.Context, path string, w io.Writer, sizeRece
 	}
 
 	// send command:
-	err = sendSerial(d.f, 512, sb)
+	err = sendSerialChunked(d.f, 512, sb)
 	if err != nil {
 		err = d.FatalError(err)
 		return

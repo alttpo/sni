@@ -17,7 +17,7 @@ func (d *Device) ResetSystem(ctx context.Context) (err error) {
 		defer d.lock.Unlock()
 	}
 
-	err = sendSerial(d.f, 512, sb)
+	err = sendSerialChunked(d.f, 512, sb)
 	if err != nil {
 		err = d.FatalError(err)
 		return
@@ -55,7 +55,7 @@ func (d *Device) ResetToMenu(ctx context.Context) (err error) {
 		defer d.lock.Unlock()
 	}
 
-	err = sendSerial(d.f, 512, sb)
+	err = sendSerialChunked(d.f, 512, sb)
 	if err != nil {
 		err = d.FatalError(err)
 		return

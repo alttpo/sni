@@ -102,7 +102,19 @@ func writeExact(ctx context.Context, w io.Writer, chunkSize uint32, buf []byte) 
 	return
 }
 
-func sendSerial(f serial.Port, chunkSize uint32, buf []byte) (err error) {
+func sendSerial(f serial.Port, buf []byte) error {
+	sent := 0
+	for sent < len(buf) {
+		n, e := f.Write(buf[sent:])
+		if e != nil {
+			return e
+		}
+		sent += n
+	}
+	return nil
+}
+
+func sendSerialChunked(f serial.Port, chunkSize uint32, buf []byte) (err error) {
 	_, err = sendSerialProgress(f, chunkSize, uint32(len(buf)), bytes.NewReader(buf), nil)
 	return
 }

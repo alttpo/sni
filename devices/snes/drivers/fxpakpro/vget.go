@@ -40,7 +40,7 @@ func (d *Device) vget(ctx context.Context, space space, chunks ...vgetChunk) (er
 		defer d.lock.Unlock()
 	}
 
-	err = sendSerial(d.f, 64, sb)
+	err = sendSerial(d.f, sb)
 	if err != nil {
 		err = d.FatalError(err)
 		return

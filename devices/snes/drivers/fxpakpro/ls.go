@@ -24,7 +24,7 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []devices.Di
 	}
 
 	// send the data to the USB port:
-	err = sendSerial(d.f, 512, sb)
+	err = sendSerialChunked(d.f, 512, sb)
 	if err != nil {
 		err = d.FatalError(err)
 		return
