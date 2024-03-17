@@ -2,7 +2,9 @@ package fxpakpro
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	"runtime/trace"
 )
 
 type vputChunk struct {
@@ -14,6 +16,9 @@ func (d *Device) vput(ctx context.Context, space space, chunks ...vputChunk) (er
 	if len(chunks) > 8 {
 		return fmt.Errorf("VPUT cannot accept more than 8 chunks")
 	}
+
+	ctx, task := trace.NewTask(ctx, "fxpakpro:vput")
+	defer task.End()
 
 	sb := make([]byte, 64)
 	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
@@ -45,6 +50,10 @@ func (d *Device) vput(ctx context.Context, space space, chunks ...vputChunk) (er
 		defer d.lock.Unlock()
 	}
 
+	if trace.IsEnabled() {
+		trace.Log(ctx, "req", hex.Dump(sb))
+	}
+
 	err = sendSerial(d.f, sb)
 	if err != nil {
 		err = d.FatalError(err)
@@ -65,6 +74,10 @@ func (d *Device) vput(ctx context.Context, space space, chunks ...vputChunk) (er
 	for _, chunk := range chunks {
 		copy(whole[o:], chunk.data)
 		o += len(chunk.data)
+	}
+
+	if trace.IsEnabled() {
+		trace.Log(ctx, "req", hex.Dump(whole))
 	}
 
 	// send the expected number of 64-byte packets:

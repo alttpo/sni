@@ -1,6 +1,7 @@
 package fxpakpro
 
 import (
+	"context"
 	"github.com/alttpo/snes/asm"
 	"log"
 	"reflect"
@@ -192,4 +193,26 @@ func TestGenerateCopyAsm(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDevice_MultiWriteMemory(t *testing.T) {
+	d := openAutoCloseableDevice(t)
+	defer d.Close()
+
+	ctx := context.Background()
+
+	var err error
+	var rsp []devices.MemoryWriteResponse
+	rsp, err = d.MultiWriteMemory(ctx, devices.MemoryWriteRequest{
+		RequestAddress: devices.AddressTuple{
+			Address:       0xF5FFFE,
+			AddressSpace:  sni.AddressSpace_FxPakPro,
+			MemoryMapping: sni.MemoryMapping_LoROM,
+		},
+		Data: []byte{0x55},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = rsp
 }

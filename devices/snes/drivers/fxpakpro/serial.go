@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"go.bug.st/serial"
 	"io"
+	"runtime/trace"
 	"sni/devices"
 	"time"
 )
@@ -23,9 +24,13 @@ func readExact(ctx context.Context, f io.Reader, chunkSize uint32, buf []byte) (
 	// determine a deadline from context or default:
 	var ok bool
 
+	ctx, task := trace.NewTask(ctx, "readExact")
+	defer task.End()
+
 	haveHardDeadline := false
 	var deadline time.Time
 	if deadline, ok = ctx.Deadline(); ok {
+		trace.Logf(ctx, "deadline", "deadline=%v", deadline)
 		haveHardDeadline = true
 	}
 
@@ -47,6 +52,7 @@ func readExact(ctx context.Context, f io.Reader, chunkSize uint32, buf []byte) (
 				timeout = safeTimeout
 			}
 
+			trace.Logf(ctx, "deadline", "SetReadTimeout(%v)", timeout)
 			err = fr.SetReadTimeout(timeout)
 			if err != nil {
 				err = fmt.Errorf("readExact: setReadTimeout returned %w", err)
@@ -57,6 +63,7 @@ func readExact(ctx context.Context, f io.Reader, chunkSize uint32, buf []byte) (
 		var n int
 		lastp := p
 		n, err = f.Read(buf[p:chunkSize])
+		trace.Logf(ctx, "read", "read(buf[%d:%d]) = %v, %v", p, chunkSize, n, err)
 		if n < 0 {
 			n = 0
 		}
@@ -66,6 +73,7 @@ func readExact(ctx context.Context, f io.Reader, chunkSize uint32, buf []byte) (
 		p += uint32(n)
 		if p == lastp {
 			attempts++
+			trace.Logf(ctx, "retry", "attempts = %v", attempts)
 			if attempts >= 15 {
 				err = fmt.Errorf("readExact: timed out after 15 attempts of reading zero bytes")
 				return
@@ -78,6 +86,7 @@ func readExact(ctx context.Context, f io.Reader, chunkSize uint32, buf []byte) (
 		}
 	}
 
+	trace.Log(ctx, "read", "return")
 	return
 }
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/alttpo/snes/asm"
 	"github.com/alttpo/snes/timing"
+	"runtime/trace"
 	"sni/devices"
 	"sni/devices/snes/mapping"
 	"sni/protos/sni"
@@ -349,6 +350,9 @@ func (d *Device) MultiWriteMemory(
 }
 
 func (d *Device) awaitUSBEXE(ctx context.Context) (ok bool, err error) {
+	ctx, task := trace.NewTask(ctx, "awaitUSBEXE")
+	defer task.End()
+
 	check := make([]byte, 1)
 
 	deadline, hasDeadline := ctx.Deadline()
@@ -376,7 +380,7 @@ func (d *Device) awaitUSBEXE(ctx context.Context) (ok bool, err error) {
 
 func GenerateCopyAsm(a *asm.Emitter, writeRequests ...devices.MemoryWriteRequest) (remainder []devices.MemoryWriteRequest) {
 	// sizeRoutine represents the total size of ASM code below without MVN blocks:
-	const sizeRoutine = 18
+	const sizeRoutine = 22
 	const sizeMVNBlock = 12
 
 	writes := make([]devices.MemoryWriteRequest, 0, len(writeRequests))
@@ -457,7 +461,8 @@ func GenerateCopyAsm(a *asm.Emitter, writeRequests ...devices.MemoryWriteRequest
 	a.PLB()
 
 	a.Comment("disable NMI vector override:")
-	a.STZ_abs(0x2C00)
+	a.LDA_imm16_w(0)
+	a.STA_long(0x002C00)
 
 	a.Comment("restore registers:")
 	a.PLY()
