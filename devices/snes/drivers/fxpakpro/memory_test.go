@@ -56,13 +56,13 @@ func TestGenerateCopyAsm(t *testing.T) {
 							AddressSpace:  sni.AddressSpace_FxPakPro,
 							MemoryMapping: sni.MemoryMapping_LoROM,
 						},
-						Data: d[0:0x1e2],
+						Data: d[0:0x1de],
 					},
 				},
 				wantRemainder: []devices.MemoryWriteRequest(nil),
 			},
 			test{
-				name: "split at $1e2",
+				name: "split at $1de",
 				args: []devices.MemoryWriteRequest{
 					{
 						RequestAddress: devices.AddressTuple{
@@ -76,11 +76,11 @@ func TestGenerateCopyAsm(t *testing.T) {
 				wantRemainder: []devices.MemoryWriteRequest{
 					{
 						RequestAddress: devices.AddressTuple{
-							Address:       0xF50000 + 0x1e2,
+							Address:       0xF50000 + 0x1de,
 							AddressSpace:  sni.AddressSpace_FxPakPro,
 							MemoryMapping: sni.MemoryMapping_LoROM,
 						},
-						Data: d[0x1e2:],
+						Data: d[0x1de:],
 					},
 				},
 			},
@@ -93,7 +93,7 @@ func TestGenerateCopyAsm(t *testing.T) {
 							AddressSpace:  sni.AddressSpace_FxPakPro,
 							MemoryMapping: sni.MemoryMapping_LoROM,
 						},
-						Data: d[0 : 0x1e2-12],
+						Data: d[0 : 0x1de-12],
 					},
 					{
 						RequestAddress: devices.AddressTuple{
@@ -101,7 +101,7 @@ func TestGenerateCopyAsm(t *testing.T) {
 							AddressSpace:  sni.AddressSpace_FxPakPro,
 							MemoryMapping: sni.MemoryMapping_LoROM,
 						},
-						Data: d[0x1e2-12:],
+						Data: d[0x1de-12:],
 					},
 				},
 				wantRemainder: []devices.MemoryWriteRequest{
@@ -111,7 +111,7 @@ func TestGenerateCopyAsm(t *testing.T) {
 							AddressSpace:  sni.AddressSpace_FxPakPro,
 							MemoryMapping: sni.MemoryMapping_LoROM,
 						},
-						Data: d[0x1e2-12:],
+						Data: d[0x1de-12:],
 					},
 				},
 			},
@@ -124,7 +124,7 @@ func TestGenerateCopyAsm(t *testing.T) {
 							AddressSpace:  sni.AddressSpace_FxPakPro,
 							MemoryMapping: sni.MemoryMapping_LoROM,
 						},
-						Data: d[0 : 0x1e2-11],
+						Data: d[0 : 0x1de-11],
 					},
 					{
 						RequestAddress: devices.AddressTuple{
@@ -132,7 +132,7 @@ func TestGenerateCopyAsm(t *testing.T) {
 							AddressSpace:  sni.AddressSpace_FxPakPro,
 							MemoryMapping: sni.MemoryMapping_LoROM,
 						},
-						Data: d[0x1e2-12:],
+						Data: d[0x1de-12:],
 					},
 				},
 				wantRemainder: []devices.MemoryWriteRequest{
@@ -142,7 +142,7 @@ func TestGenerateCopyAsm(t *testing.T) {
 							AddressSpace:  sni.AddressSpace_FxPakPro,
 							MemoryMapping: sni.MemoryMapping_LoROM,
 						},
-						Data: d[0x1e2-12:],
+						Data: d[0x1de-12:],
 					},
 				},
 			},
@@ -155,7 +155,7 @@ func TestGenerateCopyAsm(t *testing.T) {
 							AddressSpace:  sni.AddressSpace_FxPakPro,
 							MemoryMapping: sni.MemoryMapping_LoROM,
 						},
-						Data: d[0 : 0x1e2-13],
+						Data: d[0 : 0x1de-13],
 					},
 					{
 						RequestAddress: devices.AddressTuple{
@@ -163,7 +163,7 @@ func TestGenerateCopyAsm(t *testing.T) {
 							AddressSpace:  sni.AddressSpace_FxPakPro,
 							MemoryMapping: sni.MemoryMapping_LoROM,
 						},
-						Data: d[0x1e2-12:],
+						Data: d[0x1de-12:],
 					},
 				},
 				wantRemainder: []devices.MemoryWriteRequest{
@@ -173,7 +173,7 @@ func TestGenerateCopyAsm(t *testing.T) {
 							AddressSpace:  sni.AddressSpace_FxPakPro,
 							MemoryMapping: sni.MemoryMapping_LoROM,
 						},
-						Data: d[0x1e2-12+1:],
+						Data: d[0x1de-12+1:],
 					},
 				},
 			},
