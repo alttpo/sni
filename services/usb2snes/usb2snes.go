@@ -366,8 +366,9 @@ serverLoop:
 
 			// parse operands as (addr, size) pairs:
 			ops := cmd.Operands[:]
-			reqs := make([]devices.MemoryReadRequest, len(ops)/2)
-			for i := 0; i < len(reqs); i++ {
+			reqCount := len(ops) / 2
+			reqs := make([]devices.MemoryReadRequest, 0, reqCount)
+			for i := 0; i < reqCount; i++ {
 				addrHex := cmd.Operands[i*2]
 				var addr uint64
 				addr, err = strconv.ParseUint(addrHex, 16, 32)
@@ -382,6 +383,11 @@ serverLoop:
 				if err != nil {
 					log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, i*2+1, sizeHex)
 					break serverLoop
+				}
+
+				// skip 0-byte read requests and don't send them to devices:
+				if size == 0 {
+					continue
 				}
 
 				var addr32 uint32
@@ -399,14 +405,14 @@ serverLoop:
 					break serverLoop
 				}
 
-				reqs[i] = devices.MemoryReadRequest{
+				reqs = append(reqs, devices.MemoryReadRequest{
 					RequestAddress: devices.AddressTuple{
 						Address:       addr32,
 						AddressSpace:  sni.AddressSpace_FxPakPro,
 						MemoryMapping: deviceMemoryMapping,
 					},
 					Size: int(size),
-				}
+				})
 
 				// check if we need to know the memory mapping for this request:
 				if deviceMemoryMapping == sni.MemoryMapping_Unknown {
@@ -423,22 +429,25 @@ serverLoop:
 				}
 			}
 
-			// issue the read request:
 			var rsps []devices.MemoryReadResponse
-			rsps, err = device.MultiReadMemory(context.Background(), reqs...)
-			if err != nil {
-				log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
-				break serverLoop
-			}
-
-			// write the response data:
-			for i := range rsps {
-				_, err = wb.Write(rsps[i].Data)
+			if len(reqs) > 0 {
+				// issue the read request:
+				rsps, err = device.MultiReadMemory(context.Background(), reqs...)
 				if err != nil {
-					log.Printf("usb2snes: %s: %s error writing response data: %s\n", clientName, cmd.Opcode, err)
+					log.Printf("usb2snes: %s: %s error: %s\n", clientName, cmd.Opcode, err)
 					break serverLoop
 				}
+
+				// write the response data:
+				for i := range rsps {
+					_, err = wb.Write(rsps[i].Data)
+					if err != nil {
+						log.Printf("usb2snes: %s: %s error writing response data: %s\n", clientName, cmd.Opcode, err)
+						break serverLoop
+					}
+				}
 			}
+
 			if config.VerboseLogging {
 				rspStr := "REPLY"
 				if config.LogResponses {
