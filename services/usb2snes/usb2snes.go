@@ -3,6 +3,7 @@ package usb2snes
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
@@ -785,6 +786,11 @@ serverLoop:
 		default:
 			log.Printf("usb2snes: %s: unrecognized opcode '%s'\n", clientName, cmd.Opcode)
 			break
+		}
+
+		if err := r.Discard(); err != nil && !errors.Is(err, io.EOF) {
+			log.Printf("usb2snes: %s: unable to discard remainder of frame: %v\n", clientName, err)
+			break serverLoop
 		}
 	}
 }
