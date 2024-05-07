@@ -589,6 +589,32 @@ The hardware cannot be stopped or suspended to service read or write requests.
 This implies there is no guarantee of atomicity or consistency of data
 returned from a read operation.
 
+#### Feature Support Matrix
+
+A ROM's usage of certain enhancement chips affects the availability of features offered
+by the FX Pak Pro. The following table applies to the firmware version v1.11.0:
+
+| Chip | WRAM mirror<br/>($F50000) | USB EXE<br/>($2C00) |
+|------|---------------------------|---------------------|
+| Base | Y                         | Y                   |
+| DSP  | Y                         | Y                   |
+| CX4  | N                         | N                   |
+| GSU  | N                         | N                   |
+| OBC1 | N                         | N                   |
+| SA1  | N                         | N                   |
+| SDD1 | N                         | N                   |
+| SGB  | N                         | N                   |
+
+The "WRAM mirror" feature refers to how the FPGA spies on the SNES bus and captures
+WRAM writes into its internal SRAM chip at addresses $F50000..$F6FFFF. This feature
+is only present for "base" ROMs (ones which do not use significant enhancement
+chips) and DSP-using ROMs (e.g. Mario Kart, Pilotwings, etc.).
+
+The "USB EXE" feature refers to the 512-byte area of FPGA BRAM mapped to the SNES
+address range $002C00..$002DFF. If the byte at $002C00 is not $00 then the NMI
+vector is overridden to point to this block of ASM code. Applications can upload custom
+ASM code into this memory region.
+
 #### WRAM writes
 
 SNI uses a custom feature of the pak to handle writes to the WRAM region
