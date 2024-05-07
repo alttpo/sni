@@ -56,25 +56,36 @@ it assumes if they are not set.
 
 The following environment variables are defined:
 
-| Name                      | Default                                                                     | Purpose                                                                                                                                                 |
-|---------------------------|-----------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
-| SNI_DEBUG                 | 0                                                                           | enable debug logging                                                                                                                                    |
-| SNI_GRPC_LISTEN_HOST      | 0.0.0.0                                                                     | grpc: host to listen on for gRPC connections                                                                                                            |
-| SNI_GRPC_LISTEN_PORT      | 8191                                                                        | grpc: port to listen on for gRPC connections                                                                                                            |
-| SNI_GRPCWEB_LISTEN_PORT   | 8190                                                                        | grpc-web: port to listen on for gRPC-Web connections (WebSockets support for gRPC)                                                                      |
-| SNI_USB2SNES_DISABLE      | 0                                                                           | usb2snes: set to 1 to disable usb2snes server                                                                                                           |
-| SNI_USB2SNES_LISTEN_ADDRS | 0.0.0.0:23074,0.0.0.0:8080                                                  | usb2snes: comma-delimited list of host:ports to listen on                                                                                               |
-| SNI_FXPAKPRO_DISABLE      | 0                                                                           | fxpakpro: set to 1 to disable FX Pak Pro driver                                                                                                         |
-| SNI_RETROARCH_DISABLE     | 0                                                                           | retroarch: set to 1 to disable Retroarch driver                                                                                                         |
-| SNI_RETROARCH_HOSTS       | localhost:55355                                                             | retroarch: list of comma-delimited host:port pairs to detect retroarch instances on; configure these with `network_cmd_port` setting in `retroarch.cfg` |
-| SNI_RETROARCH_DETECT_LOG  | 0                                                                           | retroarch: set to 1 to enable logging of RA emulator detection                                                                                          |
-| SNI_LUABRIDGE_LISTEN_HOST | 127.0.0.1                                                                   | luabridge: host/IP to listen on                                                                                                                         |
-| SNI_LUABRIDGE_LISTEN_PORT | 65398                                                                       | luabridge: port number to listen on                                                                                                                     |
-| SNI_EMUNW_DISABLE         | 0                                                                           | nwa: set to 1 to disable emunwa protocol                                                                                                                |
-| SNI_EMUNW_DETECT_LOG      | 0                                                                           | nwa: set to 1 to enable logging of emulator detection                                                                                                   |
-| SNI_EMUNW_HOSTS           | localhost:48879,...,localhost:48888<br/>localhost:65400,...,localhost:65409 | nwa: comma-delimited list of host:port pairs to scan for nwa-enabled emulators                                                                          |
-| NWA_PORT_RANGE            | 48879                                                                       | nwa: default starting port number for port range                                                                                                        |
-| NWA_DISABLE_OLD_RANGE     | 0                                                                           | nwa: set to 1 to disable deprecated port range 65400..65409                                                                                             |
+| Name                      | Default                              | Purpose                                                                                                                                                 |
+|---------------------------|--------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| SNI_DEBUG                 | 0                                    | enable debug logging                                                                                                                                    |
+| SNI_GRPC_LISTEN_HOST      | 0.0.0.0                              | grpc: host to listen on for gRPC connections                                                                                                            |
+| SNI_GRPC_LISTEN_PORT      | 8191                                 | grpc: port to listen on for gRPC connections                                                                                                            |
+| SNI_GRPCWEB_LISTEN_PORT   | 8190                                 | grpc-web: port to listen on for gRPC-Web connections (WebSockets support for gRPC)                                                                      |
+| SNI_USB2SNES_DISABLE      | 0                                    | usb2snes: set to 1 to disable usb2snes server                                                                                                           |
+| SNI_USB2SNES_LISTEN_ADDRS | 0.0.0.0:23074                        | usb2snes: comma-delimited list of host:ports to listen on                                                                                               |
+| SNI_FXPAKPRO_DISABLE      | 0                                    | fxpakpro: set to 1 to disable FX Pak Pro driver                                                                                                         |
+| SNI_RETROARCH_DISABLE     | 0                                    | retroarch: set to 1 to disable Retroarch driver                                                                                                         |
+| SNI_RETROARCH_HOSTS       | localhost:55355                      | retroarch: list of comma-delimited host:port pairs to detect retroarch instances on; configure these with `network_cmd_port` setting in `retroarch.cfg` |
+| SNI_RETROARCH_DETECT_LOG  | 0                                    | retroarch: set to 1 to enable logging of RA emulator detection                                                                                          |
+| SNI_LUABRIDGE_LISTEN_HOST | 127.0.0.1                            | luabridge: host/IP to listen on                                                                                                                         |
+| SNI_LUABRIDGE_LISTEN_PORT | 65398                                | luabridge: port number to listen on                                                                                                                     |
+| SNI_EMUNW_DISABLE         | 0                                    | nwa: set to 1 to disable emunwa protocol                                                                                                                |
+| SNI_EMUNW_DETECT_LOG      | 0                                    | nwa: set to 1 to enable logging of emulator detection                                                                                                   |
+| SNI_EMUNW_HOSTS           | localhost:48879,...,localhost:48888  | nwa: comma-delimited list of host:port pairs to scan for nwa-enabled emulators                                                                          |
+| NWA_PORT_RANGE            | 48879                                | nwa: default starting port number for port range (0xbeef)                                                                                               |
+| NWA_DISABLE_OLD_RANGE     | 1                                    | nwa: set to 1 to disable deprecated port range 65400..65409                                                                                             |
+
+### USB2SNES Compatibility
+
+SNI also offers a compatibility `usb2snes` WebSockets server listening on port 23074.
+
+The `usb2snes` listener on port `8080` has been deprecated as of v0.0.97 by default. To re-enable it, set this
+environment variable before launching SNI:
+
+```
+SNI_USB2SNES_LISTEN_ADDRS=0.0.0.0:23074,0.0.0.0:8080
+```
 
 ## Log Files
 
@@ -118,8 +129,6 @@ See [BUILD.md](BUILD.md#linux) for more details or if the build fails.
 
 SNI offers a [gRPC](https://grpc.io/) API as its primary means of communication
 with application clients.
-
-SNI also offers a compatibility `usb2snes` WebSockets server listening on port 8080.
 
 ## gRPC API Design Goals
 1. The gRPC protocol implemented by SNI is entirely **stateless**.
