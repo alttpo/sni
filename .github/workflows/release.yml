@@ -37,6 +37,12 @@ jobs:
             snfm: snfm-*-windows-x64.zip
           - os: windows-latest
             goos: windows
+            goarch: amd64
+            suffix: zip
+            snfm: snfm-*-windows-x64.zip
+            os-variant: '7'
+          - os: windows-latest
+            goos: windows
             goarch: "386"
             suffix: zip
           - os: windows-latest
@@ -54,11 +60,18 @@ jobs:
         uses: rlespinasse/github-slug-action@v4
 
       - name: Set up Go
+        if: ${{ matrix.goos != 'windows' || matrix.os-variant != '7' }}
         uses: actions/setup-go@v5
         with:
           go-version: '^1.22.1'
 
-      - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}${{matrix.alt}}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Set up Go
+        if: ${{ matrix.goos == 'windows' && matrix.os-variant == '7' }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: '^1.20.14'
+
+      - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}${{matrix.os-variant}}-${{matrix.goarch}}${{matrix.alt}}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - uses: actions/checkout@v4
         name: Checkout
@@ -274,7 +287,7 @@ jobs:
       - name: Set up linux dependencies
         run: sudo apt-get update && sudo apt-get install -y gcc ${{matrix.linuxdeps}}
 
-      - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}-${{matrix.goarch}}${{matrix.alt}}" >> $GITHUB_ENV
+      - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}${{matrix.os-variant}}-${{matrix.goarch}}${{matrix.alt}}" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
         name: Checkout
