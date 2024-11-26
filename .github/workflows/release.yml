@@ -398,7 +398,7 @@ jobs:
       - name: Build SNI
         run: >
           CGO_ENABLED=1
-          CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-rpath=. -Wl,--gc-sections"
+          CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-rpath=\$ORIGIN -Wl,--gc-sections"
           GOARCH=amd64
           go build -tags=legacy_appindicator -buildvcs=false
           -gcflags=all=-l
@@ -406,20 +406,25 @@ jobs:
           -o ./${{env.basename}}/sni
           ./cmd/sni
 
+      - name: Patch appindicator rpath
+        run: |
+          dnf -y install patchelf
+          patchelf --force-rpath --set-rpath '$ORIGIN' ./${{env.basename}}/libappindicator3.*
+
       - name: Package ${{env.basename}}.tar.xz for Linux
         run: |
           ldd ${{env.basename}}/sni
           tar cJf ${{env.basename}}.tar.xz ${{env.basename}}/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3  # @v4 does not work with manylinux2014 glibc
+        uses: actions/upload-artifact@v4
         with:
           name: ${{env.basename}}.tar.xz
           path: ${{github.workspace}}/${{env.basename}}.tar.xz
 
       - name: Upload binaries to release
         if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
-        uses: svenstaro/upload-release-action@2.7.0  # @2.8.0 probably does not work with manylinux2014 glibc
+        uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.GITHUB_REF_SLUG }}
