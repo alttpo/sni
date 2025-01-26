@@ -2,18 +2,18 @@ package fxpakpro
 
 import (
 	"fmt"
-	"go.bug.st/serial"
-	"go.bug.st/serial/enumerator"
 	"log"
 	"net/url"
 	"runtime"
+	"sni/cmd/sni/config"
 	"sni/devices"
 	"sni/protos/sni"
-	"sni/util"
-	"sni/util/env"
 	"strconv"
 	"strings"
 	"sync"
+
+	"go.bug.st/serial"
+	"go.bug.st/serial/enumerator"
 )
 
 const (
@@ -219,12 +219,12 @@ func (d *Driver) Device(uri *url.URL) devices.AutoCloseableDevice {
 var debugLog *log.Logger
 
 func DriverInit() {
-	if util.IsTruthy(env.GetOrDefault("SNI_FXPAKPRO_DISABLE", "0")) {
+	if devices.IsDisabled("SNI_FXPAKPRO_DISABLE") {
 		log.Printf("disabling fxpakpro snes driver\n")
 		return
 	}
 
-	if util.IsTruthy(env.GetOrDefault("SNI_DEBUG", "0")) {
+	if config.SniDebug {
 		defaultLogger := log.Default()
 		debugLog = log.New(
 			defaultLogger.Writer(),

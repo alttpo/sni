@@ -2,13 +2,14 @@ package config
 
 import (
 	"fmt"
-	"github.com/alttpo/observable"
-	"github.com/fsnotify/fsnotify"
-	"github.com/spf13/viper"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/alttpo/observable"
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -27,6 +28,8 @@ var (
 	VerboseLogging bool = false
 	LogResponses   bool = false
 	ShowConsole    bool = false
+	SniDebug       bool = false
+	SniDebugParsed bool = false // ShowConsole    bool = false
 )
 
 var (
@@ -98,6 +101,9 @@ func loadConfig() {
 	Config.WatchConfig()
 
 	ReloadConfig()
+	VerboseLogging = Config.GetBool("verboseLogging")
+	LogResponses = Config.GetBool("logResponses")
+	SniDebug = Config.GetBool("sni_debug")
 }
 
 func ReloadConfig() {

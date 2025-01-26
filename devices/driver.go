@@ -3,6 +3,9 @@ package devices
 import (
 	"fmt"
 	"net/url"
+	"os"
+	"sni/cmd/sni/config"
+	"sni/util"
 	"sort"
 	"sync"
 )
@@ -114,4 +117,20 @@ func DeviceByUri(uri *url.URL) (driver Driver, device AutoCloseableDevice, err e
 
 	device = driver.Device(uri)
 	return
+}
+
+// IsDisable returns a bool depending
+// default is false if no definition is found
+// Environment variable supersedes config file
+func IsDisabled(varName string) bool {
+	// read the Environment Variable
+	value, present := os.LookupEnv(varName)
+
+	if present {
+		return util.IsTruthy(value)
+	}
+
+	// else return what is the config file
+	// defaults to false if key not found
+	return config.Config.GetBool(varName)
 }
