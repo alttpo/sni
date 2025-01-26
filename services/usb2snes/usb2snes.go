@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
 	"io"
 	"log"
 	"net"
@@ -23,12 +21,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 )
 
 func StartHttpServer() {
 	// Parse env vars:
-	disabled := env.GetOrDefault("SNI_USB2SNES_DISABLE", "0")
-	if util.IsTruthy(disabled) {
+	disabled := devices.IsDisabled("SNI_USB2SNES_DISABLE", false)
+	if disabled {
 		log.Printf("usb2snes: server disabled due to env var %s=%s\n", "SNI_USB2SNES_DISABLE", disabled)
 		return
 	}

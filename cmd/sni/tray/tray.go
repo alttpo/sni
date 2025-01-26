@@ -5,9 +5,6 @@ package tray
 
 import (
 	"fmt"
-	"github.com/alttpo/observable"
-	"github.com/alttpo/systray"
-	"github.com/spf13/viper"
 	"log"
 	"runtime"
 	"sni/cmd/sni/appversion"
@@ -18,6 +15,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/alttpo/observable"
+	"github.com/alttpo/systray"
+	"github.com/spf13/viper"
 )
 
 const maxItems = 10
@@ -48,7 +49,7 @@ func UpdateDeviceList(deviceDescriptors []devices.DeviceDescriptor) {
 
 		deviceMenuItems[i].SetTitle(desc.DisplayName)
 		deviceMenuItems[i].SetTooltip(desc.Kind)
-		//deviceMenuItems[i].Check()
+		// deviceMenuItems[i].Check()
 		deviceMenuItems[i].Show()
 	}
 
@@ -114,7 +115,7 @@ func trayStart() {
 	systray.AddSeparator()
 
 	var toggleShowConsole *systray.MenuItem
-	var updateConsole = func() {
+	updateConsole := func() {
 		if toggleShowConsole != nil {
 			if config.ShowConsole {
 				toggleShowConsole.Check()
@@ -152,14 +153,12 @@ func trayStart() {
 			return
 		}
 
-		config.VerboseLogging = v.GetBool("verboseLogging")
 		if config.VerboseLogging {
 			toggleVerbose.Check()
 		} else {
 			toggleVerbose.Uncheck()
 		}
 
-		config.LogResponses = v.GetBool("logResponses")
 		if config.LogResponses {
 			toggleLogResponses.Check()
 		} else {

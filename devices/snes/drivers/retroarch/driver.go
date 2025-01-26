@@ -198,7 +198,7 @@ func (d *Driver) DisconnectAll() {
 }
 
 func DriverInit() {
-	if util.IsTruthy(env.GetOrDefault("SNI_RETROARCH_DISABLE", "0")) {
+	if devices.IsDisabled("SNI_RETROARCH_DISABLE", false) {
 		log.Printf("disabling retroarch snes driver\n")
 		return
 	}

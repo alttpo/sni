@@ -119,10 +119,11 @@ func DeviceByUri(uri *url.URL) (driver Driver, device AutoCloseableDevice, err e
 	return
 }
 
-// IsDisable returns a bool depending
-// default is false if no definition is found
-// Environment variable supersedes config file
-func IsDisabled(varName string) bool {
+// IsDisable returns a bool
+// if an Environment variable is set, will return it's value
+// if value is set in config file, will return it's value
+// else returns default
+func IsDisabled(varName string, defaultValue bool) bool {
 	// read the Environment Variable
 	value, present := os.LookupEnv(varName)
 
@@ -132,5 +133,9 @@ func IsDisabled(varName string) bool {
 
 	// else return what is the config file
 	// defaults to false if key not found
-	return config.Config.GetBool(varName)
+	if config.Config.IsSet(varName) {
+		return config.Config.GetBool(varName)
+	}
+
+	return defaultValue
 }

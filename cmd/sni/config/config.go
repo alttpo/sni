@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/alttpo/observable"
 	"github.com/fsnotify/fsnotify"
@@ -28,8 +29,8 @@ var (
 	VerboseLogging bool = false
 	LogResponses   bool = false
 	ShowConsole    bool = false
-	SniDebug       bool = false
-	SniDebugParsed bool = false // ShowConsole    bool = false
+	// SniDebug       bool = false
+	// SniDebugParsed bool = false // ShowConsole    bool = false
 )
 
 var (
@@ -37,6 +38,8 @@ var (
 	Config *viper.Viper = viper.New()
 	Apps   *viper.Viper = viper.New()
 )
+
+var NwaDefaultPort uint64 = 0xbeef
 
 func InitDir() {
 	// decide on a config directory:
@@ -93,6 +96,7 @@ func loadConfig() {
 	Config.AddConfigPath(ConfigPath)
 	ConfigPath = filepath.Join(ConfigPath, fmt.Sprintf("%s.yaml", configFilename))
 
+	setConfigDefaults()
 	// notify observers of configuration file change:
 	Config.OnConfigChange(func(_ fsnotify.Event) {
 		log.Printf("config: %s.yaml modified\n", configFilename)
@@ -101,9 +105,11 @@ func loadConfig() {
 	Config.WatchConfig()
 
 	ReloadConfig()
-	VerboseLogging = Config.GetBool("verboseLogging")
-	LogResponses = Config.GetBool("logResponses")
-	SniDebug = Config.GetBool("sni_debug")
+
+	// bind environment vars so they supersede the config file
+	bindConfigEnv()
+	// VerboseLogging = Config.GetBool("verboseLogging")
+	// LogResponses = Config.GetBool("logResponses")
 }
 
 func ReloadConfig() {
@@ -120,6 +126,76 @@ func ReloadConfig() {
 
 	// publish the configuration to subscribers:
 	configObservable.Set(Config)
+}
+
+func setConfigDefaults() {
+	configs := map[string]any{
+		"debug": false,
+
+		"grpc_listen_host":    "0.0.0.0",
+		"grpc_listen_port":    8191,
+		"grpcweb_listen_port": 8190,
+
+		"usb2snes_disable":      false,
+		"usb2snes_listen_addrs": "0.0.0.0:23074",
+		"fxpakpro_disable":      false,
+
+		"retroarch_disable":    false,
+		"retroarch_hosts":      "localhost:55355",
+		"retroarch_detect_log": false,
+
+		"luabrigde_listen_host": "127.0.0.1",
+		"luabrigde_listen_port": 65398,
+
+		"emunw_disable":         false,
+		"emunw_detect_log":      false,
+		"nwa_port_range":        NwaDefaultPort,
+		"nwa_disable_old_range": true,
+	}
+	for key, value := range configs {
+		Config.SetDefault(key, value)
+	}
+}
+
+func bindConfigEnv() {
+	// load Env Variables
+	// configs with env starting with sni
+	sniConfigs := []string{
+		"grpc_listen_host",
+		"grpc_listen_port",
+		"grpcweb_listen_port",
+		"usb2snes_disable",
+		"usb2snes_listen_addrs",
+		"fxpakpro_disable",
+		"debug",
+		"retroarch_disable",
+		"retroarch_hosts",
+		"retroarch_detect_log",
+		"luabrigde_listen_host",
+		"luabrigde_listen_port", "emunw_disable",
+		"emunw_detect_log",
+		"emunw_hosts",
+	}
+
+	for _, config := range sniConfigs {
+		err := Config.BindEnv(config)
+		if err != nil {
+			fmt.Printf("Error Binding environment variable %v: %v\n", config, err)
+		}
+	}
+
+	nwaConfigs := [2]string{
+		"nwa_port_range",
+		"nwa_disable_old_range",
+	}
+
+	for _, config := range nwaConfigs {
+		// in this case, viper will associate both "SNI_NWA_PORT_RANGE" and "NWA_PORT_RANGE", the later taking precedance
+		err := Config.BindEnv(config, strings.ToUpper(config))
+		if err != nil {
+			fmt.Printf("Error Binding environment variable %v: %v\n", config, err)
+		}
+	}
 }
 
 func loadApps() {

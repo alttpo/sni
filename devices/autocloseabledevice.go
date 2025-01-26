@@ -53,7 +53,7 @@ func NewAutoCloseableDevice(container DeviceContainer, uri *url.URL, deviceKey s
 	// }
 
 	var logger *log.Logger
-	if config.SniDebug {
+	if config.Config.GetBool("debug") {
 		defaultLogger := log.Default()
 		logger = log.New(
 			defaultLogger.Writer(),

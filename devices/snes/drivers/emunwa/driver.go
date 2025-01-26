@@ -3,10 +3,10 @@ package emunwa
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/alttpo/snes/timing"
 	"log"
 	"net"
 	"net/url"
+	"sni/cmd/sni/config"
 	"sni/devices"
 	"sni/protos/sni"
 	"sni/util"
@@ -15,12 +15,16 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/alttpo/snes/timing"
 )
 
 const driverName = "emunwa"
 
-var logDetector = false
-var driver *Driver
+var (
+	logDetector = false
+	driver      *Driver
+)
 
 const defaultAddressSpace = sni.AddressSpace_SnesABus
 
@@ -215,23 +219,23 @@ func (d *Driver) DisconnectAll() {
 }
 
 func DriverInit() {
-	if util.IsTruthy(env.GetOrDefault("SNI_EMUNW_DISABLE", "0")) {
+	if config.Config.GetBool("emunw_disable") {
 		log.Printf("emunwa: disabling emunwa snes driver\n")
 		return
 	}
 
-	basePortStr := env.GetOrDefault("NWA_PORT_RANGE", "0xbeef")
+	basePortStr := config.Config.GetString("nwa_port_range")
 	var basePort uint64
 	var err error
 	if basePort, err = strconv.ParseUint(basePortStr, 0, 16); err != nil {
-		basePort = 0xbeef
+		basePort = config.NwaDefaultPort
 		log.Printf("emunwa: unable to parse '%s', using default of 0xbeef (%d)\n", basePortStr, basePort)
 	}
 
-	disableOldRange := util.IsTruthy(env.GetOrDefault("NWA_DISABLE_OLD_RANGE", "1"))
+	disableOldRange := config.Config.GetBool("nwa_disable_old_range")
 
 	// comma-delimited list of host:port pairs:
-	hostsStr := env.GetOrSupply("SNI_EMUNW_HOSTS", func() string {
+	hostsStr := env.GetOrSupply(config.Config.GetString("emunw_hosts"), func() string {
 		const count = 10
 		hosts := make([]string, 0, 20)
 		if disableOldRange {
@@ -267,7 +271,7 @@ func DriverInit() {
 		addresses = append(addresses, addr)
 	}
 
-	if util.IsTruthy(env.GetOrDefault("SNI_EMUNW_DETECT_LOG", "0")) {
+	if config.Config.GetBool("emunw_detect_log") {
 		logDetector = true
 		log.Printf("emunwa: enabling emunwa detector logging")
 	}
