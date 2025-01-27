@@ -39,7 +39,40 @@ var (
 	Apps   *viper.Viper = viper.New()
 )
 
-var NwaDefaultPort uint64 = 0xbeef
+var (
+	NwaDefaultPort uint64 = 0xbeef
+	sniConfigs            = map[string]any{
+		"debug": false,
+
+		"grpc_listen_host":    "0.0.0.0",
+		"grpc_listen_port":    8191,
+		"grpcweb_listen_port": 8190,
+
+		"usb2snes_disable":      false,
+		"usb2snes_listen_addrs": "0.0.0.0:23074",
+		"fxpakpro_disable":      false,
+
+		"retroarch_disable":    false,
+		"retroarch_hosts":      "localhost:55355",
+		"retroarch_detect_log": false,
+
+		"luabrigde_listen_host": "127.0.0.1",
+		"luabrigde_listen_port": 65398,
+
+		// sni_emunw_hosts is set dynamically when initializing the driver and initialization is conditioned on nwa_disable_old_range
+		// We are not setting it here
+		"emunw_disable":    false,
+		"emunw_detect_log": false,
+	}
+	nwaConfigs = map[string]any{
+		"nwa_port_range":        NwaDefaultPort,
+		"nwa_disable_old_range": true,
+	}
+	loggingConfigs = map[string]bool{
+		"verboseLogging": false,
+		"logResponses":   false,
+	}
+)
 
 func InitDir() {
 	// decide on a config directory:
@@ -104,12 +137,11 @@ func loadConfig() {
 	})
 	Config.WatchConfig()
 
+	// reads the config file
 	ReloadConfig()
 
 	// bind environment vars so they supersede the config file
 	bindConfigEnv()
-	// VerboseLogging = Config.GetBool("verboseLogging")
-	// LogResponses = Config.GetBool("logResponses")
 }
 
 func ReloadConfig() {
@@ -129,71 +161,44 @@ func ReloadConfig() {
 }
 
 func setConfigDefaults() {
-	configs := map[string]any{
-		"debug": false,
-
-		"grpc_listen_host":    "0.0.0.0",
-		"grpc_listen_port":    8191,
-		"grpcweb_listen_port": 8190,
-
-		"usb2snes_disable":      false,
-		"usb2snes_listen_addrs": "0.0.0.0:23074",
-		"fxpakpro_disable":      false,
-
-		"retroarch_disable":    false,
-		"retroarch_hosts":      "localhost:55355",
-		"retroarch_detect_log": false,
-
-		"luabrigde_listen_host": "127.0.0.1",
-		"luabrigde_listen_port": 65398,
-
-		"emunw_disable":         false,
-		"emunw_detect_log":      false,
-		"nwa_port_range":        NwaDefaultPort,
-		"nwa_disable_old_range": true,
+	for key, value := range sniConfigs {
+		Config.SetDefault(key, value)
 	}
-	for key, value := range configs {
+
+	for key, value := range nwaConfigs {
+		Config.SetDefault(key, value)
+	}
+
+	for key, value := range loggingConfigs {
 		Config.SetDefault(key, value)
 	}
 }
 
 func bindConfigEnv() {
 	// load Env Variables
-	// configs with env starting with sni
-	sniConfigs := []string{
-		"grpc_listen_host",
-		"grpc_listen_port",
-		"grpcweb_listen_port",
-		"usb2snes_disable",
-		"usb2snes_listen_addrs",
-		"fxpakpro_disable",
-		"debug",
-		"retroarch_disable",
-		"retroarch_hosts",
-		"retroarch_detect_log",
-		"luabrigde_listen_host",
-		"luabrigde_listen_port", "emunw_disable",
-		"emunw_detect_log",
-		"emunw_hosts",
-	}
-
-	for _, config := range sniConfigs {
-		err := Config.BindEnv(config)
+	// configs with env starting with SNI_
+	for key := range sniConfigs {
+		err := Config.BindEnv(key)
 		if err != nil {
-			fmt.Printf("Error Binding environment variable %v: %v\n", config, err)
+			fmt.Printf("Error Binding environment variable %v: %v\n", key, err)
 		}
 	}
 
-	nwaConfigs := [2]string{
-		"nwa_port_range",
-		"nwa_disable_old_range",
+	// As stated previously, the variable associated with SNI_EMUNW_HOSTS it set dynamically later, if not bound bound in this stage
+	err := Config.BindEnv("emunw_hosts")
+	if err != nil {
+		fmt.Printf("Error Binding environment variable SNI_EMUNW_HOSTS: %v\n", err)
 	}
 
-	for _, config := range nwaConfigs {
-		// in this case, viper will associate both "SNI_NWA_PORT_RANGE" and "NWA_PORT_RANGE", the later taking precedance
-		err := Config.BindEnv(config, strings.ToUpper(config))
+	/*
+		   * Parse NWA related env variable, stated as not starting with "SNI_"
+			 * Viper BindEnv() will allow to use these even if they are set up with "SNI_"
+			 * In this case, for example, viper will associate both "SNI_NWA_PORT_RANGE" and "NWA_PORT_RANGE", the later taking precedance
+	*/
+	for key := range nwaConfigs {
+		err := Config.BindEnv(key, strings.ToUpper(key))
 		if err != nil {
-			fmt.Printf("Error Binding environment variable %v: %v\n", config, err)
+			fmt.Printf("Error Binding environment variable %v: %v\n", key, err)
 		}
 	}
 }

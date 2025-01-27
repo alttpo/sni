@@ -235,7 +235,7 @@ func DriverInit() {
 	disableOldRange := config.Config.GetBool("nwa_disable_old_range")
 
 	// comma-delimited list of host:port pairs:
-	hostsStr := env.GetOrSupply(config.Config.GetString("emunw_hosts"), func() string {
+	hostsStr := env.GetOrSupply("emunw_hosts", func() string {
 		const count = 10
 		hosts := make([]string, 0, 20)
 		if disableOldRange {

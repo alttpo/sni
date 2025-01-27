@@ -6,10 +6,10 @@ import (
 	"log"
 	"net"
 	"net/url"
+	"sni/cmd/sni/config"
 	"sni/devices"
 	"sni/protos/sni"
 	"sni/util"
-	"sni/util/env"
 	"sync"
 	"time"
 )
@@ -221,8 +221,8 @@ func (d *Driver) runServer(listener *net.TCPListener) {
 }
 
 func DriverInit() {
-	bindHost = env.GetOrDefault("SNI_LUABRIDGE_LISTEN_HOST", "0.0.0.0")
-	bindPort = env.GetOrDefault("SNI_LUABRIDGE_LISTEN_PORT", "65398")
+	bindHost = config.Config.GetString("luabridge_listen_host")
+	bindPort = config.Config.GetString("luabridge_listen_port")
 	bindHostPort = net.JoinHostPort(bindHost, bindPort)
 
 	driver = &Driver{}

@@ -2,11 +2,11 @@ package retroarch
 
 import (
 	"fmt"
-	"github.com/alttpo/snes/timing"
 	"log"
 	"net"
 	"net/url"
 	"runtime/debug"
+	"sni/cmd/sni/config"
 	"sni/devices"
 	"sni/protos/sni"
 	"sni/util"
@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/alttpo/snes/timing"
 )
 
 const driverName = "ra"
@@ -198,13 +200,13 @@ func (d *Driver) DisconnectAll() {
 }
 
 func DriverInit() {
-	if devices.IsDisabled("SNI_RETROARCH_DISABLE", false) {
+	if config.Config.GetBool("retroarch_disable") {
 		log.Printf("disabling retroarch snes driver\n")
 		return
 	}
 
 	// comma-delimited list of host:port pairs:
-	hostsStr := env.GetOrSupply("SNI_RETROARCH_HOSTS", func() string {
+	hostsStr := env.GetOrSupply("retroarch_hosts", func() string {
 		// default network_cmd_port for RA is UDP 55355. we want to support connecting to multiple
 		// instances so let's auto-detect RA instances listening on UDP ports in the range
 		// [55355..55362]. realistically we probably won't be running any more than a few instances on

@@ -217,8 +217,6 @@ func (d *Driver) Device(uri *url.URL) devices.AutoCloseableDevice {
 var debugLog *log.Logger
 
 func DriverInit() {
-	// if devices.IsDisabled("SNI_FXPAKPRO_DISABLE", false) {
-	fmt.Printf("value: %v\n", config.Config.GetBool("fxpakpro_disable"))
 	if config.Config.GetBool("fxpakpro_disable") {
 		log.Printf("disabling fxpakpro snes driver\n")
 		return
