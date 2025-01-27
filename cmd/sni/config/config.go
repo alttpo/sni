@@ -59,6 +59,8 @@ var (
 		"luabrigde_listen_host": "127.0.0.1",
 		"luabrigde_listen_port": 65398,
 
+		"mock_enable": false,
+
 		// sni_emunw_hosts is set dynamically when initializing the driver and initialization is conditioned on nwa_disable_old_range
 		// We are not setting it here
 		"emunw_disable":    false,
@@ -191,10 +193,10 @@ func bindConfigEnv() {
 	}
 
 	/*
-		   * Parse NWA related env variable, stated as not starting with "SNI_"
-			 * Viper BindEnv() will allow to use these even if they are set up with "SNI_"
-			 * In this case, for example, viper will associate both "SNI_NWA_PORT_RANGE" and "NWA_PORT_RANGE", the later taking precedance
-	*/
+	* Parse NWA related env variable, stated as not starting with "SNI_"
+	* Viper BindEnv() will allow to use these even if they are set up with "SNI_"
+	* In this case, for example, viper will associate both "SNI_NWA_PORT_RANGE" and "NWA_PORT_RANGE", the later taking precedance
+	 */
 	for key := range nwaConfigs {
 		err := Config.BindEnv(key, strings.ToUpper(key))
 		if err != nil {

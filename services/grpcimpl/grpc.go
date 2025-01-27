@@ -3,19 +3,19 @@ package grpcimpl
 import (
 	"context"
 	"fmt"
-	"github.com/improbable-eng/grpc-web/go/grpcweb"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/peer"
-	"google.golang.org/grpc/reflection"
 	"log"
 	"net"
 	"net/http"
 	"sni/cmd/sni/config"
 	"sni/protos/sni"
 	"sni/util"
-	"sni/util/env"
 	"strconv"
 	"time"
+
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/reflection"
 )
 
 const fullMethodFormatter = "%32s"
@@ -27,7 +27,7 @@ var (
 
 func StartGrpcServer() {
 	// Parse env vars:
-	ListenHost = env.GetOrDefault("SNI_GRPC_LISTEN_HOST", "0.0.0.0")
+	ListenHost = config.Config.GetString("grpc_listen_host")
 
 	const maxMessageSize = 100 * 1024 * 1024 // 100 MB
 
@@ -35,7 +35,7 @@ func StartGrpcServer() {
 	GrpcServer = grpc.NewServer(
 		grpc.ChainUnaryInterceptor(logTimingInterceptor),
 		grpc.ChainStreamInterceptor(reportErrorStreamInterceptor),
-		grpc.MaxMsgSize(maxMessageSize),
+		grpc.MaxRecvMsgSize(maxMessageSize),
 	)
 	sni.RegisterDevicesServer(GrpcServer, &DevicesService{})
 	sni.RegisterDeviceMemoryServer(GrpcServer, &DeviceMemoryService{})
@@ -55,7 +55,7 @@ func serveGrpc() {
 	var err error
 
 	var listenPort int
-	listenPort, err = strconv.Atoi(env.GetOrDefault("SNI_GRPC_LISTEN_PORT", "8191"))
+	listenPort, err = strconv.Atoi(config.Config.GetString("grpc_listen_port"))
 	if err != nil {
 		listenPort = 8191
 	}
@@ -123,7 +123,7 @@ func serveGrpcWeb() {
 		_, _ = rw.Write(make([]byte, 0))
 	})
 
-	webListenPort := env.GetOrDefault("SNI_GRPCWEB_LISTEN_PORT", "8190")
+	webListenPort := config.Config.GetString("grpcweb_listen_port")
 	webListenAddr := net.JoinHostPort(ListenHost, webListenPort)
 
 	for {

@@ -46,12 +46,7 @@ func NewAutoCloseableDevice(container DeviceContainer, uri *url.URL, deviceKey s
 	if uri == nil {
 		panic(fmt.Errorf("uri cannot be nil"))
 	}
-
-	// if config.SniDebugParsed {
-	// 	config.SniDebug = util.IsTruthy(env.GetOrDefault("SNI_DEBUG", "0"))
-	// 	config.SniDebugParsed = true
-	// }
-
+	
 	var logger *log.Logger
 	if config.Config.GetBool("debug") {
 		defaultLogger := log.Default()

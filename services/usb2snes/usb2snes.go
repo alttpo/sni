@@ -16,7 +16,6 @@ import (
 	"sni/devices/snes/mapping"
 	"sni/protos/sni"
 	"sni/util"
-	"sni/util/env"
 	"sni/util/hex"
 	"strconv"
 	"strings"
@@ -27,16 +26,14 @@ import (
 )
 
 func StartHttpServer() {
-	// Parse env vars:
-	disabled := devices.IsDisabled("SNI_USB2SNES_DISABLE", false)
-	if disabled {
-		log.Printf("usb2snes: server disabled due to env var %s=%s\n", "SNI_USB2SNES_DISABLE", disabled)
+	if config.Config.GetBool("usb2snes_disable") {
+		log.Printf("usb2snes: server disabled due to env var %s=%s\n", "SNI_USB2SNES_DISABLE", true)
 		return
 	}
 
 	// NOTE(jsd): 2024-01-25: retiring port 8080.
 	//addrList := env.GetOrDefault("SNI_USB2SNES_LISTEN_ADDRS", "0.0.0.0:23074,0.0.0.0:8080")
-	addrList := env.GetOrDefault("SNI_USB2SNES_LISTEN_ADDRS", "0.0.0.0:23074")
+	addrList := config.Config.GetString("usb2snes_listen_addrs")
 	listenAddrs := strings.Split(addrList, ",")
 	for _, listenAddr := range listenAddrs {
 		go func(listenAddr string) {

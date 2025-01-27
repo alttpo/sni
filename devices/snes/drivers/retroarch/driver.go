@@ -9,7 +9,6 @@ import (
 	"sni/cmd/sni/config"
 	"sni/devices"
 	"sni/protos/sni"
-	"sni/util"
 	"sni/util/env"
 	"strings"
 	"sync"
@@ -239,7 +238,7 @@ func DriverInit() {
 		addresses = append(addresses, addr)
 	}
 
-	if util.IsTruthy(env.GetOrDefault("SNI_RETROARCH_DETECT_LOG", "0")) {
+	if config.Config.GetBool("retroarch_detect_log") {
 		logDetector = true
 		log.Printf("enabling retroarch detector logging")
 	}
