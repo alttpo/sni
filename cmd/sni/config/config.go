@@ -56,8 +56,8 @@ var (
 		"retroarch_hosts":      "localhost:55355",
 		"retroarch_detect_log": false,
 
-		"luabrigde_listen_host": "127.0.0.1",
-		"luabrigde_listen_port": 65398,
+		"luabridge_listen_host": "127.0.0.1",
+		"luabridge_listen_port": 65398,
 
 		"mock_enable": false,
 
@@ -182,14 +182,14 @@ func bindConfigEnv() {
 	for key := range sniConfigs {
 		err := Config.BindEnv(key)
 		if err != nil {
-			fmt.Printf("Error Binding environment variable %v: %v\n", key, err)
+			log.Printf("Error Binding environment variable %v: %v\n", key, err)
 		}
 	}
 
 	// As stated previously, the variable associated with SNI_EMUNW_HOSTS it set dynamically later, if not bound bound in this stage
 	err := Config.BindEnv("emunw_hosts")
 	if err != nil {
-		fmt.Printf("Error Binding environment variable SNI_EMUNW_HOSTS: %v\n", err)
+		log.Printf("Error Binding environment variable SNI_EMUNW_HOSTS: %v\n", err)
 	}
 
 	/*
@@ -200,7 +200,7 @@ func bindConfigEnv() {
 	for key := range nwaConfigs {
 		err := Config.BindEnv(key, strings.ToUpper(key))
 		if err != nil {
-			fmt.Printf("Error Binding environment variable %v: %v\n", key, err)
+			log.Printf("Error Binding environment variable %v: %v\n", key, err)
 		}
 	}
 }

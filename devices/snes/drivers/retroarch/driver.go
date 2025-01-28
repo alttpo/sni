@@ -9,7 +9,6 @@ import (
 	"sni/cmd/sni/config"
 	"sni/devices"
 	"sni/protos/sni"
-	"sni/util/env"
 	"strings"
 	"sync"
 	"time"
@@ -19,8 +18,10 @@ import (
 
 const driverName = "ra"
 
-var logDetector = false
-var driver *Driver
+var (
+	logDetector = false
+	driver      *Driver
+)
 
 const defaultAddressSpace = sni.AddressSpace_SnesABus
 
@@ -79,8 +80,7 @@ func (d *Driver) openDevice(uri *url.URL) (q devices.Device, err error) {
 		return
 	}
 
-	var c *RAClient
-	c = NewRAClient(addr, addr.String(), time.Second*5)
+	var c *RAClient = NewRAClient(addr, addr.String(), time.Second*5)
 	err = c.Connect(addr)
 	if err != nil {
 		return
@@ -204,23 +204,25 @@ func DriverInit() {
 		return
 	}
 
-	// comma-delimited list of host:port pairs:
-	hostsStr := env.GetOrSupply("retroarch_hosts", func() string {
-		// default network_cmd_port for RA is UDP 55355. we want to support connecting to multiple
-		// instances so let's auto-detect RA instances listening on UDP ports in the range
-		// [55355..55362]. realistically we probably won't be running any more than a few instances on
-		// the same machine at one time. i picked 8 since i currently have an 8-core CPU :)
-		var sb strings.Builder
-		const count = 1
-		for i := 0; i < count; i++ {
-			sb.WriteString(fmt.Sprintf("localhost:%d", 55355+i))
-			if i < count-1 {
-				sb.WriteByte(',')
-			}
-		}
-		return sb.String()
-	})
-
+	/*
+	  // comma-delimited list of host:port pairs:
+	  hostsStr := env.GetOrSupply("retroarch_hosts", func() string {
+	    // default network_cmd_port for RA is UDP 55355. we want to support connecting to multiple
+	    // instances so let's auto-detect RA instances listening on UDP ports in the range
+	    // [55355..55362]. realistically we probably won't be running any more than a few instances on
+	    // the same machine at one time. i picked 8 since i currently have an 8-core CPU :)
+	    var sb strings.Builder
+	    const count = 1
+	    for i := 0; i < count; i++ {
+	      sb.WriteString(fmt.Sprintf("localhost:%d", 55355+i))
+	      if i < count-1 {
+	        sb.WriteByte(',')
+	      }
+	    }
+	    return sb.String()
+	  })
+	*/
+	hostsStr := config.Config.GetString("retroarch_hosts")
 	// split the hostsStr list by commas:
 	hosts := strings.Split(hostsStr, ",")
 

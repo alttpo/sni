@@ -27,12 +27,12 @@ import (
 
 func StartHttpServer() {
 	if config.Config.GetBool("usb2snes_disable") {
-		log.Printf("usb2snes: server disabled due to env var %s=%v\n", "SNI_USB2SNES_DISABLE", true)
+		log.Printf("usb2snes: server disabled due to setting %s=%v\n", "SNI_USB2SNES_DISABLE", true)
 		return
 	}
 
 	// NOTE(jsd): 2024-01-25: retiring port 8080.
-	//addrList := env.GetOrDefault("SNI_USB2SNES_LISTEN_ADDRS", "0.0.0.0:23074,0.0.0.0:8080")
+	// addrList := env.GetOrDefault("SNI_USB2SNES_LISTEN_ADDRS", "0.0.0.0:23074,0.0.0.0:8080")
 	addrList := config.Config.GetString("usb2snes_listen_addrs")
 	listenAddrs := strings.Split(addrList, ",")
 	for _, listenAddr := range listenAddrs {
@@ -129,7 +129,7 @@ func (w *wsWriter) Write(p []byte) (n int, err error) {
 	}
 
 	if w.written >= w.frameSize {
-		//err = w.w.FlushFragment()
+		// err = w.w.FlushFragment()
 		err = w.w.Flush()
 		w.written = 0
 	}
@@ -551,7 +551,7 @@ serverLoop:
 				wsr := &wsReader{r: r}
 				n, err = wsr.Read(reqs[i].Data)
 				_ = n
-				//log.Printf("usb2snes: %s: %s read()[%d/%d]: read %d bytes; expected %d\n", clientName, cmd.Opcode, i+1, reqCount, n, size)
+				// log.Printf("usb2snes: %s: %s read()[%d/%d]: read %d bytes; expected %d\n", clientName, cmd.Opcode, i+1, reqCount, n, size)
 				if err != nil && err != io.EOF {
 					log.Printf("usb2snes: %s: %s read()[%d/%d]: %s\n", clientName, cmd.Opcode, i+1, reqCount, err)
 					break serverLoop

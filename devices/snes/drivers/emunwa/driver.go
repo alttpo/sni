@@ -232,6 +232,7 @@ func DriverInit() {
 		log.Printf("emunwa: unable to parse '%s', using default of 0xbeef (%d)\n", basePortStr, basePort)
 	}
 
+	log.Printf("emunwa: port range set to 0x%x", basePort)
 	disableOldRange := config.Config.GetBool("nwa_disable_old_range")
 
 	// comma-delimited list of host:port pairs:
@@ -274,6 +275,8 @@ func DriverInit() {
 	if config.Config.GetBool("emunw_detect_log") {
 		logDetector = true
 		log.Printf("emunwa: enabling emunwa detector logging")
+	} else {
+		log.Println("emunwa: disabling emunwa detector logging")
 	}
 
 	// register the driver:

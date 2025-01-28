@@ -222,7 +222,10 @@ func DriverInit() {
 		return
 	}
 
-	if config.Config.GetBool("sni_debug") {
+	log.Println("Enabling fxpakpro snes driver")
+
+	if config.Config.GetBool("debug") {
+		log.Println("Debug Mode Active")
 		defaultLogger := log.Default()
 		debugLog = log.New(
 			defaultLogger.Writer(),
