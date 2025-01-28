@@ -27,7 +27,7 @@ import (
 
 func StartHttpServer() {
 	if config.Config.GetBool("usb2snes_disable") {
-		log.Printf("usb2snes: server disabled due to env var %s=%s\n", "SNI_USB2SNES_DISABLE", true)
+		log.Printf("usb2snes: server disabled due to env var %s=%v\n", "SNI_USB2SNES_DISABLE", true)
 		return
 	}
 
