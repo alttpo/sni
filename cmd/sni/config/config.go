@@ -29,8 +29,6 @@ var (
 	VerboseLogging bool = false
 	LogResponses   bool = false
 	ShowConsole    bool = false
-	// SniDebug       bool = false
-	// SniDebugParsed bool = false // ShowConsole    bool = false
 )
 
 var (

@@ -218,11 +218,9 @@ var debugLog *log.Logger
 
 func DriverInit() {
 	if config.Config.GetBool("fxpakpro_disable") {
-		log.Printf("disabling fxpakpro snes driver\n")
+		log.Printf("Disabling fxpakpro snes driver\n")
 		return
 	}
-
-	log.Println("Enabling fxpakpro snes driver")
 
 	if config.Config.GetBool("debug") {
 		log.Println("Debug Mode Active")
@@ -233,6 +231,8 @@ func DriverInit() {
 			defaultLogger.Flags()|log.Lmsgprefix,
 		)
 	}
+
+	log.Println("Enabling fxpakpro snes driver")
 
 	driver = &Driver{}
 	driver.container = devices.NewDeviceDriverContainer(driver.openDevice)
