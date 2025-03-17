@@ -3,13 +3,13 @@ package devices
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc/codes"
 	"io"
 	"log"
 	"net/url"
+	"sni/cmd/sni/config"
 	"sni/protos/sni"
-	"sni/util"
-	"sni/util/env"
+
+	"google.golang.org/grpc/codes"
 )
 
 // AutoCloseableDevice is a Device wrapper that ensures that a valid Device instance is always used for every
@@ -34,10 +34,10 @@ type autoCloseableDevice struct {
 	logger *log.Logger
 }
 
-var (
-	sniDebug       bool
-	sniDebugParsed bool
-)
+// var (
+// 	sniDebug       bool
+// 	sniDebugParsed bool
+// )
 
 func NewAutoCloseableDevice(container DeviceContainer, uri *url.URL, deviceKey string) AutoCloseableDevice {
 	if container == nil {
@@ -46,14 +46,9 @@ func NewAutoCloseableDevice(container DeviceContainer, uri *url.URL, deviceKey s
 	if uri == nil {
 		panic(fmt.Errorf("uri cannot be nil"))
 	}
-
-	if !sniDebugParsed {
-		sniDebug = util.IsTruthy(env.GetOrDefault("SNI_DEBUG", "0"))
-		sniDebugParsed = true
-	}
-
+	
 	var logger *log.Logger
-	if sniDebug {
+	if config.Config.GetBool("debug") {
 		defaultLogger := log.Default()
 		logger = log.New(
 			defaultLogger.Writer(),

@@ -2,24 +2,26 @@ package retroarch
 
 import (
 	"fmt"
-	"github.com/alttpo/snes/timing"
 	"log"
 	"net"
 	"net/url"
 	"runtime/debug"
+	"sni/cmd/sni/config"
 	"sni/devices"
 	"sni/protos/sni"
-	"sni/util"
-	"sni/util/env"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/alttpo/snes/timing"
 )
 
 const driverName = "ra"
 
-var logDetector = false
-var driver *Driver
+var (
+	logDetector = false
+	driver      *Driver
+)
 
 const defaultAddressSpace = sni.AddressSpace_SnesABus
 
@@ -78,8 +80,7 @@ func (d *Driver) openDevice(uri *url.URL) (q devices.Device, err error) {
 		return
 	}
 
-	var c *RAClient
-	c = NewRAClient(addr, addr.String(), time.Second*5)
+	var c *RAClient = NewRAClient(addr, addr.String(), time.Second*5)
 	err = c.Connect(addr)
 	if err != nil {
 		return
@@ -198,28 +199,30 @@ func (d *Driver) DisconnectAll() {
 }
 
 func DriverInit() {
-	if util.IsTruthy(env.GetOrDefault("SNI_RETROARCH_DISABLE", "0")) {
+	if config.Config.GetBool("retroarch_disable") {
 		log.Printf("disabling retroarch snes driver\n")
 		return
 	}
 
-	// comma-delimited list of host:port pairs:
-	hostsStr := env.GetOrSupply("SNI_RETROARCH_HOSTS", func() string {
-		// default network_cmd_port for RA is UDP 55355. we want to support connecting to multiple
-		// instances so let's auto-detect RA instances listening on UDP ports in the range
-		// [55355..55362]. realistically we probably won't be running any more than a few instances on
-		// the same machine at one time. i picked 8 since i currently have an 8-core CPU :)
-		var sb strings.Builder
-		const count = 1
-		for i := 0; i < count; i++ {
-			sb.WriteString(fmt.Sprintf("localhost:%d", 55355+i))
-			if i < count-1 {
-				sb.WriteByte(',')
-			}
-		}
-		return sb.String()
-	})
-
+	/*
+	  // comma-delimited list of host:port pairs:
+	  hostsStr := env.GetOrSupply("retroarch_hosts", func() string {
+	    // default network_cmd_port for RA is UDP 55355. we want to support connecting to multiple
+	    // instances so let's auto-detect RA instances listening on UDP ports in the range
+	    // [55355..55362]. realistically we probably won't be running any more than a few instances on
+	    // the same machine at one time. i picked 8 since i currently have an 8-core CPU :)
+	    var sb strings.Builder
+	    const count = 1
+	    for i := 0; i < count; i++ {
+	      sb.WriteString(fmt.Sprintf("localhost:%d", 55355+i))
+	      if i < count-1 {
+	        sb.WriteByte(',')
+	      }
+	    }
+	    return sb.String()
+	  })
+	*/
+	hostsStr := config.Config.GetString("retroarch_hosts")
 	// split the hostsStr list by commas:
 	hosts := strings.Split(hostsStr, ",")
 
@@ -237,7 +240,7 @@ func DriverInit() {
 		addresses = append(addresses, addr)
 	}
 
-	if util.IsTruthy(env.GetOrDefault("SNI_RETROARCH_DETECT_LOG", "0")) {
+	if config.Config.GetBool("retroarch_detect_log") {
 		logDetector = true
 		log.Printf("enabling retroarch detector logging")
 	}

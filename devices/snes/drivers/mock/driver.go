@@ -3,10 +3,9 @@ package mock
 import (
 	"log"
 	"net/url"
+	"sni/cmd/sni/config"
 	"sni/devices"
 	"sni/protos/sni"
-	"sni/util"
-	"sni/util/env"
 )
 
 const driverName = "mock"
@@ -84,7 +83,7 @@ func (d *Driver) DisconnectAll() {
 }
 
 func DriverInit() {
-	if util.IsTruthy(env.GetOrDefault("SNI_MOCK_ENABLE", "0")) {
+	if config.Config.GetBool("mock_enable") {
 		log.Printf("enabling mock snes driver\n")
 		driver = &Driver{}
 		driver.container = devices.NewDeviceDriverContainer(driver.openDevice)

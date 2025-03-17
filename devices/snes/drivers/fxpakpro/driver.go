@@ -2,18 +2,18 @@ package fxpakpro
 
 import (
 	"fmt"
-	"go.bug.st/serial"
-	"go.bug.st/serial/enumerator"
 	"log"
 	"net/url"
 	"runtime"
+	"sni/cmd/sni/config"
 	"sni/devices"
 	"sni/protos/sni"
-	"sni/util"
-	"sni/util/env"
 	"strconv"
 	"strings"
 	"sync"
+
+	"go.bug.st/serial"
+	"go.bug.st/serial/enumerator"
 )
 
 const (
@@ -22,24 +22,22 @@ const (
 
 var driver *Driver
 
-var (
-	baudRates = []int{
-		921600, // first rate that works on Windows
-		460800,
-		256000,
-		230400, // first rate that works on MacOS
-		153600,
-		128000,
-		115200,
-		76800,
-		57600,
-		38400,
-		28800,
-		19200,
-		14400,
-		9600,
-	}
-)
+var baudRates = []int{
+	921600, // first rate that works on Windows
+	460800,
+	256000,
+	230400, // first rate that works on MacOS
+	153600,
+	128000,
+	115200,
+	76800,
+	57600,
+	38400,
+	28800,
+	19200,
+	14400,
+	9600,
+}
 
 const defaultAddressSpace = sni.AddressSpace_FxPakPro
 
@@ -157,9 +155,9 @@ func (d *Driver) openPort(portName string, baudRequest int) (f serial.Port, err 
 	}
 
 	// set DTR:
-	//log.Printf("serial: Set DTR on\n")
+	// log.Printf("serial: Set DTR on\n")
 	if err = f.SetDTR(true); err != nil {
-		//log.Printf("serial: %v\n", err)
+		// log.Printf("serial: %v\n", err)
 		_ = f.Close()
 		return nil, fmt.Errorf("%s: failed to set DTR: %w", driverName, err)
 	}
@@ -219,19 +217,22 @@ func (d *Driver) Device(uri *url.URL) devices.AutoCloseableDevice {
 var debugLog *log.Logger
 
 func DriverInit() {
-	if util.IsTruthy(env.GetOrDefault("SNI_FXPAKPRO_DISABLE", "0")) {
-		log.Printf("disabling fxpakpro snes driver\n")
+	if config.Config.GetBool("fxpakpro_disable") {
+		log.Printf("Disabling fxpakpro snes driver\n")
 		return
 	}
 
-	if util.IsTruthy(env.GetOrDefault("SNI_DEBUG", "0")) {
+	if config.Config.GetBool("debug") {
+		log.Println("Debug Mode Active")
 		defaultLogger := log.Default()
 		debugLog = log.New(
 			defaultLogger.Writer(),
-			fmt.Sprintf("fxpakpro: "),
+			"fxpakpro: ",
 			defaultLogger.Flags()|log.Lmsgprefix,
 		)
 	}
+
+	log.Println("Enabling fxpakpro snes driver")
 
 	driver = &Driver{}
 	driver.container = devices.NewDeviceDriverContainer(driver.openDevice)
