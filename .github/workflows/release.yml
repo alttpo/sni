@@ -260,8 +260,25 @@ jobs:
           #- os: ubuntu-latest
           #  goos: linux
           #  goarch: "386"
+          - os: ubuntu-latest
+            container: quay.io/pypa/manylinux_2_28_x86_64
+            goos: linux
+            goarch: amd64
+            gobuildenvs: 'CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-rpath=\$ORIGIN -Wl,--gc-sections"'
+            suffix: tar.xz
+            tags: legacy_appindicator
+            os-variant: _manylinux_2_28
+          - os: ubuntu-24.04-arm
+            container: quay.io/pypa/manylinux_2_28_aarch64
+            goos: linux
+            goarch: arm64
+            gobuildenvs: 'CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-rpath=\$ORIGIN -Wl,--gc-sections"'
+            suffix: tar.xz
+            tags: legacy_appindicator
+            os-variant: _manylinux_2_28
 
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
 
     steps:
       - name: Inject slug/short variables
@@ -272,8 +289,21 @@ jobs:
         with:
           go-version: '^1.22.1'
 
-      - name: Set up linux dependencies
+      - name: Set up linux dependencies (ubuntu)
+        if: ${{ !contains(matrix.os-variant, 'manylinux') }}
         run: sudo apt-get update && sudo apt-get install -y gcc ${{matrix.linuxdeps}}
+
+      - name: Set up linux dependencies (manylinux)
+        if: ${{ contains(matrix.os-variant, 'manylinux') }}
+        run: |
+          # manylinux_2_28 is based on alma 8
+          dnf -y install libappindicator-gtk3 libappindicator-gtk3-devel gtk3-devel libdbusmenu-gtk3 libdbusmenu-gtk3-devel
+
+      - name: Disable buildvcs
+        if: ${{ matrix.container }}
+        run: |
+          # when running go build in a container, buildvcs != false may fail
+          go env -w GOFLAGS=-buildvcs=false
 
       - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}${{matrix.os-variant}}-${{matrix.goarch}}${{matrix.alt}}" >> $GITHUB_ENV
 
@@ -299,14 +329,36 @@ jobs:
           cp lua/x64/socket-linux-5-4.so ${{env.basename}}/lua/x64/socket-linux-5-4.so
           cp lua/x64/socket-linux-5-1.so ${{env.basename}}/lua/x64/socket-linux-5-1.so
 
+      - name: Include appindicator
+        if: ${{ contains(matrix.os-variant, 'manylinux') }}
+        run: |
+          echo -e "\n--\nlibappindicator, libindicator and libdbusmenu are licensed under LGPL, see" >> ${{env.basename}}/LICENSE
+          echo "https://launchpad.net/libappindicator/" >> ${{env.basename}}/LICENSE
+          echo "https://launchpad.net/libindicator/" >> ${{env.basename}}/LICENSE
+          echo "https://launchpad.net/libdbusmenu/" >> ${{env.basename}}/LICENSE
+          cp -L /lib64/libappindicator3.so.1 ${{env.basename}}
+          cp -L /lib64/libindicator3.so.7 ${{env.basename}}
+          cp -L /lib64/libdbusmenu-glib.so.4 ${{env.basename}}
+          cp -L /lib64/libdbusmenu-gtk3.so.4 ${{env.basename}}
+
       - name: Build SNI
         run: >
-          CGO_ENABLED=1 GOOS=${{matrix.goos}} GOARCH=${{matrix.goarch}} ${{matrix.gobuildenvs}} go build
+          CGO_ENABLED=1
+          GOOS=${{matrix.goos}}
+          GOARCH=${{matrix.goarch}}
+          ${{matrix.gobuildenvs}}
+          go build
           -tags="${{ matrix.tags }}"
           -gcflags=all=-l
           -ldflags="-w -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
           -o ./${{env.basename}}/sni
           ./cmd/sni
+
+      - name: Patch appindicator rpath
+        if: ${{ contains(matrix.os-variant, 'manylinux') }}
+        run: |
+          dnf -y install patchelf
+          patchelf --force-rpath --set-rpath '$ORIGIN' ./${{env.basename}}/libappindicator3.*
 
       - name: Download SNFM
         if: ${{ matrix.snfm }}
@@ -337,107 +389,3 @@ jobs:
           overwrite: true
           asset_name: ${{env.basename}}.${{matrix.suffix}}
           file: ${{ github.workspace }}/${{env.basename}}.${{matrix.suffix}}
-
-  manylinux_2_28:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            container: quay.io/pypa/manylinux_2_28_x86_64
-            goos: linux
-            goarch: amd64
-            suffix: tar.xz
-            tags: legacy_appindicator
-          - os: ubuntu-24.04-arm
-            container: quay.io/pypa/manylinux_2_28_aarch64
-            goos: linux
-            goarch: arm64
-            suffix: tar.xz
-            tags: legacy_appindicator
-
-    runs-on: ${{ matrix.os }}
-    container: ${{ matrix.container }}
-
-    steps:
-      - name: Inject slug/short variables
-        uses: rlespinasse/github-slug-action@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '^1.22.1'
-
-      - name: Set up linux dependencies
-        run: |
-          # manylinux_2_28 is based on alma 8
-          dnf -y install libappindicator-gtk3 libappindicator-gtk3-devel gtk3-devel libdbusmenu-gtk3 libdbusmenu-gtk3-devel
-
-      - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-manylinux_2_28-${{matrix.goarch}}" >> $GITHUB_ENV
-
-      - uses: actions/checkout@v4
-        name: Checkout
-        with:
-          fetch-depth: 0
-
-      - name: Collect files
-        run: |
-          mkdir ${{env.basename}}
-          mkdir ${{env.basename}}/lua
-          cp README.md ${{env.basename}}
-          cp LICENSE ${{env.basename}}
-          cp protos/sni/sni.proto ${{env.basename}}
-          cp cmd/sni/apps.yaml ${{env.basename}}
-          cp lua/Connector.lua ${{env.basename}}/lua
-          echo -e "\n--\nlibappindicator, libindicator and libdbusmenu are licensed under LGPL, see" >> ${{env.basename}}/LICENSE
-          echo "https://launchpad.net/libappindicator/" >> ${{env.basename}}/LICENSE
-          echo "https://launchpad.net/libindicator/" >> ${{env.basename}}/LICENSE
-          echo "https://launchpad.net/libdbusmenu/" >> ${{env.basename}}/LICENSE
-          cp -L /lib64/libappindicator3.so.1 ${{env.basename}}
-          cp -L /lib64/libindicator3.so.7 ${{env.basename}}
-          cp -L /lib64/libdbusmenu-glib.so.4 ${{env.basename}}
-          cp -L /lib64/libdbusmenu-gtk3.so.4 ${{env.basename}}
-
-      - name: Lua connector (x64)
-        if: ${{ matrix.goarch == 'amd64' }}
-        run: |
-          mkdir ${{env.basename}}/lua/x64
-          cp lua/x64/socket-linux-5-4.so ${{env.basename}}/lua/x64/socket-linux-5-4.so
-          cp lua/x64/socket-linux-5-1.so ${{env.basename}}/lua/x64/socket-linux-5-1.so
-
-      - name: Build SNI
-        run: >
-          CGO_ENABLED=1
-          CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-rpath=\$ORIGIN -Wl,--gc-sections"
-          GOARCH=${{matrix.goarch}}
-          go build -tags=${{matrix.tags}} -buildvcs=false
-          -gcflags=all=-l
-          -ldflags="-w -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
-          -o ./${{env.basename}}/sni
-          ./cmd/sni
-
-      - name: Patch appindicator rpath
-        run: |
-          dnf -y install patchelf
-          patchelf --force-rpath --set-rpath '$ORIGIN' ./${{env.basename}}/libappindicator3.*
-
-      - name: Package ${{env.basename}}.${{matrix.suffix}} for Linux
-        run: |
-          ldd ${{env.basename}}/sni
-          tar cJf ${{env.basename}}.${{matrix.suffix}} ${{env.basename}}/
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{env.basename}}.${{matrix.suffix}}
-          path: ${{github.workspace}}/${{env.basename}}.${{matrix.suffix}}
-
-      - name: Upload binaries to release
-        if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v') }}
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ env.GITHUB_REF_SLUG }}
-          overwrite: true
-          asset_name: ${{env.basename}}.${{matrix.suffix}}
-          file: ${{github.workspace}}/${{env.basename}}.${{matrix.suffix}}
