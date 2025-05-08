@@ -1,5 +1,4 @@
 //go:build notray
-// +build notray
 
 package tray
 
