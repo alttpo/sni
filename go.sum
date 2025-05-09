@@ -17,8 +17,8 @@ github.com/alttpo/observable v0.0.0-20210711210405-e5b91ea63352 h1:abCFCtEtXiAXh
 github.com/alttpo/observable v0.0.0-20210711210405-e5b91ea63352/go.mod h1:S2lExZ67QD0EYw5ie4PlFLwVDEXZzAtDrUbgRWqArRo=
 github.com/alttpo/snes v0.0.0-20250404054731-644082b79cd3 h1:AyRPfl8q+1lIMpZZRVcf3DYv/3HGs2UA6GfZ1fdsmuA=
 github.com/alttpo/snes v0.0.0-20250404054731-644082b79cd3/go.mod h1:hqcMbI1PDqZfNOwDdcGcsJPS5ca1nRhBIj9wwkMrS1c=
-github.com/alttpo/systray v1.12.0 h1:MrR094K322BWI8i8CgnI+KwjtIJjyBubD/CA1jwLDOE=
-github.com/alttpo/systray v1.12.0/go.mod h1:E4w6jt/WVciTWXwkSW+jzPxm26+tDwsKAQaI/XARji4=
+github.com/alttpo/systray v1.12.1 h1:HZ2nrVbmALKY6b+8+BN+CzS4rBOFVfq6OxYZUyIOkKo=
+github.com/alttpo/systray v1.12.1/go.mod h1:qyUixoZ5Sw+f35KESwGMfRWnb5LYJf8fO6kY6YvpCXQ=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
