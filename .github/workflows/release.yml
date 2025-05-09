@@ -17,7 +17,7 @@ jobs:
           go-version: '^1.23.0'
 
       - name: Set up linux dependencies
-        run: sudo apt-get update && sudo apt-get install -y gcc libgtk-3-dev libayatana-appindicator3-dev
+        run: sudo apt-get update && sudo apt-get install -y gcc
 
       - uses: actions/checkout@v4
         with:
@@ -392,30 +392,21 @@ jobs:
           cp lua/Connector.lua ${{env.basename}}/lua
           cp lua/x64/socket-linux-5-1.so ${{env.basename}}/lua/x64/socket-linux-5-1.so
           cp lua/x64/socket-linux-5-4.so ${{env.basename}}/lua/x64/socket-linux-5-4.so
-          echo -e "\n--\nlibappindicator, libindicator and libdbusmenu are licensed under LGPL, see" >> ${{env.basename}}/LICENSE
-          echo "https://launchpad.net/libappindicator/" >> ${{env.basename}}/LICENSE
-          echo "https://launchpad.net/libindicator/" >> ${{env.basename}}/LICENSE
+          echo -e "\n--\nlibdbusmenu is licensed under LGPL, see" >> ${{env.basename}}/LICENSE
           echo "https://launchpad.net/libdbusmenu/" >> ${{env.basename}}/LICENSE
-          cp -L /lib64/libappindicator3.so.1 ${{env.basename}}
-          cp -L /lib64/libindicator3.so.7 ${{env.basename}}
           cp -L /lib64/libdbusmenu-glib.so.4 ${{env.basename}}
           cp -L /lib64/libdbusmenu-gtk3.so.4 ${{env.basename}}
 
       - name: Build SNI
         run: >
           CGO_ENABLED=1
-          CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-rpath=\$ORIGIN -Wl,--gc-sections"
+          CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-rpath=\$ORIGIN"
           GOARCH=amd64
-          go build -tags=legacy_appindicator -buildvcs=false
+          go build -buildvcs=false
           -gcflags=all=-l
           -ldflags="-w -X 'main.version=${{env.GITHUB_REF_SLUG}}' -X 'main.commit=${{env.GITHUB_SHA_SHORT}}' -X 'main.date=$(date +'%Y-%m-%dT%H:%M:%S')'"
           -o ./${{env.basename}}/sni
           ./cmd/sni
-
-      - name: Patch appindicator rpath
-        run: |
-          dnf -y install patchelf
-          patchelf --force-rpath --set-rpath '$ORIGIN' ./${{env.basename}}/libappindicator3.*
 
       - name: Package ${{env.basename}}.tar.xz for Linux
         run: |
