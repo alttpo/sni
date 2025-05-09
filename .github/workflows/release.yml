@@ -14,7 +14,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.22.1'
+          go-version: '^1.23.0'
 
       - name: Set up linux dependencies
         run: sudo apt-get update && sudo apt-get install -y gcc libgtk-3-dev libayatana-appindicator3-dev
@@ -35,25 +35,31 @@ jobs:
             goarch: amd64
             suffix: zip
             snfm: snfm-*-windows-x64.zip
-          - os: windows-latest
-            goos: windows
-            goarch: amd64
-            suffix: zip
-            snfm: snfm-*-windows-x64.zip
-            os-variant: '7'
+            name: win-amd64
+# NOTE(jsd): windows 7 supported only up to go 1.21 and some packages (x/sys v0.33.0) forced us to upgrade
+#          - os: windows-latest
+#            goos: windows
+#            goarch: amd64
+#            suffix: zip
+#            snfm: snfm-*-windows-x64.zip
+#            os-variant: '7'
           - os: windows-latest
             goos: windows
             goarch: "386"
             suffix: zip
+            name: win-x86
           - os: windows-latest
             goos: windows
             goarch: arm
             suffix: zip
+            name: win-arm
           - os: windows-latest
             goos: windows
             goarch: arm64
             suffix: zip
+            name: win-arm64
     runs-on: windows-latest
+    name: ${{matrix.name}}
 
     steps:
       - name: Inject slug/short variables
@@ -63,13 +69,14 @@ jobs:
         if: ${{ matrix.goos != 'windows' || matrix.os-variant != '7' }}
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.22.1'
+          go-version: '^1.23.0'
 
-      - name: Set up Go
-        if: ${{ matrix.goos == 'windows' && matrix.os-variant == '7' }}
-        uses: actions/setup-go@v5
-        with:
-          go-version: '~1.20.14'
+# win7 not supported any more
+#      - name: Set up Go
+#        if: ${{ matrix.goos == 'windows' && matrix.os-variant == '7' }}
+#        uses: actions/setup-go@v5
+#        with:
+#          go-version: '~1.20.14'
 
       - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}${{matrix.os-variant}}-${{matrix.goarch}}${{matrix.alt}}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
@@ -150,7 +157,9 @@ jobs:
           - os: macos-latest
             suffix: tar.gz
             snfm: snfm-*-macos-x64.zip
+            name: macos
     runs-on: macos-latest
+    name: ${{matrix.name}}
 
     steps:
       - name: Inject slug/short variables
@@ -159,7 +168,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.22.1'
+          go-version: '^1.23.0'
 
       - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-darwin-universal${{matrix.alt}}" >> $GITHUB_ENV
 
@@ -237,43 +246,39 @@ jobs:
             goos: linux
             goarch: amd64
             suffix: tar.xz
-            linuxdeps: libgtk-3-dev libayatana-appindicator3-dev
+            compiler: gcc
             snfm: snfm-*-linux-x64.zip
+            name: linux-amd64
           - os: ubuntu-latest
             goos: linux
             goarch: amd64
             suffix: tar.xz
+            compiler: gcc
             tags: notray
             alt: -notray
             snfm: snfm-*-linux-x64.zip
-          ## NOTE(2023-08-31): disabled arm64 builds due to cross-compilation error with systray package:
-          ## # github.com/getlantern/systray
-          ## In file included from /usr/aarch64-linux-gnu/include/features.h:510,
-          ##                  from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
-          ##                  from /usr/aarch64-linux-gnu/include/stdlib.h:26,
-          ##                  from _cgo_export.c:3:
-          ## /usr/include/x86_64-linux-gnu/gnu/stubs.h:7:11: fatal error: gnu/stubs-32.h: No such file or directory
-          ##     7 | # include <gnu/stubs-32.h>
-          ##       |           ^~~~~~~~~~~~~~~~
-          ## compilation terminated.
-          #- os: ubuntu-latest
-          #  goos: linux
-          #  goarch: arm64
-          #  suffix: tar.xz
-          #  linuxdeps: gcc-aarch64-linux-gnu libgtk-3-dev libayatana-appindicator3-dev
-          #  gobuildenvs: CC=aarch64-linux-gnu-gcc
-          #- os: ubuntu-latest
-          #  goos: linux
-          #  goarch: arm64
-          #  suffix: tar.xz
-          #  tags: notray
-          #  alt: -notray
-          #  linuxdeps: gcc-aarch64-linux-gnu
-          #  gobuildenvs: CC=aarch64-linux-gnu-gcc
+            name: linux-notray-amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            suffix: tar.xz
+            compiler: gcc-aarch64-linux-gnu
+            gobuildenvs: CC=aarch64-linux-gnu-gcc
+            name: linux-arm64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            suffix: tar.xz
+            tags: notray
+            alt: -notray
+            compiler: gcc-aarch64-linux-gnu
+            gobuildenvs: CC=aarch64-linux-gnu-gcc
+            name: linux-notray-arm64
           #- os: ubuntu-latest
           #  goos: linux
           #  goarch: "386"
     runs-on: ubuntu-latest
+    name: ${{matrix.name}}
 
     steps:
       - name: Inject slug/short variables
@@ -282,10 +287,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.22.1'
+          go-version: '^1.23.0'
 
       - name: Set up linux dependencies
-        run: sudo apt-get update && sudo apt-get install -y gcc ${{matrix.linuxdeps}}
+        run: sudo apt-get update && sudo apt-get install -y ${{matrix.compiler}}
 
       - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}${{matrix.os-variant}}-${{matrix.goarch}}${{matrix.alt}}" >> $GITHUB_ENV
 
@@ -353,6 +358,7 @@ jobs:
   manylinux_2_28:
     runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux_2_28_x86_64
+    name: manylinux_2_28
     steps:
       - name: Inject slug/short variables
         uses: rlespinasse/github-slug-action@v4
@@ -360,12 +366,12 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.22.1'
+          go-version: '^1.23.0'
 
       - name: Set up linux dependencies
         run: |
           # manylinux_2_28 is based on alma 8
-          dnf -y install libappindicator-gtk3 libappindicator-gtk3-devel gtk3-devel libdbusmenu-gtk3 libdbusmenu-gtk3-devel
+          dnf -y install libdbusmenu-gtk3 libdbusmenu-gtk3-devel
 
       - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-manylinux_2_28-amd64" >> $GITHUB_ENV
 
