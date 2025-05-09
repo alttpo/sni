@@ -16,8 +16,8 @@ import (
 	"sync"
 	"time"
 
-	"fyne.io/systray"
 	"github.com/alttpo/observable"
+	"github.com/alttpo/systray"
 	"github.com/spf13/viper"
 )
 
@@ -78,8 +78,7 @@ func ShowMessage(appName, title, msg string) {
 			systray.SetTooltip(versionText)
 
 			// show balloon notification for 10 seconds:
-			// TODO!
-			//systray.ShowMessage(appName, title, msg)
+			systray.ShowMessage(appName, title, msg)
 			time.Sleep(10 * time.Second)
 
 			systray.Quit()
