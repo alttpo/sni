@@ -372,16 +372,24 @@ serverLoop:
 				var addr uint64
 				addr, err = strconv.ParseUint(addrHex, 16, 32)
 				if err != nil {
-					log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, i*2, addrHex)
-					break serverLoop
+					// attempt parse again with unspecified base to parse `0x` prefix:
+					addr, err = strconv.ParseUint(addrHex, 0, 32)
+					if err != nil {
+						log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, i*2, addrHex)
+						break serverLoop
+					}
 				}
 
 				sizeHex := cmd.Operands[i*2+1]
 				var size uint64
 				size, err = strconv.ParseUint(sizeHex, 16, 32)
 				if err != nil {
-					log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, i*2+1, sizeHex)
-					break serverLoop
+					// attempt parse again with unspecified base to parse `0x` prefix:
+					size, err = strconv.ParseUint(sizeHex, 0, 32)
+					if err != nil {
+						log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, i*2+1, sizeHex)
+						break serverLoop
+					}
 				}
 
 				// skip 0-byte read requests and don't send them to devices:
@@ -497,16 +505,24 @@ serverLoop:
 				var addr uint64
 				addr, err = strconv.ParseUint(addrHex, 16, 32)
 				if err != nil {
-					log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, i*2, addrHex)
-					break serverLoop
+					// attempt parse again with unspecified base to parse `0x` prefix:
+					addr, err = strconv.ParseUint(addrHex, 0, 32)
+					if err != nil {
+						log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, i*2, addrHex)
+						break serverLoop
+					}
 				}
 
 				sizeHex := cmd.Operands[i*2+1]
 				var size uint64
 				size, err = strconv.ParseUint(sizeHex, 16, 32)
 				if err != nil {
-					log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, i*2+1, sizeHex)
-					break serverLoop
+					// attempt parse again with unspecified base to parse `0x` prefix:
+					size, err = strconv.ParseUint(sizeHex, 0, 32)
+					if err != nil {
+						log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, i*2+1, sizeHex)
+						break serverLoop
+					}
 				}
 
 				var addr32 uint32
@@ -757,8 +773,12 @@ serverLoop:
 			var size64 uint64
 			size64, err = strconv.ParseUint(cmd.Operands[1], 16, 32)
 			if err != nil {
-				log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, 1, cmd.Operands[1])
-				break serverLoop
+				// attempt parse again with unspecified base to parse `0x` prefix:
+				size64, err = strconv.ParseUint(cmd.Operands[1], 0, 32)
+				if err != nil {
+					log.Printf("usb2snes: %s: %s: bad operand [%d]: '%s'\n", clientName, cmd.Opcode, 1, cmd.Operands[1])
+					break serverLoop
+				}
 			}
 			size := uint32(size64)
 
