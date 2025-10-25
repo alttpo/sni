@@ -494,7 +494,7 @@ func (c *RAClient) MultiReadMemory(ctx context.Context, reads ...devices.MemoryR
 			}
 		}
 
-		mrsp[rwreq.index].Data = rwreq.Read.ResponseData
+		mrsp[rwreq.index].Data = append(mrsp[rwreq.index].Data, rwreq.Read.ResponseData...)
 	}
 
 	return
