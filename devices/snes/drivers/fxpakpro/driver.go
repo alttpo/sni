@@ -200,7 +200,15 @@ func (d *Driver) openDevice(uri *url.URL) (device devices.Device, err error) {
 	}
 
 	dev := &Device{f: f}
-	err = dev.Init()
+
+	// attempt to init the device:
+	if err = dev.Init(); err != nil {
+		if clerr := dev.Close(); clerr != nil {
+			log.Printf("%s: failed to close device: %v\n", driverName, clerr)
+		}
+		dev = nil
+		return
+	}
 
 	device = dev
 	return

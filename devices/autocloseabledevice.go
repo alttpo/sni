@@ -2,6 +2,7 @@ package devices
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -46,7 +47,7 @@ func NewAutoCloseableDevice(container DeviceContainer, uri *url.URL, deviceKey s
 	if uri == nil {
 		panic(fmt.Errorf("uri cannot be nil"))
 	}
-	
+
 	var logger *log.Logger
 	if config.Config.GetBool("debug") {
 		defaultLogger := log.Default()
@@ -80,7 +81,8 @@ func (a *autoCloseableDevice) ensureOpened(ctx context.Context, use deviceUser) 
 	err = use(ctx, device)
 
 	// Check for fatal error and close device if so:
-	if derr, ok := err.(DeviceError); ok && derr.IsFatal() {
+	var derr DeviceError
+	if errors.As(err, &derr) && derr.IsFatal() {
 		oerr := device.Close()
 		if oerr != nil {
 			log.Printf("autoCloseableDevice.ensureOpened(): device.Close(): %v\n", oerr)
