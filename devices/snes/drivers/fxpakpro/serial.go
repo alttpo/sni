@@ -14,13 +14,41 @@ import (
 
 const safeTimeout = time.Second * 1
 
-type hasSetReadTimeout interface {
-	// SetReadTimeout sets the timeout for the Read operation or use serial.NoTimeout
-	// to disable read timeout.
-	SetReadTimeout(t time.Duration) error
+func readExactGeneric(ctx context.Context, f io.Reader, chunkSize uint32, buf []byte) (p uint32, err error) {
+	ctx, task := trace.NewTask(ctx, "readExactGeneric")
+	defer task.End()
+
+	attempts := 0
+	p = 0
+	for p < chunkSize {
+		var n int
+		lastp := p
+		n, err = f.Read(buf[p:chunkSize])
+		trace.Logf(ctx, "read", "read(buf[%d:%d]) = %v, %v", p, chunkSize, n, err)
+		if n < 0 {
+			n = 0
+		}
+		p += uint32(n)
+		if p == lastp {
+			attempts++
+			trace.Logf(ctx, "retry", "attempts = %v", attempts)
+			if attempts >= 60 {
+				err = fmt.Errorf("readExactGeneric: timed out after 60 attempts of reading zero bytes")
+				return
+			}
+		} else {
+			attempts = 0
+		}
+		if err != nil {
+			return
+		}
+	}
+
+	trace.Log(ctx, "read", "return")
+	return
 }
 
-func readExact(ctx context.Context, f io.Reader, chunkSize uint32, buf []byte) (p uint32, err error) {
+func readExact(ctx context.Context, f serial.Port, chunkSize uint32, buf []byte) (p uint32, err error) {
 	// determine a deadline from context or default:
 	var ok bool
 
@@ -38,7 +66,7 @@ func readExact(ctx context.Context, f io.Reader, chunkSize uint32, buf []byte) (
 	p = 0
 	for p < chunkSize {
 		// update the read timeout if applicable:
-		if fr, ok := f.(hasSetReadTimeout); ok {
+		{
 			var timeout time.Duration
 			if haveHardDeadline {
 				// we have a hard deadline to meet:
@@ -53,7 +81,7 @@ func readExact(ctx context.Context, f io.Reader, chunkSize uint32, buf []byte) (
 			}
 
 			trace.Logf(ctx, "deadline", "SetReadTimeout(%v)", timeout)
-			err = fr.SetReadTimeout(timeout)
+			err = f.SetReadTimeout(timeout)
 			if err != nil {
 				err = fmt.Errorf("readExact: setReadTimeout returned %w", err)
 				return
@@ -74,8 +102,8 @@ func readExact(ctx context.Context, f io.Reader, chunkSize uint32, buf []byte) (
 		if p == lastp {
 			attempts++
 			trace.Logf(ctx, "retry", "attempts = %v", attempts)
-			if attempts >= 15 {
-				err = fmt.Errorf("readExact: timed out after 15 attempts of reading zero bytes")
+			if attempts >= 60 {
+				err = fmt.Errorf("readExact: timed out after 60 attempts of reading zero bytes")
 				return
 			}
 		} else {
@@ -91,32 +119,46 @@ func readExact(ctx context.Context, f io.Reader, chunkSize uint32, buf []byte) (
 }
 
 func writeExact(ctx context.Context, w io.Writer, chunkSize uint32, buf []byte) (p uint32, err error) {
-	_ = ctx
+	ctx, task := trace.NewTask(ctx, "writeExact")
+	defer task.End()
+
 	p = uint32(0)
 	for p < chunkSize {
 		var n int
 		n, err = w.Write(buf[p:chunkSize])
+		trace.Logf(ctx, "write", "write(buf[%d:%d]) = %v, %v", p, chunkSize, n, err)
 		if n < 0 {
 			n = 0
 		}
 		if debugLog != nil {
 			debugLog.Printf("writeExact: write returned n=%d, err=%v\n%s", n, err, hex.Dump(buf[p:p+uint32(n)]))
 		}
-		p += uint32(n)
 		if err != nil {
 			return
 		}
+		p += uint32(n)
 	}
 
 	return
 }
 
-func sendSerial(f serial.Port, buf []byte) error {
+func sendSerial(ctx context.Context, f serial.Port, buf []byte) (err error) {
+	ctx, task := trace.NewTask(ctx, "sendSerial")
+	defer task.End()
+
 	sent := 0
 	for sent < len(buf) {
-		n, e := f.Write(buf[sent:])
-		if e != nil {
-			return e
+		var n int
+		n, err = f.Write(buf[sent:])
+		trace.Logf(ctx, "write", "write(buf[%d:]) = %v, %v", sent, n, err)
+		if n < 0 {
+			n = 0
+		}
+		if debugLog != nil {
+			debugLog.Printf("sendSerial: write returned n=%d, err=%v\n%v", n, err, hex.Dump(buf[sent:sent+n]))
+		}
+		if err != nil {
+			return
 		}
 		sent += n
 	}
@@ -145,8 +187,9 @@ func sendSerialProgress(f serial.Port, chunkSize uint32, size uint32, r io.Reade
 			report(sent, size)
 		}
 
+		// read from the upstream reader:
 		var n uint32
-		n, err = readExact(ctx, r, chunkSize, buf[:chunkSize])
+		n, err = readExactGeneric(ctx, r, chunkSize, buf[:chunkSize])
 		if err == io.EOF {
 			err = nil
 		}
@@ -170,7 +213,7 @@ func sendSerialProgress(f serial.Port, chunkSize uint32, size uint32, r io.Reade
 		}
 
 		var n uint32
-		n, err = readExact(ctx, r, chunkSize, buf[:chunkSize])
+		n, err = readExactGeneric(ctx, r, chunkSize, buf[:chunkSize])
 		if err == io.EOF {
 			err = nil
 		}

@@ -49,7 +49,7 @@ func (d *Device) vget(ctx context.Context, space space, chunks ...vgetChunk) (er
 		trace.Log(ctx, "req", hex.Dump(sb))
 	}
 
-	err = sendSerial(d.f, sb)
+	err = sendSerial(ctx, d.f, sb)
 	if err != nil {
 		err = d.FatalError(err)
 		return
