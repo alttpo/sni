@@ -7,7 +7,7 @@ toolchain go1.24.9
 require (
 	github.com/alttpo/observable v0.0.0-20210711210405-e5b91ea63352
 	github.com/alttpo/snes v0.0.0-20250404054731-644082b79cd3
-	github.com/alttpo/systray v1.12.1
+	github.com/alttpo/systray v1.12.2
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gobwas/ws v1.4.0
 	github.com/improbable-eng/grpc-web v0.15.0
