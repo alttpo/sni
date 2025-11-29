@@ -35,7 +35,7 @@ func Test_readExact(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotP, err := readExact(tt.args.ctx, tt.args.f, tt.args.chunkSize, tt.args.buf)
+			gotP, err := readExactGeneric(tt.args.ctx, tt.args.f, tt.args.chunkSize, tt.args.buf)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("readExact() error = %v, wantErr %v", err, tt.wantErr)
 				return
