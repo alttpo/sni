@@ -102,8 +102,8 @@ func readExact(ctx context.Context, f serial.Port, chunkSize uint32, buf []byte)
 		if p == lastp {
 			attempts++
 			trace.Logf(ctx, "retry", "attempts = %v", attempts)
-			if attempts >= 60 {
-				err = fmt.Errorf("readExact: timed out after 60 attempts of reading zero bytes")
+			if attempts >= 9 {
+				err = fmt.Errorf("readExact: timed out after %d attempts of reading zero bytes", attempts)
 				return
 			}
 		} else {
