@@ -118,11 +118,13 @@ type Tray struct {
 var maintray Tray
 
 func (t *Tray) updateConsole() {
-	if t.toggleShowConsole != nil {
-		if config.ShowConsole {
-			t.toggleShowConsole.Check()
-		} else {
-			t.toggleShowConsole.Uncheck()
+	if consoleIsDynamic() {
+		if t.toggleShowConsole != nil {
+			if config.ShowConsole {
+				t.toggleShowConsole.Check()
+			} else {
+				t.toggleShowConsole.Uncheck()
+			}
 		}
 	}
 
@@ -338,6 +340,19 @@ func trayStart() {
 
 	maintray.Init()
 
+	// Background thread to await on systray click actions:
+	go func() {
+		for {
+			maintray.HandleNextAction()
+		}
+	}()
+
+	go func() {
+		for {
+			maintray.HandleAppMenuItems()
+		}
+	}()
+
 	// subscribe to configuration changes:
 	config.ConfigObservable.Subscribe(observable.NewObserver("logging", func(event observable.Event) {
 		v, ok := event.Value.(*viper.Viper)
@@ -368,19 +383,6 @@ func trayStart() {
 		refreshPeriod := time.Tick(time.Second * 2)
 		for range refreshPeriod {
 			RefreshDeviceList()
-		}
-	}()
-
-	// Background thread to await on systray click actions:
-	go func() {
-		for {
-			maintray.HandleNextAction()
-		}
-	}()
-
-	go func() {
-		for {
-			maintray.HandleAppMenuItems()
 		}
 	}()
 }
