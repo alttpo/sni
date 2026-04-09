@@ -92,9 +92,9 @@ func InitDir() {
 			var xdgConfig = os.Getenv("XDG_CONFIG_HOME")
 			if xdgConfig == "" {
 				homeDir, _ := os.UserHomeDir()
-				xdgConfig = filepath.Join(homeDir,".config")
+				xdgConfig = filepath.Join(homeDir, ".config")
 			}
-			Dir = filepath.Join(xdgConfig,"sni")
+			Dir = filepath.Join(xdgConfig, "sni")
 		}
 	}
 	// make the directory if it doesn't exist:
