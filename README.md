@@ -94,7 +94,11 @@ folder.
 
 On Windows, this folder is `%LOCALAPPDATA%\sni`.
 
-On MacOS, this folder is `~/.sni/`.
+On MacOS and Linux, this folder is `$XDG_CONFIG_HOME/sni/` or `$HOME/.config/sni/` with `$HOME/.sni/` as a fallback.
+SNI uses the following order when choosing a config folder:
+1. `$HOME/.sni/` if it already exists
+2. `$XDG_CONFIG_HOME/sni/` if `$XDG_CONFIG_HOME` is set (not empty)
+3. `$HOME/.config/sni/`
 
 During start-up, in the console window, SNI will output where the current log
 file is located at:

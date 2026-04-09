@@ -86,6 +86,16 @@ func InitDir() {
 			return
 		}
 		Dir = filepath.Join(Dir, ".sni")
+
+		// Follow XDG Base Directory Specification
+		if _, err := os.Stat(Dir); err != nil {		
+			var xdgConfig = os.Getenv("XDG_CONFIG_HOME")
+			if xdgConfig == "" {
+				homeDir, _ := os.UserHomeDir()
+				xdgConfig = filepath.Join(homeDir, ".config")
+			}
+			Dir = filepath.Join(xdgConfig, "sni")
+		}
 	}
 	// make the directory if it doesn't exist:
 	_ = os.MkdirAll(Dir, 0755|os.ModeDir)
