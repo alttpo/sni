@@ -63,6 +63,9 @@ var (
 		// We are not setting it here
 		"emunw_disable":    false,
 		"emunw_detect_log": false,
+
+		"proxy_disable":       false,
+		"proxy_backend_host":  "",
 	}
 	nwaConfigs = map[string]any{
 		"nwa_port_range":        NwaDefaultPort,
