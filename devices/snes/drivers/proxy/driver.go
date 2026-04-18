@@ -144,14 +144,14 @@ func (d *Driver) openDevice(uri *url.URL) (devices.Device, error) {
 	}
 
 	dev := &Device{
-		conn:      conn,
-		remoteURI: remoteURI,
-		devices:   sni.NewDevicesClient(conn),
-		memory:    sni.NewDeviceMemoryClient(conn),
-		control:   sni.NewDeviceControlClient(conn),
+		conn:       conn,
+		remoteURI:  remoteURI,
+		devices:    sni.NewDevicesClient(conn),
+		memory:     sni.NewDeviceMemoryClient(conn),
+		control:    sni.NewDeviceControlClient(conn),
 		filesystem: sni.NewDeviceFilesystemClient(conn),
-		info:      sni.NewDeviceInfoClient(conn),
-		nwa:       sni.NewDeviceNWAClient(conn),
+		info:       sni.NewDeviceInfoClient(conn),
+		nwa:        sni.NewDeviceNWAClient(conn),
 	}
 
 	return dev, nil
@@ -184,8 +184,7 @@ func DriverInit() {
 		return
 	}
 
-	// support multiple comma-separated backend addresses in the future;
-	// for now just trim whitespace
+	// TODO: consider supporting an array / multiple comma-separated backend addresses in the future
 	backendAddr = strings.TrimSpace(backendAddr)
 
 	log.Printf("proxy: enabling proxy driver to backend %s\n", backendAddr)
