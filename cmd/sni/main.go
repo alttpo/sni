@@ -15,6 +15,7 @@ import (
 	"sni/devices/snes/drivers/fxpakpro"
 	"sni/devices/snes/drivers/luabridge"
 	"sni/devices/snes/drivers/mock"
+	"sni/devices/snes/drivers/proxy"
 	"sni/devices/snes/drivers/retroarch"
 	"sni/services/grpcimpl"
 	"sni/services/usb2snes"
@@ -94,6 +95,7 @@ func main() {
 	luabridge.DriverInit()
 	retroarch.DriverInit()
 	mock.DriverInit()
+	proxy.DriverInit()
 
 	// start the servers:
 	grpcimpl.StartGrpcServer()
