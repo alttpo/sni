@@ -156,7 +156,7 @@ jobs:
         include:
           - os: macos-latest
             suffix: tar.gz
-            snfm: snfm-*-macos-x64.zip
+            snfm: snfm-*-macos-universal.zip
             name: macos
     runs-on: macos-latest
     name: ${{matrix.name}}
