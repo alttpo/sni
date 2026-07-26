@@ -105,8 +105,6 @@ jobs:
 
       - name: Copy in lua socket.dll dependencies for Windows
         run: |
-          rm ${{env.basename}}/lua/Connector.lua
-          cp lua/Connector.lua ${{env.basename}}/lua/
           cp lua/x64/socket-windows-5-1.dll ${{env.basename}}/lua/x64
           cp lua/x64/socket-windows-5-4.dll ${{env.basename}}/lua/x64
           cp lua/x64/luasocket.LICENSE.txt ${{env.basename}}/lua/x64
