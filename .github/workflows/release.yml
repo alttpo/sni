@@ -101,7 +101,7 @@ jobs:
           cp LICENSE ${{env.basename}}
           cp protos/sni/sni.proto ${{env.basename}}
           cp cmd/sni/apps.yaml ${{env.basename}}
-          cp lua/Connector.lua ${{env.basename}}/lua
+          cp lua/{,MesenS}Connector.lua ${{env.basename}}/lua
 
       - name: Copy in lua socket.dll dependencies for Windows
         run: |
@@ -183,7 +183,7 @@ jobs:
           cp LICENSE ${{env.basename}}
           cp protos/sni/sni.proto ${{env.basename}}
           cp cmd/sni/apps.yaml ${{env.basename}}
-          cp lua/Connector.lua ${{env.basename}}/lua
+          cp lua/{,MesenS}Connector.lua ${{env.basename}}/lua
 
       - name: Build SNI (amd64, arm64)
         run: >
@@ -305,7 +305,7 @@ jobs:
           cp LICENSE ${{env.basename}}
           cp protos/sni/sni.proto ${{env.basename}}
           cp cmd/sni/apps.yaml ${{env.basename}}
-          cp lua/Connector.lua ${{env.basename}}/lua
+          cp lua/{,MesenS}Connector.lua ${{env.basename}}/lua
 
       - name: Copy in lua socket.so dependencies for Linux amd64
         if: ${{ matrix.goarch == 'amd64' }}
@@ -387,7 +387,7 @@ jobs:
           cp LICENSE ${{env.basename}}
           cp protos/sni/sni.proto ${{env.basename}}
           cp cmd/sni/apps.yaml ${{env.basename}}
-          cp lua/Connector.lua ${{env.basename}}/lua
+          cp lua/{,MesenS}Connector.lua ${{env.basename}}/lua
           cp lua/x64/socket-linux-5-1.so ${{env.basename}}/lua/x64/socket-linux-5-1.so
           cp lua/x64/socket-linux-5-4.so ${{env.basename}}/lua/x64/socket-linux-5-4.so
           echo -e "\n--\nlibdbusmenu is licensed under LGPL, see" >> ${{env.basename}}/LICENSE
