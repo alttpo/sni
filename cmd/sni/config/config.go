@@ -50,6 +50,20 @@ var (
 		"usb2snes_listen_addrs": "0.0.0.0:23074",
 		"fxpakpro_disable":      false,
 
+		// How long the fxpakpro driver waits on a device that has gone quiet or
+		// stopped accepting data. The firmware does its FAT work inside the USB
+		// interrupt handler, so a cluster allocation on a large, full, fragmented
+		// card can stall for seconds before it can answer; raise these if you see
+		// spurious timeouts on such a card.
+		"fxpakpro_read_timeout":  "15s",
+		"fxpakpro_write_timeout": "15s",
+		// Whether a caller's context deadline or cancellation aborts I/O already
+		// in flight to the device. With this off, a request that has already
+		// started talking to the fxpakpro runs to completion (bounded by the two
+		// timeouts above) rather than being cut short mid-transfer by an
+		// impatient client.
+		"fxpakpro_honor_caller_deadline": true,
+
 		"retroarch_disable":    false,
 		"retroarch_hosts":      "localhost:55355",
 		"retroarch_detect_log": false,
@@ -64,8 +78,8 @@ var (
 		"emunw_disable":    false,
 		"emunw_detect_log": false,
 
-		"proxy_disable":       false,
-		"proxy_backend_host":  "",
+		"proxy_disable":      false,
+		"proxy_backend_host": "",
 	}
 	nwaConfigs = map[string]any{
 		"nwa_port_range":        NwaDefaultPort,
@@ -91,7 +105,7 @@ func InitDir() {
 		Dir = filepath.Join(Dir, ".sni")
 
 		// Follow XDG Base Directory Specification
-		if _, err := os.Stat(Dir); err != nil {		
+		if _, err := os.Stat(Dir); err != nil {
 			var xdgConfig = os.Getenv("XDG_CONFIG_HOME")
 			if xdgConfig == "" {
 				homeDir, _ := os.UserHomeDir()

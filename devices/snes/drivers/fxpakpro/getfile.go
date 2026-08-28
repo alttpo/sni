@@ -25,7 +25,7 @@ func (d *Device) getFile(ctx context.Context, path string, w io.Writer, sizeRece
 	}
 
 	// send command:
-	err = sendSerialChunked(d.f, 512, sb)
+	err = sendSerialChunked(ctx, d.f, 512, sb)
 	if err != nil {
 		err = d.FatalError(err)
 		return
@@ -48,8 +48,27 @@ func (d *Device) getFile(ctx context.Context, path string, w io.Writer, sizeRece
 		return
 	}
 	if ec := sb[5]; ec != 0 {
-		received, err = 0, fmt.Errorf("getFile: %w", fxpakproError(ec))
-		err = d.NonFatalError(err)
+		// Like PUT, the firmware commits to a data phase before it knows whether
+		// the command succeeded: usbint_handler_cmd sets HANDLE_DAT for GET
+		// regardless of whether f_stat and f_open worked. Unlike PUT, this one
+		// cannot be recovered from the host side.
+		//
+		// server_info.size is taken from fi.fsize, and a failed f_stat never
+		// writes fi -- it is a stale global shared with f_readdir. If it holds a
+		// non-zero value, usbint_handler_dat spins forever: f_read on the failed
+		// handle returns zero bytes while the loop waits for bytesSent to reach
+		// block_size. The main loop never gets back to usbint_check_connect(), so
+		// disconnecting does not help, and usbint_server_busy() reports HANDLE_DAT
+		// as busy, so CDC_BulkOut stops draining the OUT endpoint and writes from
+		// the host block too. Confirmed on hardware: this needs a power cycle.
+		//
+		// Report it as fatal so SNI closes the device and stops issuing commands
+		// into a pak that cannot answer, and so the failure is attributed here
+		// rather than to whatever unrelated request came next.
+		received, err = 0, fmt.Errorf(
+			"getFile: %w (a GET for a file the device cannot open may hang its "+
+				"firmware until power cycled)", fxpakproError(ec))
+		err = d.FatalError(err)
 		return
 	}
 

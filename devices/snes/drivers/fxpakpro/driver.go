@@ -1,6 +1,7 @@
 package fxpakpro
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -149,6 +150,19 @@ func (d *Driver) openPort(portName string, baudRequest int) (f serial.Port, err 
 			break
 		}
 		log.Printf("%s: open(name=\"%s\"): %v\n", driverName, portName, err)
+
+		// Only walk down to the next rate when this one specifically was
+		// rejected. Any other failure -- the port is gone, busy, or wedged --
+		// applies equally to every rate, and retrying all of them just delays
+		// the error. A wedged fxpakpro makes each open attempt block for tens of
+		// seconds on Windows, so retrying the whole table costs minutes during
+		// which the caller is stuck.
+		var portErr *serial.PortError
+		if !errors.As(err, &portErr) || portErr.Code() != serial.InvalidSpeed {
+			return nil, fmt.Errorf(
+				"%s: failed to open serial port %s at baud %d: %w",
+				driverName, portName, baud, err)
+		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to open serial port at any baud rate: %w", driverName, err)
@@ -160,6 +174,22 @@ func (d *Driver) openPort(portName string, baudRequest int) (f serial.Port, err 
 		// log.Printf("serial: %v\n", err)
 		_ = f.Close()
 		return nil, fmt.Errorf("%s: failed to set DTR: %w", driverName, err)
+	}
+
+	// Discard anything left over from a previous session before issuing the
+	// first command. The fxpakpro cannot reset its transmit state when a client
+	// disconnects, so a reconnect can find bytes from an interrupted command
+	// still queued. Reading those as the first response desyncs the protocol:
+	// INFO comes back well-formed but with empty fields, Init() rejects it as a
+	// fatal error, and autoCloseableDevice reacts to that by closing and
+	// reopening -- turning one stale block into a reconnect loop.
+	//
+	// Failure to flush is not itself fatal; log it and let Init() decide.
+	if ferr := f.ResetInputBuffer(); ferr != nil {
+		log.Printf("%s: ResetInputBuffer: %v\n", driverName, ferr)
+	}
+	if ferr := f.ResetOutputBuffer(); ferr != nil {
+		log.Printf("%s: ResetOutputBuffer: %v\n", driverName, ferr)
 	}
 
 	return
@@ -199,7 +229,7 @@ func (d *Driver) openDevice(uri *url.URL) (device devices.Device, err error) {
 		return
 	}
 
-	dev := &Device{f: f}
+	dev := &Device{f: &devicePort{Port: f}}
 
 	// attempt to init the device:
 	if err = dev.Init(); err != nil {
@@ -240,9 +270,42 @@ func DriverInit() {
 		)
 	}
 
+	loadTimeoutConfig()
+
 	log.Println("Enabling fxpakpro snes driver")
 
 	driver = &Driver{}
 	driver.container = devices.NewDeviceDriverContainer(driver.openDevice)
 	devices.Register(driverName, driver)
+}
+
+// loadTimeoutConfig applies the driver's timeout and cancellation settings from
+// configuration. Each is only overridden when actually configured, so the
+// built-in defaults in serial.go still apply when the driver is initialized
+// without a loaded config -- as the tests do. viper's IsSet reports true once a
+// default is registered, so this picks up the values in config.sniConfigs as
+// well as anything the user set.
+func loadTimeoutConfig() {
+	if config.Config.IsSet("fxpakpro_read_timeout") {
+		if v := config.Config.GetDuration("fxpakpro_read_timeout"); v > 0 {
+			noDataTimeout = v
+		} else {
+			log.Printf("%s: ignoring non-positive fxpakpro_read_timeout %q\n",
+				driverName, config.Config.GetString("fxpakpro_read_timeout"))
+		}
+	}
+	if config.Config.IsSet("fxpakpro_write_timeout") {
+		if v := config.Config.GetDuration("fxpakpro_write_timeout"); v > 0 {
+			writeTimeout = v
+		} else {
+			log.Printf("%s: ignoring non-positive fxpakpro_write_timeout %q\n",
+				driverName, config.Config.GetString("fxpakpro_write_timeout"))
+		}
+	}
+	if config.Config.IsSet("fxpakpro_honor_caller_deadline") {
+		honorCallerDeadline = config.Config.GetBool("fxpakpro_honor_caller_deadline")
+	}
+
+	log.Printf("%s: read timeout %v, write timeout %v, honor caller deadline %v\n",
+		driverName, noDataTimeout, writeTimeout, honorCallerDeadline)
 }

@@ -50,7 +50,7 @@ func (d *Device) info(ctx context.Context) (version, device, rom string, err err
 	}
 
 	// send command:
-	err = sendSerialChunked(d.f, 512, sb)
+	err = sendSerialChunked(ctx, d.f, 512, sb)
 	if err != nil {
 		err = d.FatalError(err)
 		return
