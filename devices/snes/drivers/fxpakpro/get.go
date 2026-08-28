@@ -25,7 +25,7 @@ func (d *Device) get(ctx context.Context, space space, address uint32, size uint
 	}
 
 	// send the data to the USB port:
-	err = sendSerialChunked(d.f, 512, sb)
+	err = sendSerialChunked(ctx, d.f, 512, sb)
 	if err != nil {
 		err = d.FatalError(err)
 		return
@@ -40,7 +40,7 @@ func (d *Device) get(ctx context.Context, space space, address uint32, size uint
 		n = copy(dest, data)
 		data = data[n:]
 
-		err = sendSerialChunked(d.f, 512, sb)
+		err = sendSerialChunked(ctx, d.f, 512, sb)
 		if err != nil {
 			err = d.FatalError(err)
 			return

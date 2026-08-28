@@ -6,14 +6,29 @@ import (
 	"go.bug.st/serial"
 	"sni/devices"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
+// devicePort wraps the serial port so that any close marks the device closed --
+// including one done by the write path, which closes the port when it abandons
+// a write so an orphaned goroutine cannot interleave with later commands. That
+// close does not go through Device.Close(), so without this the isClosed flag
+// would stay false and autoCloseableDevice would keep a device whose port is
+// dead in its container (it consults IsClosed() to decide whether to drop it).
+type devicePort struct {
+	serial.Port
+	closed atomic.Bool
+}
+
+func (p *devicePort) Close() error {
+	p.closed.Store(true)
+	return p.Port.Close()
+}
+
 type Device struct {
 	lock sync.Mutex
-	f    serial.Port
-
-	isClosed bool
+	f    *devicePort
 }
 
 func (d *Device) FatalError(cause error) devices.DeviceError {
@@ -25,7 +40,16 @@ func (d *Device) NonFatalError(cause error) devices.DeviceError {
 }
 
 func (d *Device) Init() (err error) {
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*2))
+	// This budget used to be a hardcoded 2 seconds, back when a context
+	// deadline only bounded reads. It now bounds writes as well, and abandoning
+	// a write closes the port -- so too tight a value here would close healthy
+	// devices. A write only blocks when the device is not draining its USB
+	// endpoint, which happens while the firmware is busy inside its interrupt
+	// handler: FatFs cluster allocation on a large, full, fragmented card has
+	// been measured stalling for hundreds of milliseconds and can reach seconds.
+	// Use the same configured budget as every other read, so there is one knob
+	// (fxpakpro_read_timeout) rather than a hidden second one.
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(noDataTimeout))
 	defer cancel()
 
 	// run an INFO request to make sure the fxpakpro is in a valid state, else this should
@@ -52,13 +76,11 @@ func (d *Device) Init() (err error) {
 }
 
 func (d *Device) IsClosed() bool {
-	return d.isClosed
+	return d.f.closed.Load()
 }
 
 func (d *Device) Close() (err error) {
-	err = d.f.Close()
-	d.isClosed = true
-	return
+	return d.f.Close()
 }
 
 type lockedKeyType int
