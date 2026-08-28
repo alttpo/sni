@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -299,6 +300,60 @@ func TestDevice_stressMixed(t *testing.T) {
 		}
 	}
 
+	// doMemWrite issues a VPUT to cartridge SRAM and reads the value back.
+	//
+	// SRAM is a plain VPUT to SpaceSNES. WRAM is deliberately avoided: writes in
+	// 0xF50000-0xF70000 do not go out as a VPUT at all, they are turned into a
+	// 65816 copy routine driven through the USB EXE mechanism (memory.go), which
+	// needs the SNES to be running code that services the hook. In the system
+	// menu nothing does, so those time out waiting on $2C00.
+	//
+	// The fxpakpro mirrors SRAM to a per-game file on the SD card every 250ms,
+	// so these writes also generate SD activity -- useful here, since that is
+	// where the firmware's FAT work inside the USB interrupt handler happens.
+	doMemWrite := func() {
+		addrs := []uint32{0xE07FF0, 0xE07FF4, 0xE07FF8}
+		sizes := []int{1, 2, 4}
+
+		addr := addrs[rng.Intn(len(addrs))]
+		n := sizes[rng.Intn(len(sizes))]
+		data := make([]byte, n)
+		rng.Read(data)
+
+		tuple := devices.AddressTuple{
+			Address:       addr,
+			AddressSpace:  sni.AddressSpace_FxPakPro,
+			MemoryMapping: sni.MemoryMapping_LoROM,
+		}
+
+		start := time.Now()
+		rsp, err := d.MultiWriteMemory(ctx, devices.MemoryWriteRequest{
+			RequestAddress: tuple,
+			Data:           data,
+		})
+		record("MultiWriteMemory(addr=$%06x, size=%d) -> %d rsp, %v [%v]",
+			addr, n, len(rsp), err, time.Since(start))
+		if err != nil {
+			fail("MultiWriteMemory(addr=$%06x, size=%d) failed: %v", addr, n, err)
+		}
+
+		// read it back: this catches a desync that leaves the transport working
+		// but the data wrong, which a write-only check would miss.
+		rstart := time.Now()
+		rrsp, err := d.MultiReadMemory(ctx, devices.MemoryReadRequest{
+			RequestAddress: tuple,
+			Size:           n,
+		})
+		record("  readback(addr=$%06x, size=%d) -> %d rsp, %v [%v]",
+			addr, n, len(rrsp), err, time.Since(rstart))
+		if err != nil {
+			fail("readback of $%06x failed: %v", addr, err)
+		}
+		if len(rrsp) != 1 || !bytes.Equal(rrsp[0].Data, data) {
+			fail("readback of $%06x returned %x, wrote %x", addr, rrsp[0].Data, data)
+		}
+	}
+
 	doRm := func() {
 		if len(live) == 0 {
 			doPut()
@@ -307,24 +362,67 @@ func TestDevice_stressMixed(t *testing.T) {
 		rmFile(rng.Intn(len(live)))
 	}
 
+	// Operation mix as relative weights, overridable with SNI_TEST_WEIGHTS, e.g.
+	// "memread=60,put=8,get=8,ls=8,memwrite=6,mkdir=4,rm=4,info=2" to model a
+	// tracker, which polls memory with VGET far more than it touches files.
+	weights := map[string]int{
+		"put": 26, "get": 26, "ls": 20, "mkdir": 10,
+		"rm": 6, "memread": 8, "memwrite": 0, "info": 4,
+	}
+	if v := os.Getenv("SNI_TEST_WEIGHTS"); v != "" {
+		for _, kv := range strings.Split(v, ",") {
+			parts := strings.SplitN(strings.TrimSpace(kv), "=", 2)
+			if len(parts) != 2 {
+				t.Fatalf("SNI_TEST_WEIGHTS: bad entry %q", kv)
+			}
+			w, err := strconv.Atoi(parts[1])
+			if err != nil || w < 0 {
+				t.Fatalf("SNI_TEST_WEIGHTS: bad weight in %q", kv)
+			}
+			if _, ok := weights[parts[0]]; !ok {
+				t.Fatalf("SNI_TEST_WEIGHTS: unknown operation %q", parts[0])
+			}
+			weights[parts[0]] = w
+		}
+	}
+
+	type weighted struct {
+		name string
+		w    int
+		fn   func()
+	}
+	table := []weighted{
+		{"put", weights["put"], doPut},
+		{"get", weights["get"], doGet},
+		{"ls", weights["ls"], doLs},
+		{"mkdir", weights["mkdir"], doMkdir},
+		{"rm", weights["rm"], doRm},
+		{"memread", weights["memread"], doMemRead},
+		{"memwrite", weights["memwrite"], doMemWrite},
+		{"info", weights["info"], doInfo},
+	}
+	total := 0
+	for _, e := range table {
+		total += e.w
+	}
+	if total == 0 {
+		t.Fatalf("all operation weights are zero")
+	}
+	pick := func(n int) {
+		for _, e := range table {
+			if n < e.w {
+				e.fn()
+				return
+			}
+			n -= e.w
+		}
+		table[len(table)-1].fn()
+	}
+	t.Logf("operation mix: %v (total %d)", weights, total)
+
 	start := time.Now()
 	for i := 0; i < ops; i++ {
-		switch n := rng.Intn(100); {
-		case n < 26:
-			doPut()
-		case n < 52:
-			doGet()
-		case n < 72:
-			doLs()
-		case n < 82:
-			doMkdir()
-		case n < 88:
-			doRm()
-		case n < 96:
-			doMemRead()
-		default:
-			doInfo()
-		}
+		pick(rng.Intn(total))
 		if (i+1)%25 == 0 {
 			t.Logf("%d/%d ops, %d live files, %d live bytes, %v elapsed",
 				i+1, ops, len(live), liveBytes, time.Since(start))
