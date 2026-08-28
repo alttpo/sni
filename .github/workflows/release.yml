@@ -12,14 +12,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: '^1.23.0'
 
       - name: Set up linux dependencies
         run: sudo apt-get update && sudo apt-get install -y gcc
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -50,11 +50,6 @@ jobs:
             name: win-x86
           - os: windows-latest
             goos: windows
-            goarch: arm
-            suffix: zip
-            name: win-arm
-          - os: windows-latest
-            goos: windows
             goarch: arm64
             suffix: zip
             name: win-arm64
@@ -63,11 +58,11 @@ jobs:
 
     steps:
       - name: Inject slug/short variables
-        uses: rlespinasse/github-slug-action@v4
+        uses: rlespinasse/github-slug-action@v5
 
       - name: Set up Go
         if: ${{ matrix.goos != 'windows' || matrix.os-variant != '7' }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: '^1.23.0'
 
@@ -80,7 +75,7 @@ jobs:
 
       - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}${{matrix.os-variant}}-${{matrix.goarch}}${{matrix.alt}}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         name: Checkout
         with:
           fetch-depth: 0
@@ -130,7 +125,7 @@ jobs:
         run: 7z x -o"${{env.basename}}" "${{ runner.temp }}/${{ matrix.snfm }}"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{env.basename}}
           path: ${{env.basename}}/
@@ -163,16 +158,16 @@ jobs:
 
     steps:
       - name: Inject slug/short variables
-        uses: rlespinasse/github-slug-action@v4
+        uses: rlespinasse/github-slug-action@v5
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: '^1.23.0'
 
       - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-darwin-universal${{matrix.alt}}" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         name: Checkout
         with:
           fetch-depth: 0
@@ -218,7 +213,7 @@ jobs:
         run: 7z x -o"${{env.basename}}" "${{ runner.temp }}/${{ matrix.snfm }}"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{env.basename}}
           path: ${{env.basename}}/
@@ -282,10 +277,10 @@ jobs:
 
     steps:
       - name: Inject slug/short variables
-        uses: rlespinasse/github-slug-action@v4
+        uses: rlespinasse/github-slug-action@v5
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: '^1.23.0'
 
@@ -294,7 +289,7 @@ jobs:
 
       - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-${{matrix.goos}}${{matrix.os-variant}}-${{matrix.goarch}}${{matrix.alt}}" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         name: Checkout
         with:
           fetch-depth: 0
@@ -336,7 +331,7 @@ jobs:
         run: 7z x -o"${{env.basename}}" "${{ runner.temp }}/${{ matrix.snfm }}"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{env.basename}}
           path: ${{env.basename}}/
@@ -361,10 +356,10 @@ jobs:
     name: manylinux_2_28
     steps:
       - name: Inject slug/short variables
-        uses: rlespinasse/github-slug-action@v4
+        uses: rlespinasse/github-slug-action@v5
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: '^1.23.0'
 
@@ -375,7 +370,7 @@ jobs:
 
       - run: echo "basename=sni-${{env.GITHUB_REF_SLUG}}-manylinux_2_28-amd64" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         name: Checkout
         with:
           fetch-depth: 0
@@ -414,7 +409,7 @@ jobs:
           tar cJf ${{env.basename}}.tar.xz ${{env.basename}}/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{env.basename}}.tar.xz
           path: ${{github.workspace}}/${{env.basename}}.tar.xz
