@@ -78,3 +78,44 @@ func TestDevice_info(t *testing.T) {
 		t.Logf("state: IN-GAME (main.c loop, usbint_handler every iteration)")
 	}
 }
+
+// TestDevice_resetToMenu returns the device to the system menu. Pairs with
+// TestDevice_bootPath for putting the device into a known state between runs,
+// since the firmware polls USB very differently in the menu than in-game.
+func TestDevice_resetToMenu(t *testing.T) {
+	if os.Getenv("SNI_TEST_RESET_TO_MENU") == "" {
+		t.Skip("set SNI_TEST_RESET_TO_MENU=1 to reset the device to the menu")
+	}
+
+	d := openExactDevice(t)
+	defer d.Close()
+	ctx := context.Background()
+
+	if _, _, rom, err := d.info(ctx); err != nil {
+		t.Fatalf("info() before reset: %v", err)
+	} else {
+		t.Logf("before reset, running: %q", rom)
+	}
+
+	if err := d.ResetToMenu(ctx); err != nil {
+		t.Fatalf("ResetToMenu(): %v", err)
+	}
+
+	for attempt := 1; attempt <= 10; attempt++ {
+		time.Sleep(2 * time.Second)
+
+		pctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		_, _, rom, err := d.info(pctx)
+		cancel()
+		if err != nil {
+			t.Logf("probe %d: info() -> %v", attempt, err)
+			continue
+		}
+		t.Logf("probe %d: running %q", attempt, rom)
+		if rom == "/sd2snes/menu.bin" || rom == "/sd2snes/m3nu.bin" {
+			t.Logf("back in the system menu")
+			return
+		}
+	}
+	t.Errorf("device did not return to the menu within 10 probes")
+}
