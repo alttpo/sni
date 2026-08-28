@@ -311,8 +311,22 @@ func TestDevice_stressMixed(t *testing.T) {
 	// The fxpakpro mirrors SRAM to a per-game file on the SD card every 250ms,
 	// so these writes also generate SD activity -- useful here, since that is
 	// where the firmware's FAT work inside the USB interrupt handler happens.
+	// SNI_TEST_MEM_SPACE picks what memory writes target: "sram" (default) or
+	// "wram", the latter only meaningful with a ROM running.
+	memSpace := os.Getenv("SNI_TEST_MEM_SPACE")
+	if memSpace == "" {
+		memSpace = "sram"
+	}
+	if memSpace != "sram" && memSpace != "wram" {
+		t.Fatalf("SNI_TEST_MEM_SPACE=%q: want sram or wram", memSpace)
+	}
+	t.Logf("memory writes target %s", memSpace)
+
 	doMemWrite := func() {
 		addrs := []uint32{0xE07FF0, 0xE07FF4, 0xE07FF8}
+		if memSpace == "wram" {
+			addrs = []uint32{0xF5F340, 0xF5F344, 0xF5F348}
+		}
 		sizes := []int{1, 2, 4}
 
 		addr := addrs[rng.Intn(len(addrs))]
@@ -349,7 +363,16 @@ func TestDevice_stressMixed(t *testing.T) {
 		if err != nil {
 			fail("readback of $%06x failed: %v", addr, err)
 		}
-		if len(rrsp) != 1 || !bytes.Equal(rrsp[0].Data, data) {
+		// Only SRAM can be compared. A running game writes WRAM continuously, so
+		// a value read back from it may legitimately differ from what was
+		// written -- the point of exercising WRAM is the USB EXE path, not data
+		// integrity. Still require the right number of bytes back, which catches
+		// a desync even when the contents cannot be predicted.
+		if len(rrsp) != 1 || len(rrsp[0].Data) != n {
+			fail("readback of $%06x returned %d responses / %d bytes, wanted 1 / %d",
+				addr, len(rrsp), len(rrsp[0].Data), n)
+		}
+		if memSpace == "sram" && !bytes.Equal(rrsp[0].Data, data) {
 			fail("readback of $%06x returned %x, wrote %x", addr, rrsp[0].Data, data)
 		}
 	}
