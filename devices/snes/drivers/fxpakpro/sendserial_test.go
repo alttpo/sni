@@ -174,3 +174,49 @@ func Test_writeWithTimeout_contextCancelled(t *testing.T) {
 		t.Errorf("writeExact() took %v; it should stop at the context deadline", elapsed)
 	}
 }
+
+// blockingClosePort models the macOS behaviour that caused a deadlock: a close
+// on a handle with a pending write blocks until that I/O completes.
+type blockingClosePort struct {
+	blockingPort
+}
+
+func (p *blockingClosePort) Close() error {
+	<-p.release // never returns while the write is still stuck
+	return nil
+}
+
+// Test_writeWithTimeout_closeDoesNotBlock checks that giving up on a write does
+// not block on closing the port.
+//
+// abandonPort used to close synchronously. A Write stuck because the device
+// stopped draining keeps the handle busy, and close() then waits for that I/O,
+// so the caller hung inside Close instead of inside Write -- the same deadlock,
+// one frame further down. Caught by a soak that sat for minutes with the stack
+// in devicePort.Close.
+func Test_writeWithTimeout_closeDoesNotBlock(t *testing.T) {
+	old := writeTimeout
+	writeTimeout = 150 * time.Millisecond
+	defer func() { writeTimeout = old }()
+
+	p := &blockingClosePort{
+		blockingPort: blockingPort{
+			release: make(chan struct{}),
+			started: make(chan struct{}),
+		},
+	}
+	defer close(p.release)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = writeExact(context.Background(), p, 512, make([]byte, 512))
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("writeExact() did not return: it is blocked closing the port " +
+			"while the abandoned write still holds it")
+	}
+}
