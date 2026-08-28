@@ -65,8 +65,14 @@ func (d *Device) put(ctx context.Context, space space, address uint32, data []by
 		return
 	}
 	if ec := sb[5]; ec != 0 {
+		// As in putFile: usbint_recv_block sets cmdDat=1 as soon as it sees a PUT
+		// opcode, so the device is parked in HANDLE_LOCK waiting for the payload
+		// even though the command failed. We are not sending it, and whatever is
+		// written next would be consumed as data. Report this as fatal so the
+		// connection is torn down while the firmware can still recover from it --
+		// usbint_check_connect() resets server_state and cmdDat on disconnect.
 		err = fmt.Errorf("put: %w", fxpakproError(ec))
-		err = d.NonFatalError(err)
+		err = d.FatalError(err)
 		return
 	}
 
