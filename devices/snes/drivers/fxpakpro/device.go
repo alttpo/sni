@@ -2,8 +2,10 @@ package fxpakpro
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go.bug.st/serial"
+	"log"
 	"sni/devices"
 	"sync"
 	"sync/atomic"
@@ -16,14 +18,47 @@ import (
 // close does not go through Device.Close(), so without this the isClosed flag
 // would stay false and autoCloseableDevice would keep a device whose port is
 // dead in its container (it consults IsClosed() to decide whether to drop it).
+var errPortAbandoned = errors.New("fxpakpro: port was abandoned after a stuck write")
+
 type devicePort struct {
 	serial.Port
 	closed atomic.Bool
 }
 
 func (p *devicePort) Close() error {
-	p.closed.Store(true)
+	if p.closed.Swap(true) {
+		// Already closed, or abandoned with the real close in flight on another
+		// goroutine. Calling Close again could block behind a stuck write.
+		return nil
+	}
 	return p.Port.Close()
+}
+
+// Write refuses once the port has been abandoned, so a write that was given up
+// on cannot be followed by another one racing it on the same port.
+func (p *devicePort) Write(b []byte) (int, error) {
+	if p.closed.Load() {
+		return 0, errPortAbandoned
+	}
+	return p.Port.Write(b)
+}
+
+// abandon marks the port unusable and closes it in the background.
+//
+// The close cannot be synchronous. A Write that is stuck because the device
+// stopped draining its USB endpoint keeps the handle busy, and close() then
+// blocks until that I/O completes -- which is the very hang being escaped.
+// Marking the port closed first stops any further write from starting, and the
+// real close completes whenever the stuck write finally unwinds.
+func (p *devicePort) abandon() {
+	if p.closed.Swap(true) {
+		return
+	}
+	go func() {
+		if err := p.Port.Close(); err != nil {
+			log.Printf("%s: closing abandoned port: %v\n", driverName, err)
+		}
+	}()
 }
 
 type Device struct {

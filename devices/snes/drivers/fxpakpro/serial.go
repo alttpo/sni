@@ -253,12 +253,20 @@ func writeWithTimeout(ctx context.Context, w io.Writer, buf []byte) (p uint32, e
 // gone. Errors are logged rather than returned; the caller already has a more
 // useful error describing why the write was abandoned.
 func abandonPort(w io.Writer) {
-	c, ok := w.(io.Closer)
-	if !ok {
+	// devicePort marks itself unusable straight away and closes in the
+	// background, because a synchronous close would block behind the very write
+	// we just gave up on.
+	if a, ok := w.(interface{ abandon() }); ok {
+		a.abandon()
 		return
 	}
-	if err := c.Close(); err != nil {
-		log.Printf("%s: closing port after an abandoned write: %v\n", driverName, err)
+	// anything else (test doubles): close off the critical path
+	if c, ok := w.(io.Closer); ok {
+		go func() {
+			if err := c.Close(); err != nil {
+				log.Printf("%s: closing port after an abandoned write: %v\n", driverName, err)
+			}
+		}()
 	}
 }
 
