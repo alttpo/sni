@@ -37,6 +37,10 @@ var (
 	// be told that a command was abandoned, so stopping midway through one
 	// leaves the protocol out of step until the stream is drained.
 	honorCallerDeadline = true
+
+	// chunkDelay optionally pauses after each chunk written during a transfer.
+	// See fxpakpro_chunk_delay in the config defaults.
+	chunkDelay time.Duration
 )
 
 func readExactGeneric(ctx context.Context, f io.Reader, chunkSize uint32, buf []byte) (p uint32, err error) {
@@ -328,6 +332,9 @@ func sendSerialProgress(ctx context.Context, f serial.Port, chunkSize uint32, si
 			// corrupt transfer as a success:
 			err = fmt.Errorf("sendSerialProgress: write failed after %d of %d bytes: %w", sent, size, err)
 			return
+		}
+		if chunkDelay > 0 {
+			time.Sleep(chunkDelay)
 		}
 	}
 
