@@ -25,7 +25,7 @@ func (d *Device) get(ctx context.Context, space space, address uint32, size uint
 	}
 
 	// send the data to the USB port:
-	err = sendSerialChunked(d.f, 512, sb)
+	err = sendSerialChunked(ctx, d.f, 512, sb)
 	if err != nil {
 		err = d.FatalError(err)
 		return
@@ -40,7 +40,7 @@ func (d *Device) get(ctx context.Context, space space, address uint32, size uint
 		n = copy(dest, data)
 		data = data[n:]
 
-		err = sendSerialChunked(d.f, 512, sb)
+		err = sendSerialChunked(ctx, d.f, 512, sb)
 		if err != nil {
 			err = d.FatalError(err)
 			return
@@ -64,8 +64,15 @@ func (d *Device) get(ctx context.Context, space space, address uint32, size uint
 		return
 	}
 	if ec := sb[5]; ec != 0 {
+		// usbint_handler_cmd moves to HANDLE_DAT for GET before it knows whether
+		// the command succeeded, so the device is about to send a data phase we
+		// are not going to read. Unlike LS there is no reliable way to drain it:
+		// the length comes from server_info.size, which on the error path holds
+		// whatever a previous command left behind. Report this as fatal so the
+		// device is closed and reopened rather than leaving the stream out of
+		// step for every command that follows.
 		err = fmt.Errorf("get: %w", fxpakproError(ec))
-		err = d.NonFatalError(err)
+		err = d.FatalError(err)
 		return
 	}
 

@@ -1,6 +1,7 @@
 package fxpakpro
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"go.bug.st/serial"
 	"go.bug.st/serial/enumerator"
@@ -139,16 +141,24 @@ func (d *Driver) openPort(portName string, baudRequest int) (f serial.Port, err 
 		}
 
 		log.Printf("%s: open(name=\"%s\", baud=%d)\n", driverName, portName, baud)
-		f, err = serial.Open(portName, &serial.Mode{
-			BaudRate: baud,
-			DataBits: 8,
-			Parity:   serial.NoParity,
-			StopBits: serial.OneStopBit,
-		})
+		f, err = openPortRetryBusy(portName, baud)
 		if err == nil {
 			break
 		}
 		log.Printf("%s: open(name=\"%s\"): %v\n", driverName, portName, err)
+
+		// Only walk down to the next rate when this one specifically was
+		// rejected. Any other failure -- the port is gone, busy, or wedged --
+		// applies equally to every rate, and retrying all of them just delays
+		// the error. A wedged fxpakpro makes each open attempt block for tens of
+		// seconds on Windows, so retrying the whole table costs minutes during
+		// which the caller is stuck.
+		var portErr *serial.PortError
+		if !errors.As(err, &portErr) || portErr.Code() != serial.InvalidSpeed {
+			return nil, fmt.Errorf(
+				"%s: failed to open serial port %s at baud %d: %w",
+				driverName, portName, baud, err)
+		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to open serial port at any baud rate: %w", driverName, err)
@@ -162,7 +172,71 @@ func (d *Driver) openPort(portName string, baudRequest int) (f serial.Port, err 
 		return nil, fmt.Errorf("%s: failed to set DTR: %w", driverName, err)
 	}
 
+	// Discard anything left over from a previous session before issuing the
+	// first command. The fxpakpro cannot reset its transmit state when a client
+	// disconnects, so a reconnect can find bytes from an interrupted command
+	// still queued. Reading those as the first response desyncs the protocol:
+	// INFO comes back well-formed but with empty fields, Init() rejects it as a
+	// fatal error, and autoCloseableDevice reacts to that by closing and
+	// reopening -- turning one stale block into a reconnect loop.
+	//
+	// Failure to flush is not itself fatal; log it and let Init() decide.
+	if ferr := f.ResetInputBuffer(); ferr != nil {
+		log.Printf("%s: ResetInputBuffer: %v\n", driverName, ferr)
+	}
+	if ferr := f.ResetOutputBuffer(); ferr != nil {
+		log.Printf("%s: ResetOutputBuffer: %v\n", driverName, ferr)
+	}
+
 	return
+}
+
+// openPortRetryBusy opens the port, retrying briefly while the OS reports it
+// busy.
+//
+// After a write is abandoned the port is closed on another goroutine, because a
+// synchronous close would block behind the very write we gave up on. The
+// orphaned write still holds the handle until it unwinds, so a reopen attempted
+// immediately afterwards fails with "Serial port busy" -- and autoCloseableDevice
+// reopens as soon as the fatal error propagates, which is microseconds later.
+// Observed in the field: every request after a stalled transfer failed to open
+// the port even though the device itself was fine.
+//
+// Retry for a short while so that window closes on its own. If the device has
+// genuinely stopped draining, the orphan never unwinds and this still gives up;
+// no amount of retrying fixes that, but it does fix the common case where the
+// close simply had not landed yet.
+func openPortRetryBusy(portName string, baud int) (f serial.Port, err error) {
+	const busyRetryFor = 3 * time.Second
+	const busyRetryEvery = 50 * time.Millisecond
+
+	deadline := time.Now().Add(busyRetryFor)
+	for attempt := 1; ; attempt++ {
+		f, err = serial.Open(portName, &serial.Mode{
+			BaudRate: baud,
+			DataBits: 8,
+			Parity:   serial.NoParity,
+			StopBits: serial.OneStopBit,
+		})
+		if err == nil {
+			if attempt > 1 {
+				log.Printf("%s: open(name=%q) succeeded on attempt %d\n",
+					driverName, portName, attempt)
+			}
+			return
+		}
+
+		var portErr *serial.PortError
+		if !errors.As(err, &portErr) || portErr.Code() != serial.PortBusy {
+			return
+		}
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf(
+				"%s: port %s still busy after %v; a previous transfer's write "+
+					"may still be stuck: %w", driverName, portName, busyRetryFor, err)
+		}
+		time.Sleep(busyRetryEvery)
+	}
 }
 
 func (d *Driver) DeviceKey(uri *url.URL) (key string) {
@@ -199,7 +273,7 @@ func (d *Driver) openDevice(uri *url.URL) (device devices.Device, err error) {
 		return
 	}
 
-	dev := &Device{f: f}
+	dev := &Device{f: &devicePort{Port: f}}
 
 	// attempt to init the device:
 	if err = dev.Init(); err != nil {
@@ -240,9 +314,50 @@ func DriverInit() {
 		)
 	}
 
+	loadTimeoutConfig()
+
 	log.Println("Enabling fxpakpro snes driver")
 
 	driver = &Driver{}
 	driver.container = devices.NewDeviceDriverContainer(driver.openDevice)
 	devices.Register(driverName, driver)
+}
+
+// loadTimeoutConfig applies the driver's timeout and cancellation settings from
+// configuration. Each is only overridden when actually configured, so the
+// built-in defaults in serial.go still apply when the driver is initialized
+// without a loaded config -- as the tests do. viper's IsSet reports true once a
+// default is registered, so this picks up the values in config.sniConfigs as
+// well as anything the user set.
+func loadTimeoutConfig() {
+	if config.Config.IsSet("fxpakpro_read_timeout") {
+		if v := config.Config.GetDuration("fxpakpro_read_timeout"); v > 0 {
+			noDataTimeout = v
+		} else {
+			log.Printf("%s: ignoring non-positive fxpakpro_read_timeout %q\n",
+				driverName, config.Config.GetString("fxpakpro_read_timeout"))
+		}
+	}
+	if config.Config.IsSet("fxpakpro_write_timeout") {
+		if v := config.Config.GetDuration("fxpakpro_write_timeout"); v > 0 {
+			writeTimeout = v
+		} else {
+			log.Printf("%s: ignoring non-positive fxpakpro_write_timeout %q\n",
+				driverName, config.Config.GetString("fxpakpro_write_timeout"))
+		}
+	}
+	if config.Config.IsSet("fxpakpro_honor_caller_deadline") {
+		honorCallerDeadline = config.Config.GetBool("fxpakpro_honor_caller_deadline")
+	}
+	if config.Config.IsSet("fxpakpro_chunk_delay") {
+		if v := config.Config.GetDuration("fxpakpro_chunk_delay"); v >= 0 {
+			chunkDelay = v
+		} else {
+			log.Printf("%s: ignoring negative fxpakpro_chunk_delay %q\n",
+				driverName, config.Config.GetString("fxpakpro_chunk_delay"))
+		}
+	}
+
+	log.Printf("%s: read timeout %v, write timeout %v, honor caller deadline %v, chunk delay %v\n",
+		driverName, noDataTimeout, writeTimeout, honorCallerDeadline, chunkDelay)
 }
