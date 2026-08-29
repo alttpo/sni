@@ -20,9 +20,14 @@ func init() {
 	// settings without dragging in the rest of the config bootstrap and its
 	// filesystem side effects.
 	for _, key := range []string{
+		// "debug" enables the driver's per-chunk hex dumps, which is what
+		// SNI_DEBUG=1 does in the daemon. Wired up here so its timing cost can
+		// be measured against the chunk-delay knob.
+		"debug",
 		"fxpakpro_read_timeout",
 		"fxpakpro_write_timeout",
 		"fxpakpro_honor_caller_deadline",
+		"fxpakpro_chunk_delay",
 	} {
 		if v := os.Getenv("SNI_" + strings.ToUpper(key)); v != "" {
 			config.Config.Set(key, v)

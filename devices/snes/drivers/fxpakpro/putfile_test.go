@@ -192,8 +192,36 @@ func verifyFile(t *testing.T, d *Device, ctx context.Context, path string, expec
 	if received != uint32(len(expected)) {
 		t.Fatalf("getFile() received %d bytes, want %d", received, len(expected))
 	}
-	if actual := w.Bytes(); !bytes.Equal(actual, expected) {
-		t.Fatalf("%s", describeMismatch(actual, expected))
+	actual := w.Bytes()
+	if bytes.Equal(actual, expected) {
+		return
+	}
+
+	first := describeMismatch(actual, expected)
+
+	// Read it back a second time. If both reads agree with each other but differ
+	// from what was sent, the file on the card is genuinely wrong and the PUT
+	// corrupted it. If the two reads differ, the GET is what is unreliable and
+	// the stored file may be fine. These have very different causes, and one
+	// comparison cannot tell them apart.
+	var w2 bytes.Buffer
+	w2.Grow(len(expected))
+	received2, err2 := d.getFile(ctx, path, &w2, nil, nil)
+	if err2 != nil {
+		t.Fatalf("%s\n  (second read to classify it failed: %v)", first, err2)
+	}
+
+	second := w2.Bytes()
+	switch {
+	case bytes.Equal(second, expected):
+		t.Fatalf("READ CORRUPTION: first read differed, second read was correct\n"+
+			"  first read: %s\n  received %d then %d bytes", first, len(actual), received2)
+	case bytes.Equal(second, actual):
+		t.Fatalf("WRITE CORRUPTION: both reads agree with each other but differ "+
+			"from what was sent, so the file on the card is wrong\n  %s", first)
+	default:
+		t.Fatalf("UNSTABLE: three different results\n  read 1 vs sent: %s\n"+
+			"  read 2 vs sent: %s", first, describeMismatch(second, expected))
 	}
 }
 
@@ -411,10 +439,18 @@ func putFileInstrumented(t *testing.T, d *Device, ctx context.Context, path stri
 
 		wStart := time.Now()
 		for len(p) > 0 {
+			want := len(p)
 			n, err := d.f.Write(p)
 			if err != nil {
 				t.Fatalf("write at offset %d (%d chunks in, %v elapsed): %v",
 					off, off/512, time.Since(start), err)
+			}
+			// A short write here is worth knowing about. Resuming at p[n:]
+			// duplicates bytes if the driver transmitted more than it reported,
+			// which would look exactly like the block-duplication seen in this
+			// test but not in the production path.
+			if n != want {
+				t.Logf("SHORT WRITE at offset %d: wrote %d of %d", off, n, want)
 			}
 			p = p[n:]
 		}
