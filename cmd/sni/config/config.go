@@ -63,6 +63,13 @@ var (
 		// timeouts above) rather than being cut short mid-transfer by an
 		// impatient client.
 		"fxpakpro_honor_caller_deadline": true,
+		// Optional pause after each 512-byte chunk written during a transfer.
+		// Zero, the default, writes as fast as the device accepts data. This
+		// exists to test whether host write pacing affects reliability: setting
+		// SNI_DEBUG=1 slows transfers dramatically (a hex dump per chunk to a
+		// file and the console) and has been reported to make failing transfers
+		// succeed, so this isolates the timing from the logging.
+		"fxpakpro_chunk_delay": "0s",
 
 		"retroarch_disable":    false,
 		"retroarch_hosts":      "localhost:55355",

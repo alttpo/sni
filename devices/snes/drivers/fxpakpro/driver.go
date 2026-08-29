@@ -305,7 +305,15 @@ func loadTimeoutConfig() {
 	if config.Config.IsSet("fxpakpro_honor_caller_deadline") {
 		honorCallerDeadline = config.Config.GetBool("fxpakpro_honor_caller_deadline")
 	}
+	if config.Config.IsSet("fxpakpro_chunk_delay") {
+		if v := config.Config.GetDuration("fxpakpro_chunk_delay"); v >= 0 {
+			chunkDelay = v
+		} else {
+			log.Printf("%s: ignoring negative fxpakpro_chunk_delay %q\n",
+				driverName, config.Config.GetString("fxpakpro_chunk_delay"))
+		}
+	}
 
-	log.Printf("%s: read timeout %v, write timeout %v, honor caller deadline %v\n",
-		driverName, noDataTimeout, writeTimeout, honorCallerDeadline)
+	log.Printf("%s: read timeout %v, write timeout %v, honor caller deadline %v, chunk delay %v\n",
+		driverName, noDataTimeout, writeTimeout, honorCallerDeadline, chunkDelay)
 }
