@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"go.bug.st/serial"
 	"go.bug.st/serial/enumerator"
@@ -140,12 +141,7 @@ func (d *Driver) openPort(portName string, baudRequest int) (f serial.Port, err 
 		}
 
 		log.Printf("%s: open(name=\"%s\", baud=%d)\n", driverName, portName, baud)
-		f, err = serial.Open(portName, &serial.Mode{
-			BaudRate: baud,
-			DataBits: 8,
-			Parity:   serial.NoParity,
-			StopBits: serial.OneStopBit,
-		})
+		f, err = openPortRetryBusy(portName, baud)
 		if err == nil {
 			break
 		}
@@ -193,6 +189,54 @@ func (d *Driver) openPort(portName string, baudRequest int) (f serial.Port, err 
 	}
 
 	return
+}
+
+// openPortRetryBusy opens the port, retrying briefly while the OS reports it
+// busy.
+//
+// After a write is abandoned the port is closed on another goroutine, because a
+// synchronous close would block behind the very write we gave up on. The
+// orphaned write still holds the handle until it unwinds, so a reopen attempted
+// immediately afterwards fails with "Serial port busy" -- and autoCloseableDevice
+// reopens as soon as the fatal error propagates, which is microseconds later.
+// Observed in the field: every request after a stalled transfer failed to open
+// the port even though the device itself was fine.
+//
+// Retry for a short while so that window closes on its own. If the device has
+// genuinely stopped draining, the orphan never unwinds and this still gives up;
+// no amount of retrying fixes that, but it does fix the common case where the
+// close simply had not landed yet.
+func openPortRetryBusy(portName string, baud int) (f serial.Port, err error) {
+	const busyRetryFor = 3 * time.Second
+	const busyRetryEvery = 50 * time.Millisecond
+
+	deadline := time.Now().Add(busyRetryFor)
+	for attempt := 1; ; attempt++ {
+		f, err = serial.Open(portName, &serial.Mode{
+			BaudRate: baud,
+			DataBits: 8,
+			Parity:   serial.NoParity,
+			StopBits: serial.OneStopBit,
+		})
+		if err == nil {
+			if attempt > 1 {
+				log.Printf("%s: open(name=%q) succeeded on attempt %d\n",
+					driverName, portName, attempt)
+			}
+			return
+		}
+
+		var portErr *serial.PortError
+		if !errors.As(err, &portErr) || portErr.Code() != serial.PortBusy {
+			return
+		}
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf(
+				"%s: port %s still busy after %v; a previous transfer's write "+
+					"may still be stuck: %w", driverName, portName, busyRetryFor, err)
+		}
+		time.Sleep(busyRetryEvery)
+	}
 }
 
 func (d *Driver) DeviceKey(uri *url.URL) (key string) {
