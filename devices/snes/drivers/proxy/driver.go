@@ -9,6 +9,7 @@ import (
 	"sni/devices"
 	"sni/protos/sni"
 	"strings"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -28,6 +29,11 @@ type Driver struct {
 
 	// backendAddr is the host:port of the remote SNI gRPC server to proxy to
 	backendAddr string
+
+	// detectMu guards lastDetectErr; Detect() may be invoked concurrently
+	// from the tray and gRPC/usb2snes service loops.
+	detectMu      sync.Mutex
+	lastDetectErr string
 }
 
 func (d *Driver) DisplayOrder() int {
@@ -75,7 +81,7 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if cerr != nil {
-		log.Printf("proxy: failed to connect to backend %s: %v\n", d.backendAddr, cerr)
+		d.logDetectErr("connect", cerr)
 		return nil, nil
 	}
 	defer conn.Close()
@@ -87,9 +93,11 @@ func (d *Driver) Detect() (devs []devices.DeviceDescriptor, err error) {
 
 	resp, rerr := client.ListDevices(ctx, &sni.DevicesRequest{})
 	if rerr != nil {
-		log.Printf("proxy: failed to list devices from backend %s: %v\n", d.backendAddr, rerr)
+		d.logDetectErr("list devices", rerr)
 		return nil, nil
 	}
+
+	d.logDetectOk()
 
 	devs = make([]devices.DeviceDescriptor, 0, len(resp.GetDevices()))
 
@@ -170,6 +178,37 @@ func (d *Driver) DisconnectAll() {
 
 func newDetectContext() (ctx_out context.Context, cancel context.CancelFunc) {
 	return context.WithTimeout(context.Background(), 5*time.Second)
+}
+
+// logDetectErr logs a detect failure, but squashes repeats so a backend that
+// stays down doesn't fill the log with the same message every poll. The first
+// error of a kind is logged; identical follow-ups are dropped until either the
+// error message changes or Detect() succeeds (see logDetectOk).
+func (d *Driver) logDetectErr(stage string, err error) {
+	msg := fmt.Sprintf("%s: %v", stage, err)
+
+	d.detectMu.Lock()
+	repeat := d.lastDetectErr == msg
+	d.lastDetectErr = msg
+	d.detectMu.Unlock()
+
+	if repeat {
+		return
+	}
+	log.Printf("proxy: failed to %s from backend %s: %v\n", stage, d.backendAddr, err)
+}
+
+// logDetectOk notes a successful detect; if the previous detect had failed,
+// log that the backend is reachable again so the recovery is visible.
+func (d *Driver) logDetectOk() {
+	d.detectMu.Lock()
+	wasFailing := d.lastDetectErr != ""
+	d.lastDetectErr = ""
+	d.detectMu.Unlock()
+
+	if wasFailing {
+		log.Printf("proxy: backend %s is reachable\n", d.backendAddr)
+	}
 }
 
 func DriverInit() {
