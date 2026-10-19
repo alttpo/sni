@@ -24,7 +24,7 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []devices.Di
 	}
 
 	// send the data to the USB port:
-	err = sendSerialChunked(d.f, 512, sb)
+	err = sendSerialChunked(ctx, d.f, 512, sb)
 	if err != nil {
 		err = d.FatalError(err)
 		return
@@ -55,8 +55,23 @@ func (d *Device) listFiles(ctx context.Context, path string) (files []devices.Di
 		return
 	}
 	if ec := sb[5]; ec != 0 {
-		files, err = nil, fmt.Errorf("ls: failed to list for path %#v: %w", path, fxpakproError(ec))
-		err = d.NonFatalError(err)
+		// The firmware moves to HANDLE_DAT for LS whether or not f_opendir
+		// succeeded, and its data handler still emits one block holding the 0xFF
+		// terminator on the error path (usbinterface.c, USBINT_SERVER_OPCODE_LS
+		// in both usbint_handler_cmd and usbint_handler_dat). Returning without
+		// consuming that block leaves it in the pipe, so the next command reads
+		// it as its response header and every command after this one is out of
+		// step. Because this error is non-fatal, SNI would otherwise keep using
+		// the desynced connection rather than reconnecting -- listing a
+		// directory that does not exist is routine, so this is easy to hit.
+		listErr := fmt.Errorf("ls: failed to list for path %#v: %w", path, fxpakproError(ec))
+		if derr := drainListingTerminator(ctx, d); derr != nil {
+			// the stream is now of unknown alignment; force a reconnect:
+			files, err = nil, d.FatalError(
+				fmt.Errorf("%w (draining the terminating block failed: %v)", listErr, derr))
+			return
+		}
+		files, err = nil, d.NonFatalError(listErr)
 		return
 	}
 
@@ -125,4 +140,29 @@ recvLoop:
 	//}
 
 	return
+}
+
+// drainListingTerminator consumes the data block the firmware sends after a
+// failed LS, so the stream stays aligned for the next command. The error path
+// emits a single block starting with the 0xFF terminator, but scan the whole
+// block and allow a few of them rather than assuming, so an unexpected shape
+// still leaves the stream aligned rather than silently off by one.
+func drainListingTerminator(ctx context.Context, d *Device) (err error) {
+	const maxBlocks = 4
+
+	sb := make([]byte, 512)
+	for block := 0; block < maxBlocks; block++ {
+		iterCtx, iterCancel := context.WithTimeout(ctx, safeTimeout)
+		err = recvSerial(iterCtx, d.f, sb, 512)
+		iterCancel()
+		if err != nil {
+			return fmt.Errorf("ls: reading terminating block %d: %w", block, err)
+		}
+		for i := 0; i < 512; i++ {
+			if sb[i] == 0xFF {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("ls: no terminator in %d blocks after a failed listing", maxBlocks)
 }
