@@ -2,12 +2,38 @@ package fxpakpro
 
 import (
 	"context"
+	"fmt"
+	"net/url"
+	"os"
+	"strings"
+
+	"sni/cmd/sni/config"
 	"sni/devices"
 	"sni/protos/sni"
 	"testing"
 )
 
 func init() {
+	// The daemon binds SNI_* environment variables to config keys during
+	// config.Load(), which test binaries never call. Wire up just the fxpakpro
+	// timeout knobs here so hardware tests can be run against different
+	// settings without dragging in the rest of the config bootstrap and its
+	// filesystem side effects.
+	for _, key := range []string{
+		// "debug" enables the driver's per-chunk hex dumps, which is what
+		// SNI_DEBUG=1 does in the daemon. Wired up here so its timing cost can
+		// be measured against the chunk-delay knob.
+		"debug",
+		"fxpakpro_read_timeout",
+		"fxpakpro_write_timeout",
+		"fxpakpro_honor_caller_deadline",
+		"fxpakpro_chunk_delay",
+	} {
+		if v := os.Getenv("SNI_" + strings.ToUpper(key)); v != "" {
+			config.Config.Set(key, v)
+		}
+	}
+
 	DriverInit()
 }
 
@@ -154,4 +180,16 @@ func BenchmarkMemory(b *testing.B) {
 			}
 		}
 	})
+}
+
+// firstDeviceURI returns the URI of the first detected fxpakpro device.
+func firstDeviceURI() (*url.URL, error) {
+	devs, err := driver.Detect()
+	if err != nil {
+		return nil, err
+	}
+	if len(devs) == 0 {
+		return nil, fmt.Errorf("no fxpakpro devices found")
+	}
+	return &devs[0].Uri, nil
 }

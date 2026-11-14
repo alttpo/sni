@@ -72,12 +72,11 @@ func (d *Device) MultiReadMemory(
 		}
 	}
 
-	subctx := ctx
-	if shouldLock(ctx) {
-		d.lock.Lock()
-		defer d.lock.Unlock()
-		subctx = context.WithValue(ctx, lockedKey, &struct{}{})
+	subctx, unlock, err := d.lockOp(ctx, "read memory")
+	if err != nil {
+		return nil, err
 	}
+	defer unlock()
 
 	// Break up larger reads (> 255 bytes) into 255-byte chunks:
 	for j, request := range reads {
@@ -173,13 +172,12 @@ func (d *Device) MultiWriteMemory(
 		}
 	}
 
-	subctx := ctx
-	if shouldLock(ctx) {
-		// lock the device for this entire sequence to avoid interruptions:
-		d.lock.Lock()
-		defer d.lock.Unlock()
-		subctx = context.WithValue(ctx, lockedKey, &struct{}{})
+	// lock the device for this entire sequence to avoid interruptions:
+	subctx, unlock, err := d.lockOp(ctx, "write memory")
+	if err != nil {
+		return nil, err
 	}
+	defer unlock()
 
 	// pick out WRAM writes:
 	wramWrites := make([]devices.MemoryWriteRequest, 0, len(writes))

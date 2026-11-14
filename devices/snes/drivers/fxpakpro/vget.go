@@ -40,39 +40,50 @@ func (d *Device) vget(ctx context.Context, space space, chunks ...vgetChunk) (er
 		total += uint32(chunk.size)
 	}
 
-	if shouldLock(ctx) {
-		d.lock.Lock()
-		defer d.lock.Unlock()
-	}
-
-	if trace.IsEnabled() {
-		trace.Log(ctx, "req", hex.Dump(sb))
-	}
-
-	err = sendSerial(ctx, d.f, sb)
+	ctx, unlock, err := d.lockOp(ctx, "vget")
 	if err != nil {
-		err = d.FatalError(err)
 		return
 	}
+	defer unlock()
 
-	// calculate expected number of packets:
-	packets := total / 64
-	remainder := total & 63
-	if remainder > 0 {
-		packets++
-	}
+	// rsp is private to the transaction; the caller's chunk targets are only
+	// filled in below, once it has completed, so a drain after the caller has
+	// given up never writes into memory they have moved on from.
+	rsp, err := transact(d, ctx, "vget", func(ctx context.Context, _ *txn) (rsp []byte, err error) {
+		if trace.IsEnabled() {
+			trace.Log(ctx, "req", hex.Dump(sb))
+		}
 
-	// read the expected number of 64-byte packets:
-	expected := packets * 64
-	rsp := make([]byte, expected)
-	err = recvSerial(ctx, d.f, rsp, expected)
-	if err != nil {
-		err = d.FatalError(err)
+		err = sendSerial(ctx, d.f, sb)
+		if err != nil {
+			err = d.FatalError(err)
+			return
+		}
+
+		// calculate expected number of packets:
+		packets := total / 64
+		remainder := total & 63
+		if remainder > 0 {
+			packets++
+		}
+
+		// read the expected number of 64-byte packets:
+		expected := packets * 64
+		rsp = make([]byte, expected)
+		err = recvSerial(ctx, d.f, rsp, expected)
+		if err != nil {
+			rsp = nil
+			err = d.FatalError(err)
+			return
+		}
+
+		if trace.IsEnabled() {
+			trace.Log(ctx, "rsp", hex.Dump(rsp))
+		}
 		return
-	}
-
-	if trace.IsEnabled() {
-		trace.Log(ctx, "rsp", hex.Dump(rsp))
+	})
+	if err != nil {
+		return
 	}
 
 	// shrink down to exact size:

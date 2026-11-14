@@ -37,20 +37,33 @@ func (d *Device) FetchFields(ctx context.Context, fields ...sni.Field) (values [
 	return
 }
 
+type infoResult struct {
+	version, device, rom string
+}
+
 func (d *Device) info(ctx context.Context) (version, device, rom string, err error) {
+	ctx, unlock, err := d.lockOp(ctx, "info")
+	if err != nil {
+		return
+	}
+	defer unlock()
+
+	var r infoResult
+	r, err = transact(d, ctx, "info", d.infoIO)
+	return r.version, r.device, r.rom, err
+}
+
+// infoIO performs the INFO exchange. It is called from within a transaction,
+// either on its own or as the verification step at the end of putFile.
+func (d *Device) infoIO(ctx context.Context, _ *txn) (r infoResult, err error) {
 	sb := make([]byte, 512)
 	sb[0], sb[1], sb[2], sb[3] = byte('U'), byte('S'), byte('B'), byte('A')
 	sb[4] = byte(OpINFO)
 	sb[5] = byte(SpaceFILE)
 	sb[6] = byte(FlagNONE)
 
-	if shouldLock(ctx) {
-		d.lock.Lock()
-		defer d.lock.Unlock()
-	}
-
 	// send command:
-	err = sendSerialChunked(d.f, 512, sb)
+	err = sendSerialChunked(ctx, d.f, 512, sb)
 	if err != nil {
 		err = d.FatalError(err)
 		return
@@ -79,13 +92,13 @@ func (d *Device) info(ctx context.Context) (version, device, rom string, err err
 	}
 
 	romB := sb[16:252]
-	rom = string(romB[:clen(romB)])
+	r.rom = string(romB[:clen(romB)])
 
 	versionB := sb[260 : 260+64]
-	version = string(versionB[:clen(versionB)])
+	r.version = string(versionB[:clen(versionB)])
 
 	deviceB := sb[260+64 : 260+64+64]
-	device = string(deviceB[:clen(deviceB)])
+	r.device = string(deviceB[:clen(deviceB)])
 
 	return
 }

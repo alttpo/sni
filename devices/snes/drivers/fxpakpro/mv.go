@@ -19,39 +19,43 @@ func (d *Device) mv(ctx context.Context, path, newFilename string) (err error) {
 	// copy in the new filename to position 8:
 	copy(sb[8:256], newFilename)
 
-	if shouldLock(ctx) {
-		d.lock.Lock()
-		defer d.lock.Unlock()
-	}
-
-	// send command:
-	err = sendSerialChunked(d.f, 512, sb)
+	ctx, unlock, err := d.lockOp(ctx, "mv")
 	if err != nil {
-		err = d.FatalError(err)
 		return
 	}
+	defer unlock()
 
-	// read response:
-	err = recvSerial(ctx, d.f, sb, 512)
-	if err != nil {
-		err = d.FatalError(err)
-		return
-	}
-	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
-		err = fmt.Errorf("mv: fxpakpro response packet does not contain USBA header")
-		err = d.FatalError(err)
-		return
-	}
-	if sb[4] != byte(OpRESPONSE) {
-		err = fmt.Errorf("mv: wrong opcode in response packet; got $%02x", sb[4])
-		err = d.FatalError(err)
-		return
-	}
-	if ec := sb[5]; ec != 0 {
-		err = fmt.Errorf("mv: %w", fxpakproError(ec))
-		err = d.NonFatalError(err)
-		return
-	}
+	_, err = transact(d, ctx, "mv", func(ctx context.Context, _ *txn) (_ struct{}, err error) {
+		// send command:
+		err = sendSerialChunked(ctx, d.f, 512, sb)
+		if err != nil {
+			err = d.FatalError(err)
+			return
+		}
 
+		// read response:
+		err = recvSerial(ctx, d.f, sb, 512)
+		if err != nil {
+			err = d.FatalError(err)
+			return
+		}
+		if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
+			err = fmt.Errorf("mv: fxpakpro response packet does not contain USBA header")
+			err = d.FatalError(err)
+			return
+		}
+		if sb[4] != byte(OpRESPONSE) {
+			err = fmt.Errorf("mv: wrong opcode in response packet; got $%02x", sb[4])
+			err = d.FatalError(err)
+			return
+		}
+		if ec := sb[5]; ec != 0 {
+			err = fmt.Errorf("mv: %w", fxpakproError(ec))
+			err = d.NonFatalError(err)
+			return
+		}
+
+		return
+	})
 	return
 }
