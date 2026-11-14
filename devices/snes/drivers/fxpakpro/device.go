@@ -7,7 +7,6 @@ import (
 	"go.bug.st/serial"
 	"log"
 	"sni/devices"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -62,8 +61,21 @@ func (p *devicePort) abandon() {
 }
 
 type Device struct {
-	lock sync.Mutex
-	f    *devicePort
+	// lock serializes client operations. A composite operation (such as a
+	// WRAM write through USB EXE) holds it across several transactions so
+	// nothing else is interleaved between them. See lockOp.
+	lock ctxMutex
+
+	// port is held by a transaction for as long as it is talking to the
+	// device, including any drain after its caller gave up. It is what makes
+	// the next request wait for the protocol to be back in step. See transact.
+	port ctxMutex
+
+	// drainErr records a fatal failure while draining an abandoned
+	// transaction. Guarded by port.
+	drainErr error
+
+	f *devicePort
 }
 
 func (d *Device) FatalError(cause error) devices.DeviceError {

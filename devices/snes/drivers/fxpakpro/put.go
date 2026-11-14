@@ -1,6 +1,7 @@
 package fxpakpro
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -20,61 +21,69 @@ func (d *Device) put(ctx context.Context, space space, address uint32, data []by
 	// put the address in:
 	binary.BigEndian.PutUint32(sb[256:], address)
 
-	if shouldLock(ctx) {
-		d.lock.Lock()
-		defer d.lock.Unlock()
-	}
+	// The payload may still be in flight after the caller has given up and
+	// moved on, so take a private copy rather than reading theirs:
+	data = bytes.Clone(data)
 
-	// send the data to the USB port:
-	err = sendSerialChunked(ctx, d.f, 512, sb)
+	ctx, unlock, err := d.lockOp(ctx, "put")
 	if err != nil {
-		err = d.FatalError(err)
 		return
 	}
+	defer unlock()
 
-	dest := sb[0:]
-	for len(data) > 0 {
-		var n int
-		for i := range dest {
-			dest[i] = 0
-		}
-		n = copy(dest, data)
-		data = data[n:]
-
+	_, err = transact(d, ctx, "put", func(ctx context.Context, _ *txn) (_ struct{}, err error) {
+		// send the data to the USB port:
 		err = sendSerialChunked(ctx, d.f, 512, sb)
 		if err != nil {
 			err = d.FatalError(err)
 			return
 		}
-	}
 
-	// await single response:
-	err = recvSerial(ctx, d.f, sb, 512)
-	if err != nil {
-		err = d.FatalError(err)
-		return
-	}
-	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
-		err = fmt.Errorf("put: fxpakpro response packet does not contain USBA header")
-		err = d.FatalError(err)
-		return
-	}
-	if sb[4] != byte(OpRESPONSE) {
-		err = fmt.Errorf("put: wrong opcode in response packet; got $%02x", sb[4])
-		err = d.FatalError(err)
-		return
-	}
-	if ec := sb[5]; ec != 0 {
-		// As in putFile: usbint_recv_block sets cmdDat=1 as soon as it sees a PUT
-		// opcode, so the device is parked in HANDLE_LOCK waiting for the payload
-		// even though the command failed. We are not sending it, and whatever is
-		// written next would be consumed as data. Report this as fatal so the
-		// connection is torn down while the firmware can still recover from it --
-		// usbint_check_connect() resets server_state and cmdDat on disconnect.
-		err = fmt.Errorf("put: %w", fxpakproError(ec))
-		err = d.FatalError(err)
-		return
-	}
+		dest := sb[0:]
+		for len(data) > 0 {
+			var n int
+			for i := range dest {
+				dest[i] = 0
+			}
+			n = copy(dest, data)
+			data = data[n:]
 
+			err = sendSerialChunked(ctx, d.f, 512, sb)
+			if err != nil {
+				err = d.FatalError(err)
+				return
+			}
+		}
+
+		// await single response:
+		err = recvSerial(ctx, d.f, sb, 512)
+		if err != nil {
+			err = d.FatalError(err)
+			return
+		}
+		if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
+			err = fmt.Errorf("put: fxpakpro response packet does not contain USBA header")
+			err = d.FatalError(err)
+			return
+		}
+		if sb[4] != byte(OpRESPONSE) {
+			err = fmt.Errorf("put: wrong opcode in response packet; got $%02x", sb[4])
+			err = d.FatalError(err)
+			return
+		}
+		if ec := sb[5]; ec != 0 {
+			// As in putFile: usbint_recv_block sets cmdDat=1 as soon as it sees a PUT
+			// opcode, so the device is parked in HANDLE_LOCK waiting for the payload
+			// even though the command failed. We are not sending it, and whatever is
+			// written next would be consumed as data. Report this as fatal so the
+			// connection is torn down while the firmware can still recover from it --
+			// usbint_check_connect() resets server_state and cmdDat on disconnect.
+			err = fmt.Errorf("put: %w", fxpakproError(ec))
+			err = d.FatalError(err)
+			return
+		}
+
+		return
+	})
 	return
 }

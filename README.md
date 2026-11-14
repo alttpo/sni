@@ -65,6 +65,10 @@ The following environment variables are defined:
 | SNI_USB2SNES_DISABLE      | 0                                    | usb2snes: set to 1 to disable usb2snes server                                                                                                             |
 | SNI_USB2SNES_LISTEN_ADDRS | 0.0.0.0:23074                        | usb2snes: comma-delimited list of host:ports to listen on                                                                                                 |
 | SNI_FXPAKPRO_DISABLE      | 0                                    | fxpakpro: set to 1 to disable FX Pak Pro driver                                                                                                           |
+| SNI_FXPAKPRO_READ_TIMEOUT | 15s                                  | fxpakpro: how long the device may send no data before a request fails                                                                                     |
+| SNI_FXPAKPRO_WRITE_TIMEOUT | 15s                                 | fxpakpro: how long the device may accept no data before a request fails                                                                                   |
+| SNI_FXPAKPRO_HONOR_CALLER_DEADLINE | 1                           | fxpakpro: set to 0 to make clients wait for device commands to finish even past their gRPC deadline; see [gRPC Deadlines and Cancellation](#grpc-deadlines-and-cancellation) |
+| SNI_FXPAKPRO_CHUNK_DELAY  | 0s                                   | fxpakpro: optional pause after each 512-byte chunk written during a transfer (diagnostic)                                                                 |
 | SNI_RETROARCH_DISABLE     | 0                                    | retroarch: set to 1 to disable Retroarch driver                                                                                                           |
 | SNI_RETROARCH_HOSTS       | localhost:55355                      | retroarch: list of comma-delimited host:port pairs to detect retroarch instances on; configure these with `network_cmd_port` setting in `retroarch.cfg`   |
 | SNI_RETROARCH_DETECT_LOG  | 0                                    | retroarch: set to 1 to enable logging of RA emulator detection                                                                                            |
@@ -587,6 +591,82 @@ On devices that support it, this method allows the application to simply
 toggle the paused/running state of emulation. There is no feedback whether
 the command was successful nor what the resulting state of paused/running is
 after the toggle. This is generally not supported on real hardware.
+
+## gRPC Deadlines and Cancellation
+
+SNI honors gRPC deadlines and cancellation. For the FX Pak Pro, a
+deadline ends the client's wait but the device firmware still expects a completed
+request/response cycle and any in-progress data transfer to run to completion.
+
+The FX Pak Pro talks over USB in strict request/response order and there is
+no way to cancel a command that has been started. If a command stops partway, the
+next command would see data meant for the first one. Closing and reopening the USB
+connection does not reliably reset the firmware. Once SNI has started a
+command on the device it must always finish it:
+
+* **You get your error at your deadline.** When your deadline passes or you
+  cancel, SNI returns `DEADLINE_EXCEEDED` (or `CANCELLED`) right away.
+* **The command finishes in the background.** SNI reads and discards any data
+  the device still sends.
+* **Later requests wait their turn.** Requests to the same device queue until
+  the abandoned command has finished. A queued request whose own deadline
+  passes while it waits fails with `DEADLINE_EXCEEDED` and sends nothing to
+  the device.
+* **An expired request sends nothing.** If your deadline has already passed
+  when the request reaches the device, nothing is sent.
+* **A failed background finish forces a reconnect.** If the device stops
+  responding while finishing an abandoned command, the next request fails and
+  SNI reconnects to the device.
+
+### What a deadline error means for writes
+
+A `DEADLINE_EXCEEDED` error does **not** mean the operation had no effect:
+
+* **Memory writes** (`SingleWrite`, `MultiWrite`) that were already in flight
+  are still completed. A `MultiWrite` is sent to the device in batches. The
+  batch in progress completes and later batches are not sent so the whole write
+  may not have been applied in full.
+* **File uploads** (`PutFile`) must still send the whole declared size to the
+  device. After your deadline passes, SNI can no longer read from your request
+  data, so it **fills the rest of the file with zero bytes**. The file on the
+  SD card ends up the right size but has zeros from that point on.
+* **File downloads** (`GetFile`) are read to the end and discarded.
+
+### Avoiding unwanted deadline errors
+
+File transfers can take a long time. While a file allocation runs on a large,
+nearly full SD card, the FX Pak Pro can stop responding for several seconds.
+To avoid unwanted deadline errors:
+
+* **Use a generous deadline on file transfers or none at all.** SNI has its
+  own timeouts that detect a stuck device. If the device sends no data for
+  `SNI_FXPAKPRO_READ_TIMEOUT`, or accepts none for
+  `SNI_FXPAKPRO_WRITE_TIMEOUT` (15 seconds by default), the request fails.
+  These timeouts start over whenever data moves, so a slow transfer that is
+  still making progress is not cut off. You do not need a client deadline to
+  protect against a hung device.
+* **If you use a deadline, base it on the file size.** Time a transfer of a
+  similar size on your own setup and allow plenty of margin on top, rather
+  than using a fixed short timeout.
+* **Set deadlines per call, not as a default for the whole channel.** A short
+  deadline that suits frequent memory reads is far too short for a ROM upload.
+  Some gRPC client libraries and frameworks apply a default deadline to every
+  call, so check yours.
+* **Expect polling to stall during transfers.** Requests to a device run one
+  at a time. A memory read sent during an upload, or just after an abandoned
+  one, waits until the transfer finishes. If your app polls memory with short
+  deadlines, pause the polling during file transfers, or treat
+  `DEADLINE_EXCEEDED` as "try again later" rather than as a lost connection.
+* **Be aware of the periodic SRAM sync to the SD card.** When SRAM is used by
+  a ROM, the firmware periodically synchronizes the SRAM contents to the SD
+  card at a cadence of 250 ms. This operation takes precedence over USB
+  protocol handling and may take a few dozen milliseconds to complete. This 
+  means any short deadlines you set for reads or writes will fail while this
+  synchronization happens.
+
+To make SNI wait for each command to finish, even past your deadline, set
+`SNI_FXPAKPRO_HONOR_CALLER_DEADLINE=0`. The setting only changes whether you
+get your error at the deadline or when the device is done.
 
 ## Device Behavior
 

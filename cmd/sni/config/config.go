@@ -57,11 +57,12 @@ var (
 		// spurious timeouts on such a card.
 		"fxpakpro_read_timeout":  "15s",
 		"fxpakpro_write_timeout": "15s",
-		// Whether a caller's context deadline or cancellation aborts I/O already
-		// in flight to the device. With this off, a request that has already
-		// started talking to the fxpakpro runs to completion (bounded by the two
-		// timeouts above) rather than being cut short mid-transfer by an
-		// impatient client.
+		// Whether a client's deadline or cancellation ends its wait for the
+		// fxpakpro. Device I/O is never cut short either way: a command that has
+		// started always finishes its protocol exchange, in the background if the
+		// client has gone, and later requests wait for that. With this on, the
+		// client gets its error as soon as its deadline passes; with it off, it
+		// waits for the command to complete (bounded by the two timeouts above).
 		"fxpakpro_honor_caller_deadline": true,
 		// Optional pause after each 512-byte chunk written during a transfer.
 		// Zero, the default, writes as fast as the device accepts data. This

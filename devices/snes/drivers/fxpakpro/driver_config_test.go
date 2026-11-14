@@ -48,31 +48,3 @@ func Test_loadTimeoutConfig(t *testing.T) {
 		t.Errorf("writeTimeout = %v after a negative setting; want the previous value kept", writeTimeout)
 	}
 }
-
-// Test_honorCallerDeadline_off checks that with the policy disabled, a caller's
-// expired deadline no longer aborts a write; only the driver's own budget does.
-func Test_honorCallerDeadline_off(t *testing.T) {
-	oldHonor, oldWrite := honorCallerDeadline, writeTimeout
-	honorCallerDeadline = false
-	writeTimeout = 150 * time.Millisecond
-	defer func() { honorCallerDeadline, writeTimeout = oldHonor, oldWrite }()
-
-	p := &blockingPort{release: make(chan struct{}), started: make(chan struct{})}
-	defer close(p.release)
-
-	// already-expired context: with the policy on this returns immediately.
-	ctx, cancel := contextExpired()
-	defer cancel()
-
-	start := time.Now()
-	_, err := writeExact(ctx, p, 512, make([]byte, 512))
-	elapsed := time.Since(start)
-
-	if err == nil {
-		t.Fatalf("writeExact() returned nil error; want the write-timeout error")
-	}
-	if elapsed < 100*time.Millisecond {
-		t.Errorf("writeExact() returned after %v; with the caller deadline ignored "+
-			"it should have waited for the %v budget", elapsed, writeTimeout)
-	}
-}

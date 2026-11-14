@@ -31,11 +31,12 @@ var (
 	writeTimeout = time.Second * 15
 
 	// honorCallerDeadline controls whether a caller's context deadline or
-	// cancellation aborts I/O already in flight to the device. When false, only
-	// the two timeouts above bound device I/O, so a transfer that has already
-	// started is not cut short by an impatient client. The device has no way to
-	// be told that a command was abandoned, so stopping midway through one
-	// leaves the protocol out of step until the stream is drained.
+	// cancellation ends the caller's wait. It never cuts device I/O short: a
+	// command that has started always runs to the end of its protocol exchange,
+	// draining in the background if the caller has gone (see transact.go).
+	// When true, the caller gets its error as soon as its deadline passes.
+	// When false, the caller waits for the command to complete regardless,
+	// bounded only by the two timeouts above.
 	honorCallerDeadline = true
 
 	// chunkDelay optionally pauses after each chunk written during a transfer.
@@ -84,13 +85,14 @@ func readExact(ctx context.Context, f serial.Port, chunkSize uint32, buf []byte)
 	ctx, task := trace.NewTask(ctx, "readExact")
 	defer task.End()
 
+	// ctx is a transaction's I/O context (see transact), so any deadline on it
+	// is one the driver set for itself -- such as the per-block bound when
+	// reading an LS listing -- never the caller's.
 	haveHardDeadline := false
 	var deadline time.Time
-	if honorCallerDeadline {
-		if deadline, ok = ctx.Deadline(); ok {
-			trace.Logf(ctx, "deadline", "deadline=%v", deadline)
-			haveHardDeadline = true
-		}
+	if deadline, ok = ctx.Deadline(); ok {
+		trace.Logf(ctx, "deadline", "deadline=%v", deadline)
+		haveHardDeadline = true
 	}
 
 	// Budget for how long the device may stay completely silent before we give
@@ -192,13 +194,13 @@ func blockingWrite(w io.Writer, buf []byte) (p uint32, err error) {
 // WriteTotalTimeoutConstant and WriteTotalTimeoutMultiplier to 0, which Win32
 // COMMTIMEOUTS defines as "wait forever". So when the fxpakpro stops draining
 // its USB OUT endpoint and NAKs indefinitely, a plain Write() never returns.
-// Left unbounded that hangs the calling goroutine while it holds d.lock, which
+// Left unbounded that hangs the calling goroutine while it holds d.port, which
 // blocks every other request for that device -- SNI appears to freeze rather
 // than reporting a failed transfer.
 //
 // When we give up, the goroutine is still inside Write() and may yet put bytes
 // on the wire. It must never be left running alongside a later command: the
-// caller releases d.lock on the way out, so the next command would write
+// caller releases d.port on the way out, so the next command would write
 // concurrently with the orphan and interleave with it, corrupting the protocol.
 // (Observed in practice: after an abandoned write the following command read
 // the abandoned one's USBA response.)
@@ -220,17 +222,12 @@ func writeWithTimeout(ctx context.Context, w io.Writer, buf []byte) (p uint32, e
 		done <- writeResult{wp, werr}
 	}()
 
-	// Wait on the caller's context and our own budget separately, rather than
-	// clamping one to the other, so the error names the actual cause: a
-	// cancelled request and an unresponsive device are different problems.
-	//
-	// When the caller's deadline is not honored, cancelled stays nil, and a
-	// receive on a nil channel blocks forever -- which disables that arm of the
-	// select without needing a second copy of it.
-	var cancelled <-chan struct{}
-	if honorCallerDeadline {
-		cancelled = ctx.Done()
-	}
+	// Wait on the context and our own budget separately, rather than clamping
+	// one to the other, so the error names the actual cause. ctx is a
+	// transaction's I/O context (see transact), which carries no caller
+	// cancellation, so this only fires for a bound the driver set itself; a
+	// caller giving up never interrupts a write.
+	cancelled := ctx.Done()
 
 	timer := time.NewTimer(writeTimeout)
 	defer timer.Stop()

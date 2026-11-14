@@ -45,21 +45,6 @@ func (d *Device) vput(ctx context.Context, space space, chunks ...vputChunk) (er
 		total += int(args[0])
 	}
 
-	if shouldLock(ctx) {
-		d.lock.Lock()
-		defer d.lock.Unlock()
-	}
-
-	if trace.IsEnabled() {
-		trace.Log(ctx, "req", hex.Dump(sb))
-	}
-
-	err = sendSerial(ctx, d.f, sb)
-	if err != nil {
-		err = d.FatalError(err)
-		return
-	}
-
 	// calculate expected number of packets:
 	packets := total / 64
 	remainder := total & 63
@@ -76,16 +61,36 @@ func (d *Device) vput(ctx context.Context, space space, chunks ...vputChunk) (er
 		o += len(chunk.data)
 	}
 
-	if trace.IsEnabled() {
-		trace.Log(ctx, "req", hex.Dump(whole))
-	}
-
-	// send the expected number of 64-byte packets:
-	err = sendSerial(ctx, d.f, whole)
+	ctx, unlock, err := d.lockOp(ctx, "vput")
 	if err != nil {
-		err = d.FatalError(err)
 		return
 	}
+	defer unlock()
 
+	// sb and whole are private copies, so the transaction can finish sending
+	// them after the caller has given up without touching the caller's chunks.
+	_, err = transact(d, ctx, "vput", func(ctx context.Context, _ *txn) (_ struct{}, err error) {
+		if trace.IsEnabled() {
+			trace.Log(ctx, "req", hex.Dump(sb))
+		}
+
+		err = sendSerial(ctx, d.f, sb)
+		if err != nil {
+			err = d.FatalError(err)
+			return
+		}
+
+		if trace.IsEnabled() {
+			trace.Log(ctx, "req", hex.Dump(whole))
+		}
+
+		// send the expected number of 64-byte packets:
+		err = sendSerial(ctx, d.f, whole)
+		if err != nil {
+			err = d.FatalError(err)
+			return
+		}
+		return
+	})
 	return
 }

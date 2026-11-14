@@ -19,77 +19,81 @@ func (d *Device) get(ctx context.Context, space space, address uint32, size uint
 	// put the address in:
 	binary.BigEndian.PutUint32(sb[256:], address)
 
-	if shouldLock(ctx) {
-		d.lock.Lock()
-		defer d.lock.Unlock()
-	}
-
-	// send the data to the USB port:
-	err = sendSerialChunked(ctx, d.f, 512, sb)
+	ctx, unlock, err := d.lockOp(ctx, "get")
 	if err != nil {
-		err = d.FatalError(err)
 		return
 	}
+	defer unlock()
 
-	dest := sb[0:]
-	for len(data) > 0 {
-		var n int
-		for i := range dest {
-			dest[i] = 0
-		}
-		n = copy(dest, data)
-		data = data[n:]
-
+	data, err = transact(d, ctx, "get", func(ctx context.Context, _ *txn) (data []byte, err error) {
+		// send the data to the USB port:
 		err = sendSerialChunked(ctx, d.f, 512, sb)
 		if err != nil {
 			err = d.FatalError(err)
 			return
 		}
-	}
 
-	// await single response:
-	err = recvSerial(ctx, d.f, sb, 512)
-	if err != nil {
-		err = d.FatalError(err)
-		return
-	}
-	if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
-		err = fmt.Errorf("get: fxpakpro response packet does not contain USBA header")
-		err = d.FatalError(err)
-		return
-	}
-	if sb[4] != byte(OpRESPONSE) {
-		err = fmt.Errorf("get: wrong opcode in response packet; got $%02x", sb[4])
-		err = d.FatalError(err)
-		return
-	}
-	if ec := sb[5]; ec != 0 {
-		// usbint_handler_cmd moves to HANDLE_DAT for GET before it knows whether
-		// the command succeeded, so the device is about to send a data phase we
-		// are not going to read. Unlike LS there is no reliable way to drain it:
-		// the length comes from server_info.size, which on the error path holds
-		// whatever a previous command left behind. Report this as fatal so the
-		// device is closed and reopened rather than leaving the stream out of
-		// step for every command that follows.
-		err = fmt.Errorf("get: %w", fxpakproError(ec))
-		err = d.FatalError(err)
-		return
-	}
+		dest := sb[0:]
+		for len(data) > 0 {
+			var n int
+			for i := range dest {
+				dest[i] = 0
+			}
+			n = copy(dest, data)
+			data = data[n:]
 
-	// read the response:
-	paddedSize := size
-	if size&511 != 0 {
-		paddedSize = size&512 + 512
-	}
+			err = sendSerialChunked(ctx, d.f, 512, sb)
+			if err != nil {
+				err = d.FatalError(err)
+				return
+			}
+		}
 
-	data = make([]byte, paddedSize)
-	err = recvSerial(ctx, d.f, data, paddedSize)
-	if err != nil {
-		err = d.FatalError(err)
+		// await single response:
+		err = recvSerial(ctx, d.f, sb, 512)
+		if err != nil {
+			err = d.FatalError(err)
+			return
+		}
+		if sb[0] != 'U' || sb[1] != 'S' || sb[2] != 'B' || sb[3] != 'A' {
+			err = fmt.Errorf("get: fxpakpro response packet does not contain USBA header")
+			err = d.FatalError(err)
+			return
+		}
+		if sb[4] != byte(OpRESPONSE) {
+			err = fmt.Errorf("get: wrong opcode in response packet; got $%02x", sb[4])
+			err = d.FatalError(err)
+			return
+		}
+		if ec := sb[5]; ec != 0 {
+			// usbint_handler_cmd moves to HANDLE_DAT for GET before it knows whether
+			// the command succeeded, so the device is about to send a data phase we
+			// are not going to read. Unlike LS there is no reliable way to drain it:
+			// the length comes from server_info.size, which on the error path holds
+			// whatever a previous command left behind. Report this as fatal so the
+			// device is closed and reopened rather than leaving the stream out of
+			// step for every command that follows.
+			err = fmt.Errorf("get: %w", fxpakproError(ec))
+			err = d.FatalError(err)
+			return
+		}
+
+		// read the response:
+		paddedSize := size
+		if size&511 != 0 {
+			paddedSize = size&512 + 512
+		}
+
+		data = make([]byte, paddedSize)
+		err = recvSerial(ctx, d.f, data, paddedSize)
+		if err != nil {
+			err = d.FatalError(err)
+			return
+		}
+
+		data = data[0:size]
+
 		return
-	}
-
-	data = data[0:size]
-
+	})
 	return
 }

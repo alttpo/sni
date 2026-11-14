@@ -115,7 +115,7 @@ func (p *blockingPort) Write(b []byte) (int, error) {
 // never accepts data returns instead of hanging forever. go.bug.st/serial sets
 // WriteTotalTimeoutConstant to 0 on Windows, which Win32 treats as "wait
 // forever", and the Port interface offers no SetWriteTimeout, so the bound has
-// to come from us. Without it the caller hangs while holding d.lock, blocking
+// to come from us. Without it the caller hangs while holding d.port, blocking
 // every other request for that device.
 func Test_writeWithTimeout_deviceNotDraining(t *testing.T) {
 	old := writeTimeout
@@ -147,8 +147,10 @@ func Test_writeWithTimeout_deviceNotDraining(t *testing.T) {
 	}
 }
 
-// Test_writeWithTimeout_contextCancelled checks that a caller's context bounds
-// the write too, so a cancelled request does not sit on the device lock.
+// Test_writeWithTimeout_contextCancelled checks that a deadline on the I/O
+// context bounds the write too. Callers' own deadlines never reach this level
+// (transact strips them), but the driver sets internal ones on some reads and
+// writes, and they must still be enforced.
 func Test_writeWithTimeout_contextCancelled(t *testing.T) {
 	old := writeTimeout
 	writeTimeout = time.Minute // ensure the context is what ends the wait
