@@ -2,11 +2,11 @@ package grpcimpl
 
 import (
 	"context"
+	"github.com/alttpo/snes-devices/devices"
+	"github.com/alttpo/snes-devices/protos/sni"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"net/url"
-	"sni/devices"
-	"sni/protos/sni"
 )
 
 type DeviceControlService struct {

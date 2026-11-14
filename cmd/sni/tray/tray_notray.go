@@ -4,7 +4,7 @@ package tray
 
 import (
 	"fmt"
-	"sni/devices"
+	"github.com/alttpo/snes-devices/devices"
 )
 
 func Init() (err error) {

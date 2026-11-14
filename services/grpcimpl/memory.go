@@ -3,13 +3,13 @@ package grpcimpl
 import (
 	"context"
 	"fmt"
+	"github.com/alttpo/snes-devices/devices"
+	"github.com/alttpo/snes-devices/mapping"
+	"github.com/alttpo/snes-devices/protos/sni"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"io"
 	"net/url"
-	"sni/devices"
-	"sni/devices/snes/mapping"
-	"sni/protos/sni"
 	"strings"
 )
 

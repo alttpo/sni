@@ -3,11 +3,11 @@ package grpcimpl
 import (
 	"context"
 	"fmt"
+	"github.com/alttpo/snes-devices/protos/sni"
 	"log"
 	"net"
 	"net/http"
 	"sni/cmd/sni/config"
-	"sni/protos/sni"
 	"sni/util"
 	"strconv"
 	"time"

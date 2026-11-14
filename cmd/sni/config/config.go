@@ -131,6 +131,7 @@ func Load() {
 
 	loadConfig()
 	loadApps()
+	installDevicesConfig()
 }
 
 func Reload() {

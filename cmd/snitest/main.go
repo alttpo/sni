@@ -26,7 +26,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"sni/protos/sni"
+	"github.com/alttpo/snes-devices/protos/sni"
 )
 
 func main() {

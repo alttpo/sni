@@ -3,9 +3,9 @@ package proxy
 import (
 	"bytes"
 	"context"
+	"github.com/alttpo/snes-devices/devices"
+	"github.com/alttpo/snes-devices/protos/sni"
 	"io"
-	"sni/devices"
-	"sni/protos/sni"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -303,8 +303,8 @@ func (d *Device) RenameFile(ctx context.Context, path, newFilename string) error
 	}
 
 	_, err := d.filesystem.RenameFile(ctx, &sni.RenameFileRequest{
-		Uri:      d.remoteURI,
-		Path:     path,
+		Uri:         d.remoteURI,
+		Path:        path,
 		NewFilename: newFilename,
 	})
 	if err != nil {

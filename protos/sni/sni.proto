@@ -1,6 +1,7 @@
 syntax = "proto3";
 
-option go_package = "github.com/alttpo/sni/protos/sni";
+// Go code for this file is generated into github.com/alttpo/snes-devices/protos/sni; see generate.sh.
+option go_package = "github.com/alttpo/snes-devices/protos/sni";
 option csharp_namespace = "SNI";
 option java_package = "com.github.alttpo.sni";
 

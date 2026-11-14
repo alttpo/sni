@@ -4,13 +4,13 @@ package tray
 
 import (
 	"fmt"
+	"github.com/alttpo/snes-devices/devices"
 	"log"
 	"reflect"
 	"runtime"
 	"sni/cmd/sni/appversion"
 	"sni/cmd/sni/config"
 	"sni/cmd/sni/icon"
-	"sni/devices"
 	"sni/util"
 	"strings"
 	"sync"

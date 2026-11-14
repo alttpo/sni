@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/alttpo/snes-devices/devices"
+	"github.com/alttpo/snes-devices/protos/sni"
 	"google.golang.org/grpc/status"
-	"sni/devices"
-	"sni/protos/sni"
 )
 
 func grpcError(err error) error {

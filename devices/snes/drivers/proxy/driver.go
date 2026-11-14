@@ -3,11 +3,11 @@ package proxy
 import (
 	"context"
 	"fmt"
+	"github.com/alttpo/snes-devices/devices"
+	"github.com/alttpo/snes-devices/protos/sni"
 	"log"
 	"net/url"
 	"sni/cmd/sni/config"
-	"sni/devices"
-	"sni/protos/sni"
 	"strings"
 	"sync"
 	"time"
