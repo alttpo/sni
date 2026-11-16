@@ -15,8 +15,8 @@ github.com/alecthomas/units v0.0.0-20190717042225-c3de453c63f4/go.mod h1:ybxpYRF
 github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d/go.mod h1:rBZYJk541a8SKzHPHnH3zbiI+7dagKZ0cgpgrD7Fyho=
 github.com/alttpo/observable v0.0.0-20210711210405-e5b91ea63352 h1:abCFCtEtXiAXhbDS55mo+TYrqEMD0fAhSLxAYDf2d+k=
 github.com/alttpo/observable v0.0.0-20210711210405-e5b91ea63352/go.mod h1:S2lExZ67QD0EYw5ie4PlFLwVDEXZzAtDrUbgRWqArRo=
-github.com/alttpo/snes v0.0.0-20250404054731-644082b79cd3 h1:AyRPfl8q+1lIMpZZRVcf3DYv/3HGs2UA6GfZ1fdsmuA=
-github.com/alttpo/snes v0.0.0-20250404054731-644082b79cd3/go.mod h1:hqcMbI1PDqZfNOwDdcGcsJPS5ca1nRhBIj9wwkMrS1c=
+github.com/alttpo/snes v0.0.0-20261116181553-d91674793906 h1:ZuxNC5PXFkb6OksEbMf+USAMsxCmjTAMa1GwqD8/F+I=
+github.com/alttpo/snes v0.0.0-20261116181553-d91674793906/go.mod h1:hqcMbI1PDqZfNOwDdcGcsJPS5ca1nRhBIj9wwkMrS1c=
 github.com/alttpo/snes-devices v0.0.0-20261114222344-5b57803e09cb h1:uEL6VZv4P/k3zT2U+Y4awtadl/iSFHkTnBlf5dG+6V0=
 github.com/alttpo/snes-devices v0.0.0-20261114222344-5b57803e09cb/go.mod h1:UlqajLVh1h4OdSaFLglSMtfX3mxUSHiuGNh7x3HMhpk=
 github.com/alttpo/systray v1.12.2 h1:2hC0LOOVBV5UGpf4/Q5NymfvBnwBgkZFF8bnGhmaxb8=

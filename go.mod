@@ -19,7 +19,7 @@ require (
 )
 
 require (
-	github.com/alttpo/snes v0.0.0-20250404054731-644082b79cd3 // indirect
+	github.com/alttpo/snes v0.0.0-20261116181553-d91674793906 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/creack/goselect v0.1.2 // indirect
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
